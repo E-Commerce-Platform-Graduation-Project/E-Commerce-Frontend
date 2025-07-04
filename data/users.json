@@ -1,0 +1,169 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "FullName": "أحمد محمد السيد",
+      "UserName": "ahmed.mohamed12",
+      "PhoneNumber": "0912345678",
+      "Password": "admin123",
+      "Role": "admin",
+      "IsActive": false,
+      "LastLogin": "2025-07-02T09:55:35.966Z",
+      "Email": "ahmed.mohamed@example.com"
+    },
+    {
+      "id": "2",
+      "FullName": "فاطمة علي حسن",
+      "UserName": "fatma.ali",
+      "PhoneNumber": "0918261062",
+      "Password": "emp2024",
+      "Role": "employee",
+      "IsActive": true,
+      "LastLogin": "2025-07-01T22:19:07.760Z",
+      "Email": "fatma.ali@example.com"
+    },
+    {
+      "id": "3",
+      "FullName": "محمد حسن أحمد ابراهيم",
+      "UserName": "mohamed.hassan",
+      "PhoneNumber": "0912342345",
+      "Password": "password123",
+      "Role": "employee",
+      "IsActive": true,
+      "LastLogin": "2025-07-03T16:30:03.225Z",
+      "Email": "mohamed.hassan@example.com"
+    },
+    {
+      "id": "4",
+      "FullName": "سارة خالد محمود",
+      "UserName": "sara.khaled",
+      "PhoneNumber": "0941102002",
+      "Password": "sara2024",
+      "Role": "employee",
+      "IsActive": true,
+      "LastLogin": "2025-07-02T10:55:40.409Z",
+      "Email": "sara.khaled@example.com"
+    },
+    {
+      "id": "5",
+      "FullName": "عمر يوسف إبراهيم",
+      "UserName": "omar.youssef",
+      "PhoneNumber": "0925586854",
+      "Password": "omar123",
+      "Role": "admin",
+      "IsActive": true,
+      "LastLogin": "2025-06-28T09:10:00.000Z",
+      "Email": "omar.youssef@example.com"
+    },
+    {
+      "id": "6",
+      "FullName": "نور الدين طارق",
+      "UserName": "nour.eldin",
+      "PhoneNumber": "0925678493",
+      "Password": "nour2024",
+      "Role": "employee",
+      "IsActive": true,
+      "LastLogin": null,
+      "Email": "nour.eldin@example.com"
+    },
+    {
+      "id": "7",
+      "FullName": "محمد عبدالله القمودي موسى",
+      "UserName": "mohammed.musa",
+      "PhoneNumber": "0944459155",
+      "Password": "libya",
+      "Role": "admin",
+      "IsActive": true,
+      "LastLogin": "2025-07-04T17:24:07.267Z",
+      "Email": "212273@cctt.edu.ly"
+    },
+    {
+      "id": "91a9",
+      "FullName": "معاذ يونس العكاري",
+      "UserName": "moad.akkari",
+      "PhoneNumber": "0915346782",
+      "Email": "moad@dsaad.ly",
+      "Password": "1234",
+      "Role": "admin",
+      "IsActive": true,
+      "LastLogin": "2025-07-03T16:38:33.837Z"
+    },
+    {
+      "id": "9bae",
+      "FullName": "محمد احمد",
+      "UserName": "mohammed.ahmed",
+      "PhoneNumber": "0944433426",
+      "Email": "212272@cctt.edu.ly",
+      "Password": "libya",
+      "Role": "employee",
+      "IsActive": true,
+      "LastLogin": null
+    },
+    {
+      "id": "b3c8",
+      "FullName": "اسامة احمد الصخر",
+      "UserName": "osama.sakhr",
+      "PhoneNumber": "0912378651",
+      "Email": "212306@cctt.edu.ly",
+      "Password": "1232",
+      "Role": "admin",
+      "IsActive": true,
+      "LastLogin": "2025-07-02T18:47:27.694Z"
+    },
+    {
+      "id": "73d0",
+      "FullName": "سعيد",
+      "UserName": "said.user",
+      "PhoneNumber": "0945832855",
+      "Email": "slak@daf.ss",
+      "Password": "1111",
+      "Role": "employee",
+      "IsActive": true,
+      "LastLogin": null
+    },
+    {
+      "id": "59bd",
+      "FullName": "لطفي",
+      "UserName": "lotfi.user",
+      "PhoneNumber": "0945832853",
+      "Email": "fwfef@dedwe.fw",
+      "Password": "1232",
+      "Role": "employee",
+      "IsActive": true,
+      "LastLogin": null
+    },
+    {
+      "id": "e324",
+      "FullName": "سعيد",
+      "UserName": "said.user2",
+      "PhoneNumber": "0921231231",
+      "Email": "slak@daf.sde",
+      "Password": "123123",
+      "Role": "employee",
+      "IsActive": true,
+      "LastLogin": null
+    },
+    {
+      "id": "4c09",
+      "FullName": "سعيد2",
+      "UserName": "said2.user",
+      "PhoneNumber": "0921231234",
+      "Email": "fwfef@dedwe.fwf",
+      "Password": "0000",
+      "Role": "employee",
+      "IsActive": true,
+      "LastLogin": null
+    },
+    {
+      "id": "0051",
+      "FullName": "جديد جديد",
+      "UserName": "jadeed",
+      "PhoneNumber": "0949876756",
+      "Email": "dasd@dsadf.da",
+      "Password": "123123",
+      "Role": "employee",
+      "IsActive": true,
+      "LastLogin": null
+    }
+  ]
+}
