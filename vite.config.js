@@ -6,7 +6,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base:'/e-commerce/',
+  base:'/e-commerce-v2/',
   plugins: [
     vue(),
     //vueDevTools(),
