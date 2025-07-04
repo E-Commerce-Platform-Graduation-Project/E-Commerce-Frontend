@@ -1,0 +1,270 @@
+{
+  "categories": [
+    {
+      "id": "1",
+      "Name": "ملابس الشارع",
+      "Description": "ملابس الشارع العصرية والموضة الحديثة للرجال",
+      "ParentCategoryID": null,
+      "CreatedDate": "2025-01-15T10:00:00.000Z"
+    },
+    {
+      "id": "2",
+      "Name": "الأحذية الرياضية",
+      "Description": "أحذية رياضية عصرية وسنيكرز للرجال",
+      "ParentCategoryID": null,
+      "CreatedDate": "2025-01-15T10:15:00.000Z"
+    },
+    {
+      "id": "3",
+      "Name": "الإكسسوارات",
+      "Description": "إكسسوارات الرجال والقطع المكملة للإطلالة",
+      "ParentCategoryID": null,
+      "CreatedDate": "2025-01-15T10:30:00.000Z"
+    },
+    {
+      "id": "4",
+      "Name": "ملابس رياضية",
+      "Description": "الملابس الرياضية والأكتيف وير للرجال",
+      "ParentCategoryID": null,
+      "CreatedDate": "2025-01-15T10:45:00.000Z"
+    },
+    {
+      "id": "5",
+      "Name": "ملابس خارجية",
+      "Description": "الجاكيتات والمعاطف والملابس الخارجية",
+      "ParentCategoryID": null,
+      "CreatedDate": "2025-01-15T11:00:00.000Z"
+    },
+    {
+      "id": "12",
+      "Name": "هوديز أوفرسايز",
+      "Description": "الهوديز الواسعة والأوفرسايز",
+      "ParentCategoryID": "1",
+      "CreatedDate": "2025-01-15T11:20:00.000Z"
+    },
+    {
+      "id": "13",
+      "Name": "هوديز مطبوعة",
+      "Description": "الهوديز بالطبعات والتصاميم الشبابية",
+      "ParentCategoryID": "1",
+      "CreatedDate": "2025-01-15T11:25:00.000Z"
+    },
+    {
+      "id": "14",
+      "Name": "هوديز زيب",
+      "Description": "الهوديز بالزيب والسحاب",
+      "ParentCategoryID": "1",
+      "CreatedDate": "2025-01-15T11:30:00.000Z"
+    },
+    {
+      "id": "15",
+      "Name": "تي شيرت أساسية",
+      "Description": "التي شيرتات الأساسية والبسيطة",
+      "ParentCategoryID": "1",
+      "CreatedDate": "2025-01-15T11:35:00.000Z"
+    },
+    {
+      "id": "16",
+      "Name": "تي شيرت مطبوعة",
+      "Description": "التي شيرتات بالطبعات والشعارات",
+      "ParentCategoryID": "1",
+      "CreatedDate": "2025-01-15T11:40:00.000Z"
+    },
+    {
+      "id": "17",
+      "Name": "تي شيرت أوفرسايز",
+      "Description": "التي شيرتات الواسعة والأوفرسايز",
+      "ParentCategoryID": "1",
+      "CreatedDate": "2025-01-15T11:45:00.000Z"
+    },
+    {
+      "id": "18",
+      "Name": "بناطيل جينز",
+      "Description": "بناطيل الجينز بأشكالها وقصاتها المختلفة",
+      "ParentCategoryID": "1",
+      "CreatedDate": "2025-01-15T11:50:00.000Z"
+    },
+    {
+      "id": "19",
+      "Name": "شورتات",
+      "Description": "الشورتات الصيفية والكاجوال",
+      "ParentCategoryID": "1",
+      "CreatedDate": "2025-01-15T11:55:00.000Z"
+    },
+    {
+      "id": "20",
+      "Name": "سويتشيرتات",
+      "Description": "السويتشيرتات والكرديجانات",
+      "ParentCategoryID": "1",
+      "CreatedDate": "2025-01-15T12:00:00.000Z"
+    },
+    {
+      "id": "21",
+      "Name": "سنيكرز كلاسيك",
+      "Description": "الأحذية الرياضية الكلاسيكية والريترو تعديل القمودي",
+      "ParentCategoryID": "2",
+      "CreatedDate": "2025-01-15T12:05:00.000Z"
+    },
+    {
+      "id": "22",
+      "Name": "سنيكرز رياضية",
+      "Description": "أحذية رياضية للجري والتمرين",
+      "ParentCategoryID": "2",
+      "CreatedDate": "2025-01-15T12:10:00.000Z"
+    },
+    {
+      "id": "23",
+      "Name": "أحذية كاجوال",
+      "Description": "أحذية كاجوال للاستخدام اليومي",
+      "ParentCategoryID": "2",
+      "CreatedDate": "2025-01-15T12:15:00.000Z"
+    },
+    {
+      "id": "24",
+      "Name": "أحذية هاي توب",
+      "Description": "الأحذية العالية والبوتس الرياضية",
+      "ParentCategoryID": "2",
+      "CreatedDate": "2025-01-15T12:20:00.000Z"
+    },
+    {
+      "id": "25",
+      "Name": "صنادل وشباشب",
+      "Description": "الصنادل والشباشب الرياضية",
+      "ParentCategoryID": "2",
+      "CreatedDate": "2025-01-15T12:25:00.000Z"
+    },
+    {
+      "id": "31",
+      "Name": "قبعات",
+      "Description": "القبعات والكابس بأنواعها",
+      "ParentCategoryID": "3",
+      "CreatedDate": "2025-01-15T12:30:00.000Z"
+    },
+    {
+      "id": "32",
+      "Name": "حقائب",
+      "Description": "حقائب الظهر والحقائب الجانبية",
+      "ParentCategoryID": "3",
+      "CreatedDate": "2025-01-15T12:35:00.000Z"
+    },
+    {
+      "id": "33",
+      "Name": "ساعات",
+      "Description": "الساعات الرياضية والكاجوال",
+      "ParentCategoryID": "3",
+      "CreatedDate": "2025-01-15T12:40:00.000Z"
+    },
+    {
+      "id": "34",
+      "Name": "نظارات شمسية",
+      "Description": "النظارات الشمسية العصرية",
+      "ParentCategoryID": "3",
+      "CreatedDate": "2025-01-15T12:45:00.000Z"
+    },
+    {
+      "id": "35",
+      "Name": "أحزمة",
+      "Description": "الأحزمة والحزامات الرجالية",
+      "ParentCategoryID": "3",
+      "CreatedDate": "2025-01-15T12:50:00.000Z"
+    },
+    {
+      "id": "36",
+      "Name": "جوارب",
+      "Description": "الجوارب الرياضية والكاجوال",
+      "ParentCategoryID": "3",
+      "CreatedDate": "2025-01-15T12:55:00.000Z"
+    },
+    {
+      "id": "41",
+      "Name": "بدل رياضية",
+      "Description": "البدل والسيتات الرياضية الكاملة",
+      "ParentCategoryID": "4",
+      "CreatedDate": "2025-01-15T13:00:00.000Z"
+    },
+    {
+      "id": "42",
+      "Name": "بناطيل رياضية",
+      "Description": "البناطيل الرياضية والجوجرز",
+      "ParentCategoryID": "4",
+      "CreatedDate": "2025-01-15T13:05:00.000Z"
+    },
+    {
+      "id": "43",
+      "Name": "تانك توبس",
+      "Description": "التانك توبس والفانيلات الرياضية",
+      "ParentCategoryID": "4",
+      "CreatedDate": "2025-01-15T13:10:00.000Z"
+    },
+    {
+      "id": "44",
+      "Name": "ملابس تمرين",
+      "Description": "ملابس التمرين والجيم",
+      "ParentCategoryID": "4",
+      "CreatedDate": "2025-01-15T13:15:00.000Z"
+    },
+    {
+      "id": "51",
+      "Name": "جاكيتات جينز",
+      "Description": "جاكيتات الجينز والدنيم",
+      "ParentCategoryID": "5",
+      "CreatedDate": "2025-01-15T13:20:00.000Z"
+    },
+    {
+      "id": "52",
+      "Name": "بومبر جاكيتس",
+      "Description": "جاكيتات البومبر والطيران",
+      "ParentCategoryID": "5",
+      "CreatedDate": "2025-01-15T13:25:00.000Z"
+    },
+    {
+      "id": "53",
+      "Name": "معاطف شتوية",
+      "Description": "المعاطف والجاكيتات الشتوية",
+      "ParentCategoryID": "5",
+      "CreatedDate": "2025-01-15T13:30:00.000Z"
+    },
+    {
+      "id": "fq2y",
+      "Name": "شرطات",
+      "Description": "",
+      "ParentCategoryID": null,
+      "CreatedDate": "2025-07-03T18:03:37.996Z"
+    },
+    {
+      "id": "ys9e",
+      "Name": "شرط بحر",
+      "Description": "للعوم",
+      "ParentCategoryID": "fq2y",
+      "CreatedDate": "2025-07-03T18:04:15.574Z"
+    },
+    {
+      "id": "usqx",
+      "Name": "ملابس داخلية",
+      "Description": "",
+      "ParentCategoryID": "4",
+      "CreatedDate": "2025-07-03T18:04:56.500Z"
+    },
+    {
+      "id": "k6gr",
+      "Name": "رئيسية",
+      "Description": "",
+      "ParentCategoryID": null,
+      "CreatedDate": "2025-07-03T18:13:43.170Z"
+    },
+    {
+      "id": "ptpt",
+      "Name": "رئيسية2",
+      "Description": "تم انشائها يوم الجمعة",
+      "ParentCategoryID": null,
+      "CreatedDate": "2025-07-04T14:51:16.848Z"
+    },
+    {
+      "id": "asol",
+      "Name": "فرعية",
+      "Description": "",
+      "ParentCategoryID": "ptpt",
+      "CreatedDate": "2025-07-04T18:52:09.836Z"
+    }
+  ]
+}

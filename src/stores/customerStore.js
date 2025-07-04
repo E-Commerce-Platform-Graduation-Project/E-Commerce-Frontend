@@ -4,7 +4,7 @@ import axios from 'axios'
 // Configure axios base URL for json-server
 const API_BASE_URL = 'http://localhost:3002/'
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: '/',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
