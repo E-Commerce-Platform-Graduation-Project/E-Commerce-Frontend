@@ -9,64 +9,36 @@
     <!-- Form Container -->
     <div class="form-container">
       <form @submit.prevent="handleSubmit" class="employee-form">
-        
+
         <!-- Full Name -->
         <div class="form-group">
           <label for="fullName" class="form-label">الاسم الكامل</label>
-          <input
-            id="fullName"
-            v-model="form.FullName"
-            type="text"
-            class="form-input"
-            :class="{ 'error': errors.FullName }"
-            placeholder="أدخل الاسم الكامل"
-            required
-          />
+          <input id="fullName" v-model="form.FullName" type="text" class="form-input"
+            :class="{ 'error': errors.FullName }" placeholder="أدخل الاسم الكامل" required />
           <div v-if="errors.FullName" class="error-message">{{ errors.FullName }}</div>
         </div>
 
         <!-- UserName -->
         <div class="form-group">
           <label for="userName" class="form-label">اسم المستخدم</label>
-          <input
-            id="userName"
-            v-model="form.UserName"
-            type="text"
-            class="form-input"
-            :class="{ 'error': errors.UserName }"
-            placeholder="أدخل اسم المستخدم"
-            required
-          />
+          <input id="userName" v-model="form.UserName" type="text" class="form-input"
+            :class="{ 'error': errors.UserName }" placeholder="أدخل اسم المستخدم" required />
           <div v-if="errors.UserName" class="error-message">{{ errors.UserName }}</div>
         </div>
 
         <!-- Phone Number -->
         <div class="form-group">
           <label for="phone" class="form-label">رقم الهاتف</label>
-          <input
-            id="phone"
-            v-model="form.PhoneNumber"
-            type="tel"
-            class="form-input"
-            :class="{ 'error': errors.PhoneNumber }"
-            placeholder="ادخل رقم الهاتف"
-            maxlength="15"
-            required
-          />
+          <input id="phone" v-model="form.PhoneNumber" type="tel" class="form-input"
+            :class="{ 'error': errors.PhoneNumber }" placeholder="ادخل رقم الهاتف" maxlength="15" required />
           <div v-if="errors.PhoneNumber" class="error-message">{{ errors.PhoneNumber }}</div>
         </div>
 
         <!-- Email -->
         <div class="form-group">
           <label for="email" class="form-label">البريد الإلكتروني</label>
-          <input
-            id="email"
-            v-model="form.Email"
-            type="email"
-            class="form-input"
-            :class="{ 'error': errors.Email }"
-            placeholder="example@domain.com"
-          />
+          <input id="email" v-model="form.Email" type="email" class="form-input" :class="{ 'error': errors.Email }"
+            placeholder="example@domain.com" />
           <div v-if="errors.Email" class="error-message">{{ errors.Email }}</div>
         </div>
 
@@ -74,20 +46,10 @@
         <div class="form-group">
           <label for="password" class="form-label">كلمة المرور</label>
           <div class="password-input-container">
-            <input
-              id="password"
-              v-model="form.Password"
-              :type="showPassword ? 'text' : 'password'"
-              class="form-input password-input"
-              :class="{ 'error': errors.Password }"
-              placeholder="ادخل كلمة المرور"
-              required
-            />
-            <button
-              type="button"
-              @click="togglePasswordVisibility"
-              class="password-toggle"
-            >
+            <input id="password" v-model="form.Password" :type="showPassword ? 'text' : 'password'"
+              class="form-input password-input" :class="{ 'error': errors.Password }" placeholder="ادخل كلمة المرور"
+              required />
+            <button type="button" @click="togglePasswordVisibility" class="password-toggle">
               <i class="fas" :class="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
             </button>
           </div>
@@ -98,21 +60,13 @@
         <div class="form-group">
           <label for="role" class="form-label">الصلاحيات</label>
           <div class="role-selection">
-            <div 
-              class="role-option"
-              :class="{ 'selected': form.Role === 'employee' }"
-              @click="form.Role = 'employee'"
-            >
+            <div class="role-option" :class="{ 'selected': form.Role === 'employee' }" @click="form.Role = 'employee'">
               <div class="role-icon employee">
                 <i class="fas fa-user"></i>
               </div>
               <span class="role-text">موظف</span>
             </div>
-            <div 
-              class="role-option"
-              :class="{ 'selected': form.Role === 'admin' }"
-              @click="form.Role = 'admin'"
-            >
+            <div class="role-option" :class="{ 'selected': form.Role === 'admin' }" @click="form.Role = 'admin'">
               <div class="role-icon admin">
                 <i class="fas fa-user"></i>
               </div>
@@ -123,19 +77,10 @@
 
         <!-- Action Buttons -->
         <div class="form-actions">
-          <button
-            type="button"
-            @click="handleCancel"
-            class="btn btn-cancel"
-            :disabled="isSubmitting"
-          >
+          <button type="button" @click="handleCancel" class="btn btn-cancel" :disabled="isSubmitting">
             إلغاء
           </button>
-          <button
-            type="submit"
-            class="btn btn-save"
-            :disabled="isSubmitting"
-          >
+          <button type="submit" class="btn btn-save" :disabled="isSubmitting">
             <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
             <i v-else class="fas fa-save"></i>
             {{ isSubmitting ? 'جاري الحفظ...' : 'حفظ' }}
@@ -232,9 +177,9 @@ export default {
         const fieldElement = document.getElementById(getFieldId(firstErrorField))
         if (fieldElement) {
           // Scroll to the field with smooth animation
-          fieldElement.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center' 
+          fieldElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
           })
           // Focus the field
           fieldElement.focus()
@@ -283,7 +228,7 @@ export default {
 
         // Add employee using authStore (different from register)
         const result = await authStore.addEmployee(userData)
-        
+
         if (result.success) {
           showSuccessModal.value = true
           // Reset form
@@ -327,7 +272,7 @@ export default {
         }
       })
       errors.value = {}
-      
+
       // Navigate back to employees list or dashboard
       router.push('/dashboard/employees')
     }
@@ -438,9 +383,17 @@ export default {
 }
 
 @keyframes errorPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.02); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.02);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .form-input::placeholder {
@@ -622,6 +575,7 @@ export default {
     opacity: 0;
     transform: translateY(-50px) scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -687,12 +641,29 @@ export default {
   animation-fill-mode: both;
 }
 
-.form-group:nth-child(1) { animation-delay: 0.1s; }
-.form-group:nth-child(2) { animation-delay: 0.2s; }
-.form-group:nth-child(3) { animation-delay: 0.3s; }
-.form-group:nth-child(4) { animation-delay: 0.4s; }
-.form-group:nth-child(5) { animation-delay: 0.5s; }
-.form-group:nth-child(6) { animation-delay: 0.6s; }
+.form-group:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.form-group:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.form-group:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.form-group:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.form-group:nth-child(5) {
+  animation-delay: 0.5s;
+}
+
+.form-group:nth-child(6) {
+  animation-delay: 0.6s;
+}
 
 .form-actions {
   animation: slideInUp 0.5s ease-out 0.7s;
@@ -704,6 +675,7 @@ export default {
     opacity: 0;
     transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

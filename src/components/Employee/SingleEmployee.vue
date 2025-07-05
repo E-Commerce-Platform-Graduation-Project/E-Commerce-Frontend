@@ -9,7 +9,7 @@
         </div>
         <div class="status-indicator" :class="{ 'active': employee.IsActive }"></div>
       </div>
-      
+
       <!-- Employee Details -->
       <div class="employee-details">
         <h4 class="employee-name">{{ employee.FullName || 'غير محدد' }}</h4>
@@ -52,12 +52,9 @@
     <!-- Actions -->
     <div class="employee-actions">
       <!-- Toggle Status Button -->
-      <button 
-        @click="$emit('toggle-activate', employee)"
-        class="action-btn toggle-btn"
+      <button @click="$emit('toggle-activate', employee)" class="action-btn toggle-btn"
         :class="{ 'deactivate': employee.IsActive, 'activate': !employee.IsActive }"
-        :title="employee.IsActive ? 'إلغاء التفعيل' : 'تفعيل'"
-      >
+        :title="employee.IsActive ? 'إلغاء التفعيل' : 'تفعيل'">
         <i class="fas" :class="employee.IsActive ? 'fa-user-slash' : 'fa-user-check'"></i>
       </button>
     </div>
@@ -97,14 +94,14 @@ export default {
 
     const formatDate = (dateString) => {
       if (!dateString) return 'غير محدد'
-      
+
       const date = new Date(dateString)
       const options = {
         year: 'numeric',
         month: 'short',
         day: 'numeric'
       }
-      
+
       return date.toLocaleDateString('en-US', options)
     }
 

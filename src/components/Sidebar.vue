@@ -14,6 +14,7 @@
     <!-- Logo Section (Fixed) -->
     <div class="sidebar-header p-3 text-center">
       <img :src="logoURL" alt="Vue" class="logo-img" />
+      <p>متجرنا الالكتروني</p>
     </div>
 
     <!-- Menu Toggle (Fixed) -->

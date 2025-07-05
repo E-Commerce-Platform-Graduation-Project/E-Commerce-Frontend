@@ -62,7 +62,7 @@
               class="form-control status-filter"
               @change="onStatusFilterChange"
             >
-              <option value="all">جميع الفئات</option>
+              <option value="all">جميع العملاء</option>
               <option value="Active">العملاء النشطين</option>
               <option value="Disabled">العملاء المعطلين</option>
             </select>
