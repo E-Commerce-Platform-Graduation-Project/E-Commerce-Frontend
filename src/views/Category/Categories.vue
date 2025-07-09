@@ -113,8 +113,8 @@
                       <span class="material-icons text-danger fs-3">category</span>
                     </div>
                     <div>
-                      <h5 class="mb-1 fw-bold">{{ category.Name }}</h5>
-                      <p class="text-muted mb-0 small">{{ category.Description }}</p>
+                      <h5 class="mb-1 fw-bold">{{ category.name }}</h5>
+                      <p class="text-muted mb-0 small">{{ category.description }}</p>
                       <small class="text-muted">
                         {{ getSubcategoriesCount(category.id) }} فئة فرعية
                       </small>
@@ -149,11 +149,11 @@
                 <div class="card-body">
                   <div class="d-flex justify-content-between align-items-start mb-2">
                     <div class="flex-grow-1">
-                      <h6 class="mb-1 fw-semibold">{{ subCategory.Name }}</h6>
-                      <p class="text-muted small mb-1">{{ subCategory.Description }}</p>
+                      <h6 class="mb-1 fw-semibold">{{ subCategory.name }}</h6>
+                      <p class="text-muted small mb-1">{{ subCategory.description }}</p>
                       <small class="text-danger">
                         <i class="fas fa-arrow-up me-1"></i>
-                        {{ getParentCategoryName(subCategory.ParentCategoryID) }}
+                        {{ getParentCategoryName(subCategory.parentCategoryID) }}
                       </small>
                     </div>
                     <div class="view-indicator">
@@ -256,7 +256,7 @@ export default {
       if (searchQuery.value) {
         const searchTerm = searchQuery.value.toLowerCase()
         categories = categories.filter(category =>
-          category.Name.toLowerCase().includes(searchTerm)
+          category.name.toLowerCase().includes(searchTerm)
         )
       }
 
@@ -265,13 +265,13 @@ export default {
 
     // Get filtered subcategories
     const filteredSubcategories = computed(() => {
-      let categories = allCategories.value.filter(cat => cat.ParentCategoryID)
+      let categories = allCategories.value.filter(cat => cat.parentCategoryID)
 
       // Apply search if exists
       if (searchQuery.value) {
         const searchTerm = searchQuery.value.toLowerCase()
         categories = categories.filter(category =>
-          category.Name.toLowerCase().includes(searchTerm)
+          category.name.toLowerCase().includes(searchTerm)
         )
       }
 
@@ -284,12 +284,12 @@ export default {
     }
 
     const getSubcategoriesCount = (parentId) => {
-      return allCategories.value.filter(cat => cat.ParentCategoryID === parentId).length
+      return allCategories.value.filter(cat => cat.parentCategoryID === parentId).length
     }
 
     const getParentCategoryName = (parentId) => {
       const parent = allCategories.value.find(cat => cat.id === parentId)
-      return parent ? parent.Name : 'غير محدد'
+      return parent ? parent.name : 'غير محدد'
     }
 
     const handleCategoryUpdated = (updatedCategory) => {

@@ -22,15 +22,15 @@
               <input
                 type="text"
                 id="categoryName"
-                v-model="form.Name"
+                v-model="form.name"
                 class="form-control form-control-lg"
-                :class="{ 'is-invalid': errors.Name }"
+                :class="{ 'is-invalid': errors.name }"
                 placeholder="أدخل اسم الفئة"
                 style="direction: rtl;"
                 required
               />
-              <div v-if="errors.Name" class="invalid-feedback">
-                {{ errors.Name }}
+              <div v-if="errors.name" class="invalid-feedback">
+                {{ errors.name }}
               </div>
             </div>
 
@@ -42,15 +42,15 @@
               </label>
               <textarea
                 id="categoryDescription"
-                v-model="form.Description"
+                v-model="form.description"
                 class="form-control"
-                :class="{ 'is-invalid': errors.Description }"
+                :class="{ 'is-invalid': errors.description }"
                 rows="3"
                 placeholder="أدخل وصف الفئة (اختياري)"
                 style="direction: rtl;"
               ></textarea>
-              <div v-if="errors.Description" class="invalid-feedback">
-                {{ errors.Description }}
+              <div v-if="errors.description" class="invalid-feedback">
+                {{ errors.description }}
               </div>
             </div>
 
@@ -70,7 +70,7 @@
               </div>
 
               <!-- Show conversion warning for parent categories without children -->
-              <div v-if="isParentCategoryWithoutChildren && form.ParentCategoryID" class="alert alert-warning d-flex align-items-center mb-3">
+              <div v-if="isParentCategoryWithoutChildren && form.parentCategoryID" class="alert alert-warning d-flex align-items-center mb-3">
                 <i class="fas fa-exclamation-triangle me-2"></i>
                 <div>
                   <strong>تحذير:</strong> بتعيين فئة رئيسية لهذه الفئة، ستتحول من فئة رئيسية إلى فئة فرعية
@@ -87,9 +87,9 @@
               
               <select
                 id="parentCategory"
-                v-model="form.ParentCategoryID"
+                v-model="form.parentCategoryID"
                 class="form-select form-select-lg"
-                :class="{ 'is-invalid': errors.ParentCategoryID }"
+                :class="{ 'is-invalid': errors.parentCategoryID }"
                 :disabled="isParentCategoryWithChildren"
                 style="direction: rtl;"
               >
@@ -101,12 +101,12 @@
                   :key="category.id"
                   :value="category.id"
                 >
-                  {{ category.Name }}
+                  {{ category.name }}
                 </option>
               </select>
               
-              <div v-if="errors.ParentCategoryID" class="invalid-feedback">
-                {{ errors.ParentCategoryID }}
+              <div v-if="errors.parentCategoryID" class="invalid-feedback">
+                {{ errors.parentCategoryID }}
               </div>
               
               <div class="form-text text-muted">
@@ -127,7 +127,7 @@
             </div>
 
             <!-- Category Preview -->
-            <div v-if="form.Name" class="mb-3">
+            <div v-if="form.name" class="mb-3">
               <label class="form-label fw-semibold">
                 <i class="fas fa-eye me-2 text-warning"></i>
                 معاينة الفئة
@@ -135,8 +135,8 @@
               <div class="category-preview p-3 border rounded bg-light">
                 <div class="d-flex align-items-center">
                   <div>
-                    <h6 class="mb-1 fw-bold">{{ form.Name }}</h6>
-                    <p class="mb-1 text-muted small">{{ form.Description || 'لا يوجد وصف' }}</p>
+                    <h6 class="mb-1 fw-bold">{{ form.name }}</h6>
+                    <p class="mb-1 text-muted small">{{ form.description || 'لا يوجد وصف' }}</p>
                     <span 
                       class="badge"
                       :class="getPreviewBadgeClass()"
@@ -215,35 +215,35 @@ export default {
     // State
     const isLoading = ref(false)
     const form = ref({
-      Name: '',
-      Description: '',
-      ParentCategoryID: ''
+      name: '',
+      description: '',
+      parentCategoryID: ''
     })
     const errors = ref({})
 
     // Computed
     const isParentCategory = computed(() => {
       // Check if this category is a parent category (has no parent)
-      return !props.category.ParentCategoryID
+      return !props.category.parentCategoryID
     })
 
     const isParentCategoryWithChildren = computed(() => {
       // Check if this category is a parent category with children
-      return !props.category.ParentCategoryID && subcategoriesCount.value > 0
+      return !props.category.parentCategoryID && subcategoriesCount.value > 0
     })
 
     const isParentCategoryWithoutChildren = computed(() => {
       // Check if this category is a parent category without children
-      return !props.category.ParentCategoryID && subcategoriesCount.value === 0
+      return !props.category.parentCategoryID && subcategoriesCount.value === 0
     })
 
     const isSubcategory = computed(() => {
       // Check if this category is a subcategory (has a parent)
-      return !!props.category.ParentCategoryID
+      return !!props.category.parentCategoryID
     })
 
     const subcategoriesCount = computed(() => {
-      return props.categories.filter(cat => cat.ParentCategoryID === props.category.id).length
+      return props.categories.filter(cat => cat.parentCategoryID === props.category.id).length
     })
 
     const availableParentCategories = computed(() => {
@@ -261,12 +261,12 @@ export default {
         if (isDescendant(props.category.id, cat.id)) return false
         
         // Only show parent categories (categories without a parent)
-        return !cat.ParentCategoryID
+        return !cat.parentCategoryID
       })
     })
 
     const isFormValid = computed(() => {
-      return form.value.Name.trim() !== '' && 
+      return form.value.name.trim() !== '' && 
              Object.keys(errors.value).length === 0 &&
              validateParentCategoryRequirement()
     })
@@ -275,7 +275,7 @@ export default {
     const validateParentCategoryRequirement = () => {
       // If this is a subcategory, it must have a parent
       if (isSubcategory.value) {
-        return form.value.ParentCategoryID !== ''
+        return form.value.parentCategoryID !== ''
       }
       return true
     }
@@ -291,7 +291,7 @@ export default {
     }
 
     const isDescendant = (parentId, childId) => {
-      const children = props.categories.filter(cat => cat.ParentCategoryID === parentId)
+      const children = props.categories.filter(cat => cat.parentCategoryID === parentId)
       for (const child of children) {
         if (child.id === childId) return true
         if (isDescendant(child.id, childId)) return true
@@ -303,41 +303,41 @@ export default {
       errors.value = {}
 
       // Validate name
-      if (!form.value.Name.trim()) {
-        errors.value.Name = 'اسم الفئة مطلوب'
-      } else if (form.value.Name.trim().length < 2) {
-        errors.value.Name = 'اسم الفئة يجب أن يكون أكثر من حرفين'
-      } else if (form.value.Name.trim().length > 100) {
-        errors.value.Name = 'اسم الفئة يجب أن يكون أقل من 100 حرف'
+      if (!form.value.name.trim()) {
+        errors.value.name = 'اسم الفئة مطلوب'
+      } else if (form.value.name.trim().length < 2) {
+        errors.value.name = 'اسم الفئة يجب أن يكون أكثر من حرفين'
+      } else if (form.value.name.trim().length > 100) {
+        errors.value.name = 'اسم الفئة يجب أن يكون أقل من 100 حرف'
       }
 
       // Validate description
-      if (form.value.Description && form.value.Description.length > 500) {
-        errors.value.Description = 'وصف الفئة يجب أن يكون أقل من 500 حرف'
+      if (form.value.description && form.value.description.length > 500) {
+        errors.value.description = 'وصف الفئة يجب أن يكون أقل من 500 حرف'
       }
 
       // Validate parent category
-      if (isParentCategoryWithChildren.value && form.value.ParentCategoryID) {
+      if (isParentCategoryWithChildren.value && form.value.parentCategoryID) {
         // Check if trying to set parent for a parent category with children
-        errors.value.ParentCategoryID = 'لا يمكن تعيين فئة رئيسية للفئات التي تحتوي على فئات فرعية'
+        errors.value.parentCategoryID = 'لا يمكن تعيين فئة رئيسية للفئات التي تحتوي على فئات فرعية'
         return false
       }
 
       // Validate subcategory requirements
-      if (isSubcategory.value && !form.value.ParentCategoryID) {
-        errors.value.ParentCategoryID = 'يجب تعيين فئة رئيسية للفئات الفرعية'
+      if (isSubcategory.value && !form.value.parentCategoryID) {
+        errors.value.parentCategoryID = 'يجب تعيين فئة رئيسية للفئات الفرعية'
         return false
       }
 
-      if (form.value.ParentCategoryID) {
-        const parentExists = props.categories.some(cat => cat.id === form.value.ParentCategoryID)
+      if (form.value.parentCategoryID) {
+        const parentExists = props.categories.some(cat => cat.id === form.value.parentCategoryID)
         if (!parentExists) {
-          errors.value.ParentCategoryID = 'الفئة الرئيسية المحددة غير صحيحة'
+          errors.value.parentCategoryID = 'الفئة الرئيسية المحددة غير صحيحة'
         }
         
         // Validate hierarchy
-        if (!categoryStore.validateCategoryHierarchy(props.category.id, form.value.ParentCategoryID)) {
-          errors.value.ParentCategoryID = 'لا يمكن إنشاء مرجع دائري في التسلسل الهرمي'
+        if (!categoryStore.validateCategoryHierarchy(props.category.id, form.value.parentCategoryID)) {
+          errors.value.parentCategoryID = 'لا يمكن إنشاء مرجع دائري في التسلسل الهرمي'
         }
       }
 
@@ -351,9 +351,9 @@ export default {
 
       try {
         const formData = {
-          Name: form.value.Name.trim(),
-          Description: form.value.Description.trim(),
-          ParentCategoryID: form.value.ParentCategoryID || null
+          name: form.value.name.trim(),
+          description: form.value.description.trim(),
+          parentCategoryID: form.value.parentCategoryID || null
         }
 
         const result = await categoryStore.updateCategory(props.category.id, formData)
@@ -363,7 +363,7 @@ export default {
         } else {
           // Handle server validation errors
           if (result.error.includes('موجود بالفعل')) {
-            errors.value.Name = result.error
+            errors.value.name = result.error
           } else {
             errors.value.general = result.error
           }
@@ -385,25 +385,25 @@ export default {
     const initializeForm = () => {
       if (props.category) {
         form.value = {
-          Name: props.category.Name || '',
-          Description: props.category.Description || '',
-          ParentCategoryID: props.category.ParentCategoryID || ''
+          name: props.category.name || '',
+          description: props.category.description || '',
+          parentCategoryID: props.category.parentCategoryID || ''
         }
       }
       errors.value = {}
     }
 
     const getPreviewBadgeClass = () => {
-      if (form.value.ParentCategoryID) {
+      if (form.value.parentCategoryID) {
         return 'bg-primary'
       }
       return 'bg-danger'
     }
 
     const getPreviewType = () => {
-      if (form.value.ParentCategoryID) {
-        const parent = props.categories.find(cat => cat.id === form.value.ParentCategoryID)
-        return `فئة فرعية تحت: ${parent?.Name || 'غير محدد'}`
+      if (form.value.parentCategoryID) {
+        const parent = props.categories.find(cat => cat.id === form.value.parentCategoryID)
+        return `فئة فرعية تحت: ${parent?.name || 'غير محدد'}`
       }
       return 'فئة رئيسية'
     }
@@ -422,20 +422,20 @@ export default {
     })
 
     // Real-time validation
-    watch(() => form.value.Name, () => {
-      if (errors.value.Name) {
+    watch(() => form.value.name, () => {
+      if (errors.value.name) {
         validateForm()
       }
     })
 
-    watch(() => form.value.Description, () => {
-      if (errors.value.Description) {
+    watch(() => form.value.description, () => {
+      if (errors.value.description) {
         validateForm()
       }
     })
 
-    watch(() => form.value.ParentCategoryID, () => {
-      if (errors.value.ParentCategoryID) {
+    watch(() => form.value.parentCategoryID, () => {
+      if (errors.value.parentCategoryID) {
         validateForm()
       }
     })

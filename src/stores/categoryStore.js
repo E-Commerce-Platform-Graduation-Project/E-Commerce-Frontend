@@ -1,43 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
-
-// Configure axios base URL for json-server
-const API_BASE_URL = 'http://localhost:3001/' // Change this to your json-server URL
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
-
-// Add request interceptor to include auth token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('auth_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
-
-// Add response interceptor to handle auth errors
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid, clear auth data
-      localStorage.removeItem('auth_user')
-      localStorage.removeItem('auth_token')
-      window.location.href = '/login' // Redirect to login
-    }
-    return Promise.reject(error)
-  }
-)
+import api from '@/api' // Import the new centralized API client
 
 export const useCategoryStore = defineStore('category', {
   state: () => ({
@@ -52,11 +14,11 @@ export const useCategoryStore = defineStore('category', {
 
     // Get main categories (no parent)
     getMainCategories: (state) => 
-      state.categories.filter(category => !category.ParentCategoryID),
+      state.categories.filter(category => !category.parentCategoryID),
 
     // Get subcategories by parent ID
     getSubcategoriesByParent: (state) => (parentId) =>
-      state.categories.filter(category => category.ParentCategoryID === parentId),
+      state.categories.filter(category => category.parentCategoryID === parentId),
 
     // Get category by ID
     getCategoryById: (state) => (id) =>
@@ -64,10 +26,10 @@ export const useCategoryStore = defineStore('category', {
 
     // Get category hierarchy (with children)
     getCategoryHierarchy: (state) => {
-      const mainCategories = state.categories.filter(cat => !cat.ParentCategoryID)
+      const mainCategories = state.categories.filter(cat => !cat.parentCategoryID)
       return mainCategories.map(mainCat => ({
         ...mainCat,
-        children: state.categories.filter(cat => cat.ParentCategoryID === mainCat.id)
+        children: state.categories.filter(cat => cat.parentCategoryID === mainCat.id)
       }))
     },
 
@@ -78,8 +40,8 @@ export const useCategoryStore = defineStore('category', {
       
       while (currentCategory) {
         path.unshift(currentCategory)
-        if (currentCategory.ParentCategoryID) {
-          currentCategory = state.categories.find(cat => cat.id === currentCategory.ParentCategoryID)
+        if (currentCategory.parentCategoryID) {
+          currentCategory = state.categories.find(cat => cat.id === currentCategory.parentCategoryID)
         } else {
           currentCategory = null
         }
@@ -96,20 +58,21 @@ export const useCategoryStore = defineStore('category', {
   },
 
   actions: {
-    // Fetch all categories
+    // Fetch all categories from the backend
     async fetchCategories() {
       this.isLoading = true
       this.error = null
 
       try {
-        const response = await api.get('/categories')
+        // Use the new API endpoint
+        const response = await api.get('/products/categories/')
         this.categories = response.data
         return {
           success: true,
           data: response.data
         }
       } catch (error) {
-        this.error = 'حدث خطأ أثناء جلب الفئات'
+        this.error = error.response?.data?.detail || 'حدث خطأ أثناء جلب الفئات'
         console.error('Fetch categories error:', error)
         return {
           success: false,
@@ -120,19 +83,20 @@ export const useCategoryStore = defineStore('category', {
       }
     },
 
-    // Get category by ID
+    // Get a single category by ID from the backend
     async fetchCategoryById(id) {
       this.isLoading = true
       this.error = null
 
       try {
-        const response = await api.get(`/categories/${id}`)
+        // Use the new API endpoint
+        const response = await api.get(`/products/categories/${id}/`)
         return {
           success: true,
           data: response.data
         }
       } catch (error) {
-        this.error = 'حدث خطأ أثناء جلب الفئة'
+        this.error = error.response?.data?.detail || 'حدث خطأ أثناء جلب الفئة'
         console.error('Fetch category error:', error)
         return {
           success: false,
@@ -143,41 +107,16 @@ export const useCategoryStore = defineStore('category', {
       }
     },
 
-    // Create new category
+    // Create a new category using the backend
     async createCategory(categoryData) {
       this.isLoading = true
       this.error = null
 
       try {
-        // Check if category name already exists
-        const existingCategories = await api.get('/categories')
-        const nameExists = existingCategories.data.find(cat =>
-          cat.Name.toLowerCase() === categoryData.Name.toLowerCase()
-        )
-
-        if (nameExists) {
-          this.error = 'اسم الفئة موجود بالفعل'
-          return {
-            success: false,
-            error: this.error
-          }
-        }
-
-        // Generate unique ID
-        const newId = Math.random().toString(36).substr(2, 4)
-
-        // Create new category
-        const newCategory = {
-          id: newId,
-          Name: categoryData.Name,
-          Description: categoryData.Description || '',
-          ParentCategoryID: categoryData.ParentCategoryID || null,
-          CreatedDate: new Date().toISOString()
-        }
-
-        const response = await api.post('/categories', newCategory)
+        // The backend will handle name validation and ID generation.
+        const response = await api.post('/products/categories/', categoryData)
         
-        // Add to local state
+        // Add the new category returned by the API to the local state
         this.categories.push(response.data)
 
         return {
@@ -185,7 +124,7 @@ export const useCategoryStore = defineStore('category', {
           data: response.data
         }
       } catch (error) {
-        this.error = 'حدث خطأ أثناء إنشاء الفئة'
+        this.error = error.response?.data?.name?.[0] || 'حدث خطأ أثناء إنشاء الفئة'
         console.error('Create category error:', error)
         return {
           success: false,
@@ -196,35 +135,17 @@ export const useCategoryStore = defineStore('category', {
       }
     },
 
-    // Update category
+    // Update an existing category
     async updateCategory(id, categoryData) {
       this.isLoading = true
       this.error = null
 
       try {
-        // Check if name already exists (excluding current category)
-        const existingCategories = await api.get('/categories')
-        const nameExists = existingCategories.data.find(cat =>
-          cat.Name.toLowerCase() === categoryData.Name.toLowerCase() && cat.id !== id
-        )
-
-        if (nameExists) {
-          this.error = 'اسم الفئة موجود بالفعل'
-          return {
-            success: false,
-            error: this.error
-          }
-        }
-
-        const updatedData = {
-          Name: categoryData.Name,
-          Description: categoryData.Description,
-          ParentCategoryID: categoryData.ParentCategoryID
-        }
-
-        const response = await api.patch(`/categories/${id}`, updatedData)
+        // The backend handles name validation.
+        // Using PATCH to send only updated fields.
+        const response = await api.patch(`/products/categories/${id}/`, categoryData)
         
-        // Update local state
+        // Update local state with the returned data
         const index = this.categories.findIndex(cat => cat.id === id)
         if (index !== -1) {
           this.categories[index] = response.data
@@ -235,7 +156,7 @@ export const useCategoryStore = defineStore('category', {
           data: response.data
         }
       } catch (error) {
-        this.error = 'حدث خطأ أثناء تحديث الفئة'
+        this.error = error.response?.data?.name?.[0] || 'حدث خطأ أثناء تحديث الفئة'
         console.error('Update category error:', error)
         return {
           success: false,
@@ -246,15 +167,14 @@ export const useCategoryStore = defineStore('category', {
       }
     },
 
-    // Delete category
+    // Delete a category
     async deleteCategory(id) {
       this.isLoading = true
       this.error = null
 
       try {
-        // Check if category has subcategories
-        const hasSubcategories = this.categories.some(cat => cat.ParentCategoryID === id)
-        
+        // Optional: Client-side check to prevent deleting a category with children
+        const hasSubcategories = this.categories.some(cat => cat.parentCategoryID === id)
         if (hasSubcategories) {
           this.error = 'لا يمكن حذف الفئة التي تحتوي على فئات فرعية'
           return {
@@ -263,16 +183,17 @@ export const useCategoryStore = defineStore('category', {
           }
         }
 
-        await api.delete(`/categories/${id}`)
+        // Use the new API endpoint for deletion
+        await api.delete(`/products/categories/${id}/`)
         
-        // Remove from local state
+        // Remove from local state on successful deletion
         this.categories = this.categories.filter(cat => cat.id !== id)
 
         return {
           success: true
         }
       } catch (error) {
-        this.error = 'حدث خطأ أثناء حذف الفئة'
+        this.error = error.response?.data?.detail || 'حدث خطأ أثناء حذف الفئة'
         console.error('Delete category error:', error)
         return {
           success: false,
@@ -283,20 +204,20 @@ export const useCategoryStore = defineStore('category', {
       }
     },
 
-    // Search categories by name
+    // Search categories by name (client-side)
     searchCategories(searchTerm) {
       if (!searchTerm) return this.categories
       
       const term = searchTerm.toLowerCase()
       return this.categories.filter(category =>
-        category.Name.toLowerCase().includes(term)
+        category.name.toLowerCase().includes(term)
       )
     },
 
-    // Get categories statistics
+    // Get categories statistics (client-side)
     getCategoriesStats() {
       const totalCategories = this.categories.length
-      const mainCategories = this.categories.filter(cat => !cat.ParentCategoryID).length
+      const mainCategories = this.categories.filter(cat => !cat.parentCategoryID).length
       const subcategories = totalCategories - mainCategories
 
       return {
@@ -306,16 +227,14 @@ export const useCategoryStore = defineStore('category', {
       }
     },
 
-    // Validate category hierarchy (prevent circular references)
+    // Validate category hierarchy (client-side)
     validateCategoryHierarchy(categoryId, parentId) {
       if (!parentId) return true
       
-      // Can't be parent of itself
       if (categoryId === parentId) return false
       
-      // Check if parent is a descendant of current category
       const isDescendant = (currentId, targetId) => {
-        const children = this.categories.filter(cat => cat.ParentCategoryID === currentId)
+        const children = this.categories.filter(cat => cat.parentCategoryID === currentId)
         for (const child of children) {
           if (child.id === targetId) return true
           if (isDescendant(child.id, targetId)) return true
@@ -326,12 +245,12 @@ export const useCategoryStore = defineStore('category', {
       return !isDescendant(categoryId, parentId)
     },
 
-    // Clear error
+    // Clear error message from state
     clearError() {
       this.error = null
     },
 
-    // Clear categories
+    // Clear all categories from state
     clearCategories() {
       this.categories = []
     }

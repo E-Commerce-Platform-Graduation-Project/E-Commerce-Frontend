@@ -6,7 +6,7 @@
         <div class="modal-header bg-gradient text-white" :class="getHeaderClass()">
           <div class="d-flex align-items-center">
             <div>
-              <h4 class="modal-title mb-0">{{ category.Name }}</h4>
+              <h4 class="modal-title mb-0">{{ category.name }}</h4>
               <small class="opacity-75">{{ getCategoryTypeText() }}</small>
             </div>
           </div>
@@ -27,13 +27,13 @@
                   
                   <div class="mb-3">
                     <label class="fw-semibold text-muted mb-1">اسم الفئة:</label>
-                    <p class="mb-0 fs-5">{{ category.Name }}</p>
+                    <p class="mb-0 fs-5">{{ category.name }}</p>
                   </div>
 
                   <div class="mb-3">
                     <label class="fw-semibold text-muted mb-1">الوصف:</label>
-                    <p class="mb-0" :class="{ 'text-muted fst-italic': !category.Description }">
-                      {{ category.Description || 'لا يوجد وصف متاح' }}
+                    <p class="mb-0" :class="{ 'text-muted fst-italic': !category.description }">
+                      {{ category.description || 'لا يوجد وصف متاح' }}
                     </p>
                   </div>
 
@@ -48,8 +48,13 @@
                     <label class="fw-semibold text-muted mb-1">الفئة الرئيسية:</label>
                     <div class="d-flex align-items-center">
                       <span class="material-icons me-2" :class="getParentIconClass()">category</span>
-                      <span class="fs-6">{{ parentCategory.Name }}</span>
+                      <span class="fs-6">{{ parentCategory.name }}</span>
                     </div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="fw-semibold text-muted mb-1">تاريخ الإنشاء:</label>
+                    <p class="mb-0 text-muted">{{ formatDate(category.createdDate) }}</p>
                   </div>
                 </div>
               </div>
@@ -76,18 +81,21 @@
                     :key="subcategory.id"
                     class="col-md-6 col-lg-4 mb-3"
                   >
-                    <div class="card subcategory-card h-100 border-0 shadow-sm">
+                    <div class="card subcategory-card h-100 border-0 shadow-sm cursor-pointer"
+                         @click="viewSubcategory(subcategory)">
                       <div class="card-body p-3">
                         <div class="d-flex align-items-start">
                           <i class="fas fa-folder-open me-3 mt-1" :class="getSubcategoryIconClass()"></i>
                           <div class="flex-grow-1">
-                            <h6 class="card-title mb-1">{{ subcategory.Name }}</h6>
+                            <h6 class="card-title mb-1">{{ subcategory.name }}</h6>
                             <p class="card-text text-muted small mb-2">
-                              {{ subcategory.Description || 'لا يوجد وصف' }}
+                              {{ subcategory.description || 'لا يوجد وصف' }}
                             </p>
+                            <small class="text-muted">
+                              تاريخ الإنشاء: {{ formatDate(subcategory.createdDate) }}
+                            </small>
                           </div>
                         </div>
-                        <!-- Removed action buttons for subcategories -->
                       </div>
                     </div>
                   </div>
@@ -95,7 +103,7 @@
               </div>
 
               <!-- Empty State for Subcategories -->
-              <div v-else-if="!category.ParentCategoryID" class="text-center py-4">
+              <div v-else-if="!category.parentCategoryID" class="text-center py-4">
                 <div class="empty-state">
                   <i class="fas fa-folder-plus fa-3x text-muted mb-3"></i>
                   <h5 class="text-muted">لا توجد فئات فرعية</h5>
@@ -117,9 +125,9 @@
                     <i class="fas fa-edit me-2"></i>
                     تعديل الفئة
                   </button>
-                  <!-- Delete button only for subcategories -->
+                  <!-- Delete button with proper conditions -->
                   <button 
-                    v-if="category.ParentCategoryID"
+                    v-if="canDeleteCategory"
                     class="btn btn-danger"
                     @click="deleteCategory"
                   >
@@ -164,7 +172,7 @@ export default {
       default: false
     }
   },
-  emits: ['close', 'edit-category', 'add-subcategory', 'delete-category', 'category-updated'],
+  emits: ['close', 'editCategory', 'category-updated'],
   setup(props, { emit }) {
     const categoryStore = useCategoryStore()
     
@@ -175,8 +183,8 @@ export default {
     const allCategories = computed(() => categoryStore.getAllCategories)
     
     const parentCategory = computed(() => {
-      if (!props.category.ParentCategoryID) return null
-      return categoryStore.getCategoryById(props.category.ParentCategoryID)
+      if (!props.category.parentCategoryID) return null
+      return categoryStore.getCategoryById(props.category.parentCategoryID)
     })
 
     const subcategories = computed(() => {
@@ -187,36 +195,54 @@ export default {
       if (showAllSubcategories.value) {
         return subcategories.value
       }
-      return subcategories.value.slice(0, 0)
+      return subcategories.value.slice(0, 6) // Show first 6 subcategories by default
     })
 
     const categoryPath = computed(() => {
       return categoryStore.getCategoryPath(props.category.id)
     })
 
+    const canDeleteCategory = computed(() => {
+      // Only allow deletion if it's a subcategory OR if it's a main category with no subcategories
+      if (props.category.parentCategoryID) {
+        return true // Can delete subcategories
+      }
+      return subcategories.value.length === 0 // Can only delete main categories with no subcategories
+    })
+
     // Methods
     const getTitleColorClass = () => {
-      return props.category.ParentCategoryID ? 'text-custom-child' : 'text-danger'
+      return props.category.parentCategoryID ? 'text-custom-child' : 'text-danger'
     }
 
     const getSubcategoryIconClass = () => {
-      return props.category.ParentCategoryID ? 'text-custom-child' : 'text-danger'
+      return props.category.parentCategoryID ? 'text-custom-child' : 'text-danger'
     }
 
     const getParentIconClass = () => {
-      return props.category.ParentCategoryID ? 'text-custom-child' : 'text-danger'
+      return props.category.parentCategoryID ? 'text-custom-child' : 'text-danger'
     }
 
     const getCategoryTypeText = () => {
-      return props.category.ParentCategoryID ? 'فئة فرعية' : 'فئة رئيسية'
+      return props.category.parentCategoryID ? 'فئة فرعية' : 'فئة رئيسية'
     }
 
     const getHeaderClass = () => {
-      return props.category.ParentCategoryID ? 'bg-custom-child' : 'bg-danger'
+      return props.category.parentCategoryID ? 'bg-custom-child' : 'bg-danger'
     }
 
     const getTypeBadgeClass = () => {
-      return props.category.ParentCategoryID ? 'bg-custom-child' : 'bg-danger'
+      return props.category.parentCategoryID ? 'bg-custom-child' : 'bg-danger'
+    }
+
+    const formatDate = (dateString) => {
+      if (!dateString) return 'غير محدد'
+      const date = new Date(dateString)
+      return date.toLocaleDateString('ar-EG', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
     }
 
     const toggleSubcategoriesView = () => {
@@ -228,19 +254,29 @@ export default {
     }
 
     const editCategory = () => {
-      emit('edit-category', props.category)
+      emit('editCategory', props.category)
     }
 
-    const addSubcategory = () => {
-      emit('add-subcategory', props.category)
+    const viewSubcategory = (subcategory) => {
+      // Close current modal and emit to parent to show subcategory details
+      emit('close')
+      // You might want to emit a specific event for viewing subcategory
+      // or handle this in the parent component
     }
 
     const deleteCategory = async () => {
-      if (confirm('هل أنت متأكد من حذف هذه الفئة؟')) {
+      const confirmMessage = props.category.parentCategoryID 
+        ? 'هل أنت متأكد من حذف هذه الفئة الفرعية؟'
+        : 'هل أنت متأكد من حذف هذه الفئة الرئيسية؟'
+        
+      if (confirm(confirmMessage)) {
         const result = await categoryStore.deleteCategory(props.category.id)
         if (result.success) {
           emit('category-updated')
           emit('close')
+        } else {
+          // Handle error - you might want to show a toast or alert
+          alert(result.error || 'حدث خطأ أثناء حذف الفئة')
         }
       }
     }
@@ -255,11 +291,14 @@ export default {
     // Lifecycle
     onMounted(() => {
       document.addEventListener('keydown', handleKeydown)
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden'
     })
 
     // Cleanup on unmount
     onUnmounted(() => {
       document.removeEventListener('keydown', handleKeydown)
+      document.body.style.overflow = 'auto'
     })
 
     return {
@@ -269,16 +308,18 @@ export default {
       subcategories,
       displayedSubcategories,
       categoryPath,
+      canDeleteCategory,
       getTitleColorClass,
       getSubcategoryIconClass,
       getParentIconClass,
       getCategoryTypeText,
       getHeaderClass,
       getTypeBadgeClass,
+      formatDate,
       toggleSubcategoriesView,
       closeModal,
       editCategory,
-      addSubcategory,
+      viewSubcategory,
       deleteCategory
     }
   }

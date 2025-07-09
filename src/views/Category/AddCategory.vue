@@ -16,14 +16,14 @@
           </label>
           <input
             id="categoryName"
-            v-model="formData.Name"
+            v-model="formData.name"
             type="text"
             class="form-input"
-            :class="{ 'error': errors.Name }"
+            :class="{ 'error': errors.name }"
             placeholder="أدخل اسم الفئة"
             required
           />
-          <span v-if="errors.Name" class="error-message">{{ errors.Name }}</span>
+          <span v-if="errors.name" class="error-message">{{ errors.name }}</span>
         </div>
 
         <!-- Category Description -->
@@ -33,7 +33,7 @@
           </label>
           <textarea
             id="categoryDescription"
-            v-model="formData.Description"
+            v-model="formData.description"
             class="form-textarea"
             placeholder="أدخل وصف الفئة (اختياري)"
             rows="3"
@@ -82,9 +82,9 @@
           </label>
           <select
             id="parentCategory"
-            v-model="formData.ParentCategoryID"
+            v-model="formData.parentCategoryID"
             class="form-select"
-            :class="{ 'error': errors.ParentCategoryID }"
+            :class="{ 'error': errors.parentCategoryID }"
             required
           >
             <option value="">اختر الفئة الأساسية</option>
@@ -93,11 +93,11 @@
               :key="category.id"
               :value="category.id"
             >
-              {{ category.Name }}
+              {{ category.name }}
             </option>
           </select>
-          <span v-if="errors.ParentCategoryID" class="error-message">
-            {{ errors.ParentCategoryID }}
+          <span v-if="errors.parentCategoryID" class="error-message">
+            {{ errors.parentCategoryID }}
           </span>
         </div>
 
@@ -160,9 +160,9 @@ export default {
 
     // Reactive data
     const formData = reactive({
-      Name: '',
-      Description: '',
-      ParentCategoryID: null
+      name: '',
+      description: '',
+      parentCategoryID: null
     })
 
     const categoryType = ref('main')
@@ -176,8 +176,8 @@ export default {
     const error = computed(() => categoryStore.getError)
 
     const isFormValid = computed(() => {
-      return formData.Name.trim() !== '' && 
-             (categoryType.value === 'main' || formData.ParentCategoryID)
+      return formData.name.trim() !== '' && 
+             (categoryType.value === 'main' || formData.parentCategoryID)
     })
 
     // Methods
@@ -188,17 +188,17 @@ export default {
       let isValid = true
 
       // Validate name
-      if (!formData.Name.trim()) {
-        errors.Name = 'اسم الفئة مطلوب'
+      if (!formData.name.trim()) {
+        errors.name = 'اسم الفئة مطلوب'
         isValid = false
-      } else if (formData.Name.trim().length < 2) {
-        errors.Name = 'اسم الفئة يجب أن يكون على الأقل حرفين'
+      } else if (formData.name.trim().length < 2) {
+        errors.name = 'اسم الفئة يجب أن يكون على الأقل حرفين'
         isValid = false
       }
 
       // Validate parent category for subcategories
-      if (categoryType.value === 'sub' && !formData.ParentCategoryID) {
-        errors.ParentCategoryID = 'الفئة الأساسية مطلوبة للفئات الفرعية'
+      if (categoryType.value === 'sub' && !formData.parentCategoryID) {
+        errors.parentCategoryID = 'الفئة الأساسية مطلوبة للفئات الفرعية'
         isValid = false
       }
 
@@ -231,8 +231,8 @@ export default {
     const getFieldId = (fieldName) => {
       // Map field names to their corresponding input IDs
       const fieldIdMap = {
-        'Name': 'categoryName',
-        'ParentCategoryID': 'parentCategory'
+        'name': 'categoryName',
+        'parentCategoryID': 'parentCategory'
       }
       return fieldIdMap[fieldName] || fieldName.toLowerCase()
     }
@@ -250,9 +250,9 @@ export default {
 
       // Prepare data
       const categoryData = {
-        Name: formData.Name.trim(),
-        Description: formData.Description.trim(),
-        ParentCategoryID: categoryType.value === 'main' ? null : formData.ParentCategoryID
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        parentCategoryID: categoryType.value === 'main' ? null : formData.parentCategoryID
       }
 
       // Create category
@@ -262,15 +262,15 @@ export default {
         showSuccessModal.value = true
         
         // Reset form
-        formData.Name = ''
-        formData.Description = ''
-        formData.ParentCategoryID = null
+        formData.name = ''
+        formData.description = ''
+        formData.parentCategoryID = null
         categoryType.value = 'main'
         Object.keys(errors).forEach(key => delete errors[key])
       } else {
         // Handle specific errors and scroll to relevant field
         if (result.error && result.error.includes('اسم الفئة')) {
-          errors.Name = result.error
+          errors.name = result.error
           scrollToFirstError()
         }
       }
@@ -288,7 +288,7 @@ export default {
     // Watch category type to reset parent selection
     const resetParentCategory = () => {
       if (categoryType.value === 'main') {
-        formData.ParentCategoryID = null
+        formData.parentCategoryID = null
       }
     }
 

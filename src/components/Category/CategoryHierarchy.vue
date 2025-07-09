@@ -3,8 +3,8 @@
     <div v-for="mainCategory in mainCategories" :key="mainCategory.id" class="main-category-group mb-4">
       <!-- Main Category -->
       <div 
-      class="main-category-card card border-0 shadow-sm mb-3 cursor-pointer"
-      @click="$emit('view-category', mainCategory)"
+        class="main-category-card card border-0 shadow-sm mb-3 cursor-pointer"
+        @click="$emit('view-category', mainCategory)"
       >
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center">
@@ -13,8 +13,8 @@
                 <span class="material-icons text-danger fs-3">category</span>
               </div>
               <div>
-                <h5 class="mb-1 fw-bold">{{ mainCategory.Name }}</h5>
-                <p class="text-muted mb-0 small">{{ mainCategory.Description }}</p>
+                <h5 class="mb-1 fw-bold">{{ mainCategory.name }}</h5>
+                <p class="text-muted mb-0 small">{{ mainCategory.description }}</p>
                 <small class="text-muted">
                   {{ getSubcategoriesCount(mainCategory.id) }} فئة فرعية
                 </small>
@@ -41,8 +41,8 @@
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                   <div class="flex-grow-1">
-                    <h6 class="mb-1 fw-semibold">{{ subCategory.Name }}</h6>
-                    <p class="text-muted small mb-0">{{ subCategory.Description }}</p>
+                    <h6 class="mb-1 fw-semibold">{{ subCategory.name }}</h6>
+                    <p class="text-muted small mb-0">{{ subCategory.description }}</p>
                   </div>
                   <div class="view-indicator">
                     <i class="fas fa-eye text-muted"></i>
@@ -83,8 +83,12 @@
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-start mb-2">
                 <div class="flex-grow-1">
-                  <h6 class="mb-1 fw-semibold">{{ subCategory.Name }}</h6>
-                  <p class="text-muted small mb-1">{{ subCategory.Description }}</p>
+                  <h6 class="mb-1 fw-semibold">{{ subCategory.name }}</h6>
+                  <p class="text-muted small mb-1">{{ subCategory.description }}</p>
+                  <small class="text-danger">
+                    <i class="fas fa-arrow-up me-1"></i>
+                    {{ getParentCategoryName(subCategory.parentCategoryID) }}
+                  </small>
                 </div>
                 <div class="view-indicator">
                   <i class="fas fa-eye text-muted"></i>
@@ -122,22 +126,22 @@ export default {
   },
   emits: ['edit-category', 'delete-category', 'view-category'],
   setup(props) {
-    // Get main categories from filtered categories
+    // Get main categories from filtered categories (using parentCategoryID instead of ParentCategoryID)
     const mainCategories = computed(() => 
-      props.categories.filter(category => !category.ParentCategoryID)
+      props.categories.filter(category => !category.parentCategoryID)
     )
 
     // Get subcategories for a specific parent from filtered categories
     const getSubcategories = (parentId) => {
-      return props.categories.filter(category => category.ParentCategoryID === parentId)
+      return props.categories.filter(category => category.parentCategoryID === parentId)
     }
 
     // Get orphaned subcategories (subcategories whose parents are not in the filtered list)
     const orphanedSubcategories = computed(() => {
-      const subcategories = props.categories.filter(category => category.ParentCategoryID)
+      const subcategories = props.categories.filter(category => category.parentCategoryID)
       const mainCategoryIds = mainCategories.value.map(cat => cat.id)
       
-      return subcategories.filter(subcat => !mainCategoryIds.includes(subcat.ParentCategoryID))
+      return subcategories.filter(subcat => !mainCategoryIds.includes(subcat.parentCategoryID))
     })
 
     const getSubcategoriesCount = (parentId) => {
@@ -147,7 +151,7 @@ export default {
     // Get parent category name from all categories (not just filtered ones)
     const getParentCategoryName = (parentId) => {
       const parent = props.allCategories.find(cat => cat.id === parentId)
-      return parent ? parent.Name : 'غير محدد'
+      return parent ? parent.name : 'غير محدد'
     }
 
     return {
