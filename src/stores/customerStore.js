@@ -1,29 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
-
-// Configure axios base URL for json-server
-const API_BASE_URL = 'http://localhost:3002/'
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
-
-// Add request interceptor to include auth token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('auth_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
+import api from '@/api' // Import the centralized api
 
 export const useCustomerStore = defineStore('customer', {
   state: () => ({
@@ -39,24 +15,24 @@ export const useCustomerStore = defineStore('customer', {
     getAllCustomers: (state) => state.customers,
 
     // Get active customers only
-    getActiveCustomers: (state) => state.customers.filter(customer => customer.Status === 'Active'),
+    getActiveCustomers: (state) => state.customers.filter(customer => customer.is_active === true),
 
     // Get disabled customers only
-    getDisabledCustomers: (state) => state.customers.filter(customer => customer.Status === 'Disabled'),
+    getDisabledCustomers: (state) => state.customers.filter(customer => customer.is_active === false),
 
     // Get customer by ID
     getCustomerById: (state) => (id) => state.customers.find(customer => customer.id === id),
 
     // Get customer by phone number (exact match)
     getCustomerByPhone: (state) => (phoneNumber) => {
-      return state.customers.find(customer => customer.PhoneNumber === phoneNumber)
+      return state.customers.find(customer => customer.phone_number === phoneNumber)
     },
 
     // Get customers by partial phone number match
     getCustomersByPhoneMatch: (state) => (phoneNumber) => {
       if (!phoneNumber) return []
       return state.customers.filter(customer => 
-        customer.PhoneNumber.includes(phoneNumber)
+        customer.phone_number.includes(phoneNumber)
       )
     },
 
@@ -64,7 +40,9 @@ export const useCustomerStore = defineStore('customer', {
     getFilteredCustomers: (state) => {
       if (!state.searchQuery) return state.customers
       return state.customers.filter(customer => 
-        customer.PhoneNumber.includes(state.searchQuery)
+        customer.phone_number.includes(state.searchQuery) ||
+        customer.full_name.includes(state.searchQuery) ||
+        customer.email.includes(state.searchQuery)
       )
     },
 
@@ -81,16 +59,18 @@ export const useCustomerStore = defineStore('customer', {
     getCustomersCount: (state) => state.customers.length,
 
     // Get active customers count
-    getActiveCustomersCount: (state) => state.customers.filter(customer => customer.Status === 'Active').length,
+    getActiveCustomersCount: (state) => state.customers.filter(customer => customer.is_active === true).length,
 
     // Get disabled customers count
-    getDisabledCustomersCount: (state) => state.customers.filter(customer => customer.Status === 'Disabled').length,
+    getDisabledCustomersCount: (state) => state.customers.filter(customer => customer.is_active === false).length,
 
     // Get filtered customers count
     getFilteredCustomersCount: (state) => {
       if (!state.searchQuery) return state.customers.length
       return state.customers.filter(customer => 
-        customer.PhoneNumber.includes(state.searchQuery)
+        customer.phone_number.includes(state.searchQuery) ||
+        customer.full_name.includes(state.searchQuery) ||
+        customer.email.includes(state.searchQuery)
       ).length
     }
   },
@@ -102,9 +82,9 @@ export const useCustomerStore = defineStore('customer', {
       this.error = null
 
       try {
-        const response = await api.get('/customers')
-        // Remove passwords from customer data for security
-        this.customers = response.data.map(({ Password: _, ...customer }) => customer)
+        // Updated to use the new API endpoint for listing customers
+        const response = await api.get('/users/customers/')
+        this.customers = response.data
         
         return {
           success: true,
@@ -123,23 +103,22 @@ export const useCustomerStore = defineStore('customer', {
       }
     },
 
-    // Toggle customer status (Active/Disabled)
+    // Toggle customer active status
     async toggleCustomerStatus(customerId, newStatus) {
       this.isLoading = true
       this.error = null
 
       try {
-        const response = await api.patch(`/customers/${customerId}`, {
-          Status: newStatus
+        // Updated to use the PATCH method as defined in the YAML file
+        const response = await api.patch(`/users/customers/${customerId}/`, {
+          is_active: newStatus
         })
 
         // Update customer in local state
         const customerIndex = this.customers.findIndex(c => c.id === customerId)
         if (customerIndex !== -1) {
-          this.customers[customerIndex] = {
-            ...this.customers[customerIndex],
-            Status: newStatus
-          }
+          // The API returns the updated user object, so we can use that
+          this.customers[customerIndex] = response.data
         }
 
         return {
@@ -160,12 +139,30 @@ export const useCustomerStore = defineStore('customer', {
 
     // Activate customer
     async activateCustomer(customerId) {
-      return await this.toggleCustomerStatus(customerId, 'Active')
+      return await this.toggleCustomerStatus(customerId, true)
     },
 
     // Disable customer
     async disableCustomer(customerId) {
-      return await this.toggleCustomerStatus(customerId, 'Disabled')
+      return await this.toggleCustomerStatus(customerId, false)
+    },
+
+    // Search customers by phone number, name, or email
+    searchCustomers(query) {
+      this.searchQuery = query || ''
+      
+      if (!query) {
+        this.filteredCustomers = this.customers
+        return this.customers
+      }
+      
+      this.filteredCustomers = this.customers.filter(customer => 
+        customer.phone_number.includes(query) ||
+        customer.full_name.includes(query) ||
+        customer.email.includes(query)
+      )
+      
+      return this.filteredCustomers
     },
 
     // Search customers by phone number only
@@ -178,7 +175,7 @@ export const useCustomerStore = defineStore('customer', {
       }
       
       this.filteredCustomers = this.customers.filter(customer => 
-        customer.PhoneNumber.includes(phoneNumber)
+        customer.phone_number.includes(phoneNumber)
       )
       
       return this.filteredCustomers
@@ -189,7 +186,7 @@ export const useCustomerStore = defineStore('customer', {
       if (!phoneNumber) return null
       
       const customer = this.customers.find(customer => 
-        customer.PhoneNumber === phoneNumber
+        customer.phone_number === phoneNumber
       )
       
       return customer || null
@@ -200,19 +197,25 @@ export const useCustomerStore = defineStore('customer', {
       if (!phoneNumber || phoneNumber.length < 3) return []
       
       return this.customers
-        .filter(customer => customer.PhoneNumber.includes(phoneNumber))
+        .filter(customer => customer.phone_number.includes(phoneNumber))
         .map(customer => ({
           id: customer.id,
-          phoneNumber: customer.PhoneNumber,
-          fullName: customer.FullName,
-          status: customer.Status
+          phoneNumber: customer.phone_number,
+          fullName: customer.full_name,
+          email: customer.email,
+          isActive: customer.is_active
         }))
         .slice(0, 10) // Limit to 10 suggestions
     },
 
     // Check if phone number exists
     phoneNumberExists(phoneNumber) {
-      return this.customers.some(customer => customer.PhoneNumber === phoneNumber)
+      return this.customers.some(customer => customer.phone_number === phoneNumber)
+    },
+
+    // Check if email exists
+    emailExists(email) {
+      return this.customers.some(customer => customer.email === email)
     },
 
     // Clear search
@@ -226,15 +229,15 @@ export const useCustomerStore = defineStore('customer', {
       this.error = null
     },
 
-    // Filter customers by status (can be combined with phone search)
-    filterByStatus(status) {
+    // Filter customers by active status (can be combined with search)
+    filterByStatus(isActive) {
       let baseCustomers = this.searchQuery ? this.filteredCustomers : this.customers
       
-      if (!status || status === 'all') {
+      if (isActive === null || isActive === undefined) {
         return baseCustomers
       }
       
-      return baseCustomers.filter(customer => customer.Status === status)
+      return baseCustomers.filter(customer => customer.is_active === isActive)
     },
 
     // Sort customers by registration date
@@ -242,8 +245,8 @@ export const useCustomerStore = defineStore('customer', {
       const customersToSort = customers || this.getFilteredCustomers
       
       return [...customersToSort].sort((a, b) => {
-        const dateA = new Date(a.RegistrationDate)
-        const dateB = new Date(b.RegistrationDate)
+        const dateA = new Date(a.registration_date)
+        const dateB = new Date(b.registration_date)
         return ascending ? dateA - dateB : dateB - dateA
       })
     },
@@ -253,13 +256,40 @@ export const useCustomerStore = defineStore('customer', {
       const customersToSort = customers || this.getFilteredCustomers
       
       return [...customersToSort].sort((a, b) => {
-        const nameA = a.FullName.toLowerCase()
-        const nameB = b.FullName.toLowerCase()
+        const nameA = a.full_name.toLowerCase()
+        const nameB = b.full_name.toLowerCase()
         if (ascending) {
           return nameA.localeCompare(nameB, 'ar')
         } else {
           return nameB.localeCompare(nameA, 'ar')
         }
+      })
+    },
+
+    // Sort customers by email
+    sortByEmail(customers = null, ascending = true) {
+      const customersToSort = customers || this.getFilteredCustomers
+      
+      return [...customersToSort].sort((a, b) => {
+        const emailA = a.email.toLowerCase()
+        const emailB = b.email.toLowerCase()
+        return ascending ? emailA.localeCompare(emailB) : emailB.localeCompare(emailA)
+      })
+    },
+
+    // Get customers by role (though all seem to be CUSTOMER in the JSON)
+    getCustomersByRole(role) {
+      return this.customers.filter(customer => customer.role === role)
+    },
+
+    // Get customers registered in a specific date range
+    getCustomersByDateRange(startDate, endDate) {
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      
+      return this.customers.filter(customer => {
+        const regDate = new Date(customer.registration_date)
+        return regDate >= start && regDate <= end
       })
     }
   }

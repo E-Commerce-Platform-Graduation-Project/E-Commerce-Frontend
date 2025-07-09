@@ -2,111 +2,111 @@
   "customers": [
     {
       "id": "1",
-      "FullName": "خالد محمد الزروق",
-      "PhoneNumber": "0912345678",
-      "Email": "khaled.alzarroq@gmail.com",
-      "Password": "customer123",
-      "Status": "Disabled",
-      "RegistrationDate": "2025-01-15T08:30:00.000Z"
+      "phone_number": "0912345678",
+      "full_name": "خالد محمد الزروق",
+      "email": "khaled.alzarroq@gmail.com",
+      "role": "CUSTOMER",
+      "is_active": false,
+      "registration_date": "2025-01-15T08:30:00.000Z"
     },
     {
       "id": "2",
-      "FullName": "أمينة سالم بن علي",
-      "PhoneNumber": "0918261062",
-      "Email": "amina.benali@yahoo.com",
-      "Password": "amina2024",
-      "Status": "Disabled",
-      "RegistrationDate": "2025-02-20T10:15:30.000Z"
+      "phone_number": "0918261062",
+      "full_name": "أمينة سالم بن علي",
+      "email": "amina.benali@yahoo.com",
+      "role": "CUSTOMER",
+      "is_active": false,
+      "registration_date": "2025-02-20T10:15:30.000Z"
     },
     {
       "id": "3",
-      "FullName": "يوسف أحمد المبروك",
-      "PhoneNumber": "0912342345",
-      "Email": "youssef.almabrok@hotmail.com",
-      "Password": "youssef123",
-      "Status": "Active",
-      "RegistrationDate": "2025-03-10T14:20:45.000Z"
+      "phone_number": "0912342345",
+      "full_name": "يوسف أحمد المبروك",
+      "email": "youssef.almabrok@hotmail.com",
+      "role": "CUSTOMER",
+      "is_active": true,
+      "registration_date": "2025-03-10T14:20:45.000Z"
     },
     {
       "id": "4",
-      "FullName": "حليمة عبدالرحمن الطاهر",
-      "PhoneNumber": "0941102002",
-      "Email": "halima.altaher@gmail.com",
-      "Password": "halima2024",
-      "Status": "Active",
-      "RegistrationDate": "2025-03-25T09:45:15.000Z"
+      "phone_number": "0941102002",
+      "full_name": "حليمة عبدالرحمن الطاهر",
+      "email": "halima.altaher@gmail.com",
+      "role": "CUSTOMER",
+      "is_active": true,
+      "registration_date": "2025-03-25T09:45:15.000Z"
     },
     {
       "id": "5",
-      "FullName": "محمد الصادق بن يوسف",
-      "PhoneNumber": "0925586854",
-      "Email": "mohamed.sadiq@outlook.com",
-      "Password": "sadiq123",
-      "Status": "Active",
-      "RegistrationDate": "2025-04-05T16:30:00.000Z"
+      "phone_number": "0925586854",
+      "full_name": "محمد الصادق بن يوسف",
+      "email": "mohamed.sadiq@outlook.com",
+      "role": "CUSTOMER",
+      "is_active": true,
+      "registration_date": "2025-04-05T16:30:00.000Z"
     },
     {
       "id": "6",
-      "FullName": "زينب محمود الغرياني",
-      "PhoneNumber": "0925678493",
-      "Email": "zeinab.gharyani@gmail.com",
-      "Password": "zeinab2024",
-      "Status": "Disabled",
-      "RegistrationDate": "2025-04-12T11:10:20.000Z"
+      "phone_number": "0925678493",
+      "full_name": "زينب محمود الغرياني",
+      "email": "zeinab.gharyani@gmail.com",
+      "role": "CUSTOMER",
+      "is_active": false,
+      "registration_date": "2025-04-12T11:10:20.000Z"
     },
     {
       "id": "7",
-      "FullName": "علي عبدالله الفيتوري",
-      "PhoneNumber": "0944459155",
-      "Email": "ali.fituri@yahoo.com",
-      "Password": "ali2024",
-      "Status": "Active",
-      "RegistrationDate": "2025-04-18T13:25:35.000Z"
+      "phone_number": "0944459155",
+      "full_name": "علي عبدالله الفيتوري",
+      "email": "ali.fituri@yahoo.com",
+      "role": "CUSTOMER",
+      "is_active": true,
+      "registration_date": "2025-04-18T13:25:35.000Z"
     },
     {
       "id": "8",
-      "FullName": "سعاد أحمد الشريف",
-      "PhoneNumber": "0915346782",
-      "Email": "suad.sherif@hotmail.com",
-      "Password": "suad123",
-      "Status": "Active",
-      "RegistrationDate": "2025-05-02T07:40:50.000Z"
+      "phone_number": "0915346782",
+      "full_name": "سعاد أحمد الشريف",
+      "email": "suad.sherif@hotmail.com",
+      "role": "CUSTOMER",
+      "is_active": true,
+      "registration_date": "2025-05-02T07:40:50.000Z"
     },
     {
       "id": "9",
-      "FullName": "إبراهيم محمد القذافي",
-      "PhoneNumber": "0944433426",
-      "Email": "ibrahim.gaddafi@gmail.com",
-      "Password": "ibrahim2024",
-      "Status": "Active",
-      "RegistrationDate": "2025-05-15T12:55:10.000Z"
+      "phone_number": "0944433426",
+      "full_name": "إبراهيم محمد القذافي",
+      "email": "ibrahim.gaddafi@gmail.com",
+      "role": "CUSTOMER",
+      "is_active": true,
+      "registration_date": "2025-05-15T12:55:10.000Z"
     },
     {
       "id": "10",
-      "FullName": "نجلاء سالم الهوني",
-      "PhoneNumber": "0912378651",
-      "Email": "najla.huni@outlook.com",
-      "Password": "najla123",
-      "Status": "Active",
-      "RegistrationDate": "2025-06-01T15:20:25.000Z"
+      "phone_number": "0912378651",
+      "full_name": "نجلاء سالم الهوني",
+      "email": "najla.huni@outlook.com",
+      "role": "CUSTOMER",
+      "is_active": true,
+      "registration_date": "2025-06-01T15:20:25.000Z"
     },
     {
       "id": "11",
-      "FullName": "عمر الصديق المقريف",
-      "PhoneNumber": "0913456789",
-      "Email": "omar.megrahi@yahoo.com",
-      "Password": "omar2024",
-      "Status": "Active",
-      "RegistrationDate": "2025-06-10T09:35:40.000Z"
+      "phone_number": "0913456789",
+      "full_name": "عمر الصديق المقريف",
+      "email": "omar.megrahi@yahoo.com",
+      "role": "CUSTOMER",
+      "is_active": true,
+      "registration_date": "2025-06-10T09:35:40.000Z"
     },
     {
       "id": "12",
-      "FullName": "فاطمة محمد البرعصي",
-      "PhoneNumber": "0926789012",
-      "Email": "fatma.baraasi@gmail.com",
-      "Password": "fatma123",
-      "Status": "Active",
-      "RegistrationDate": "2025-06-18T17:45:55.000Z"
+      "phone_number": "0926789012",
+      "full_name": "فاطمة محمد البرعصي",
+      "email": "fatma.baraasi@gmail.com",
+      "role": "CUSTOMER",
+      "is_active": true,
+      "registration_date": "2025-06-18T17:45:55.000Z"
     }
   ]
 }

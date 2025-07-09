@@ -1,10 +1,10 @@
-<template >
+<template>
   <div class="container-fluid px-lg-1 pt-1">
 
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-2">
       <h3 class="h2 fw-bold text-dark mb-0">العملاء</h3>
-
     </div>
+
     <!-- Header -->
     <div class="row mb-4">
       <div class="col-md-12">
@@ -50,7 +50,7 @@
             <input 
               v-model="searchQuery" 
               type="text" 
-              placeholder="البحث برقم الهاتف..."
+              placeholder="البحث برقم الهاتف أو الاسم أو البريد الإلكتروني..."
               class="form-control search-input"
               @input="onSearchInput"
             />
@@ -63,8 +63,8 @@
               @change="onStatusFilterChange"
             >
               <option value="all">جميع العملاء</option>
-              <option value="Active">العملاء النشطين</option>
-              <option value="Disabled">العملاء المعطلين</option>
+              <option value="active">العملاء النشطين</option>
+              <option value="inactive">العملاء المعطلين</option>
             </select>
             <i class="fas fa-chevron-down filter-icon"></i>
           </div>
@@ -107,38 +107,38 @@
 
       <!-- Customer Rows -->
       <div 
-        v-for="(customer) in filteredCustomers" 
+        v-for="customer in filteredCustomers" 
         :key="customer.id"
-        :class="['customer-row', { 'disabled-customer': customer.Status === 'Disabled' }]"
+        :class="['customer-row', { 'disabled-customer': !customer.is_active }]"
       >
         <!-- Customer Avatar and Name -->
         <div class="customer-info">
           <div class="customer-avatar">
             <i class="fas fa-user"></i>
-            <div class="status-indicator" :class="{ 'online': customer.Status === 'Active' }"></div>
+            <div class="status-indicator" :class="{ 'online': customer.is_active }"></div>
           </div>
           <div class="customer-details">
-            <div class="customer-name">{{ customer.FullName }}</div>
-            <div class="customer-role">عميل</div>
+            <div class="customer-name">{{ customer.full_name }}</div>
+            <div class="customer-role">{{ customer.role === 'CUSTOMER' ? 'عميل' : customer.role }}</div>
           </div>
         </div>
 
         <!-- Phone Number -->
         <div class="customer-phone">
           <i class="fas fa-phone"></i>
-          {{ customer.PhoneNumber }}
+          {{ customer.phone_number }}
         </div>
 
         <!-- Email -->
         <div class="customer-email">
           <i class="fas fa-envelope"></i>
-          {{ customer.Email }}
+          {{ customer.email }}
         </div>
 
         <!-- Registration Date -->
         <div class="registration-date">
           <i class="fas fa-calendar-alt"></i>
-          {{ formatDate(customer.RegistrationDate) }}
+          {{ formatDate(customer.registration_date) }}
         </div>
 
         <!-- Status Toggle -->
@@ -146,7 +146,7 @@
           <div class="status-toggle-container">
             <button 
               @click="showToggleModal(customer)"
-              :class="['status-toggle', { 'active': customer.Status === 'Active' }]"
+              :class="['status-toggle', { 'active': customer.is_active }]"
               :disabled="isTogglingStatus"
             >
               <div class="toggle-slider"></div>
@@ -183,7 +183,7 @@
             class="btn btn-confirm"
             :disabled="isTogglingStatus"
           >
-            {{ isTogglingStatus ? 'جاري التحديث...' : 'تفعيل' }}
+            {{ isTogglingStatus ? 'جاري التحديث...' : (selectedCustomer?.is_active ? 'تعطيل' : 'تفعيل') }}
           </button>
         </div>
       </div>
@@ -213,16 +213,21 @@ export default {
     const filteredCustomers = computed(() => {
       let customers = customerStore.getAllCustomers
 
-      // Apply phone number search filter first
+      // Apply search filter (phone, name, or email)
       if (searchQuery.value.trim()) {
+        const query = searchQuery.value.trim().toLowerCase()
         customers = customers.filter(customer => 
-          customer.PhoneNumber.includes(searchQuery.value.trim())
+          customer.phone_number.includes(query) ||
+          customer.full_name.toLowerCase().includes(query) ||
+          customer.email.toLowerCase().includes(query)
         )
       }
 
       // Apply status filter
-      if (statusFilter.value !== 'all') {
-        customers = customers.filter(customer => customer.Status === statusFilter.value)
+      if (statusFilter.value === 'active') {
+        customers = customers.filter(customer => customer.is_active === true)
+      } else if (statusFilter.value === 'inactive') {
+        customers = customers.filter(customer => customer.is_active === false)
       }
 
       return customers
@@ -245,9 +250,9 @@ export default {
 
     const showToggleModal = (customer) => {
       selectedCustomer.value = customer
-      const action = customer.Status === 'Active' ? 'تعطيل' : 'تفعيل'
+      const action = customer.is_active ? 'تعطيل' : 'تفعيل'
       modalTitle.value = `${action} العميل`
-      modalMessage.value = `هل أنت متأكد من ${action} العميل "${customer.FullName}"؟`
+      modalMessage.value = `هل أنت متأكد من ${action} العميل "${customer.full_name}"؟`
       showModal.value = true
     }
 
@@ -263,10 +268,11 @@ export default {
       
       isTogglingStatus.value = true
       const customer = selectedCustomer.value
-      const newStatus = customer.Status === 'Active' ? 'Disabled' : 'Active'
-      const action = newStatus === 'Active' ? 'تفعيل' : 'تعطيل'
+      const newStatus = !customer.is_active
+      const action = newStatus ? 'تفعيل' : 'تعطيل'
       
       const result = await customerStore.toggleCustomerStatus(customer.id, newStatus)
+      console.log(newStatus)
       
       if (result.success) {
         console.log(`تم ${action} العميل بنجاح`)
@@ -280,23 +286,23 @@ export default {
 
     const formatDate = (dateString) => {
       const date = new Date(dateString)
-      return date.toLocaleDateString('en-US', {
+      return date.toLocaleDateString('ar-EG', {
         year: 'numeric',
-        month: 'short',
+        month: 'long',
         day: 'numeric'
       })
     }
 
     const getEmptyStateMessage = () => {
       if (searchQuery.value.trim() && statusFilter.value !== 'all') {
-        const statusText = statusFilter.value === 'Active' ? 'نشطين' : 'معطلين'
+        const statusText = statusFilter.value === 'active' ? 'نشطين' : 'معطلين'
         return `${statusText} يطابقون البحث المحدد`
       }
       if (searchQuery.value.trim()) {
         return 'يطابقون البحث المحدد'
       }
       if (statusFilter.value !== 'all') {
-        return statusFilter.value === 'Active' ? 'نشطين' : 'معطلين'
+        return statusFilter.value === 'active' ? 'نشطين' : 'معطلين'
       }
       return 'مسجلين في النظام'
     }
@@ -622,7 +628,7 @@ export default {
   color: #fd7e14;
 }
 
-/* Last login */
+/* Registration date */
 .registration-date {
   display: flex;
   align-items: center;
