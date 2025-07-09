@@ -145,7 +145,7 @@
         <div class="">
           <div class="status-toggle-container">
             <button 
-              @click="toggleStatus(customer)"
+              @click="showToggleModal(customer)"
               :class="['status-toggle', { 'active': customer.Status === 'Active' }]"
               :disabled="isTogglingStatus"
             >
@@ -159,6 +159,33 @@
       <div v-if="filteredCustomers.length === 0" class="empty-state">
         <i class="fas fa-users"></i>
         <p>لا يوجد عملاء {{ getEmptyStateMessage() }}</p>
+      </div>
+    </div>
+
+    <!-- Toggle Status Modal -->
+    <div v-if="showModal" class="modal-overlay" @click="closeModal">
+      <div class="modal-container" @click.stop>
+        <div class="modal-header">
+          <h3 class="modal-title">{{ modalTitle }}</h3>
+        </div>
+        <div class="modal-body">
+          <p class="modal-message">{{ modalMessage }}</p>
+        </div>
+        <div class="modal-footer">
+          <button 
+            @click="closeModal" 
+            class="btn btn-cancel"
+          >
+            إلغاء
+          </button>
+          <button 
+            @click="confirmToggleStatus" 
+            class="btn btn-confirm"
+            :disabled="isTogglingStatus"
+          >
+            {{ isTogglingStatus ? 'جاري التحديث...' : 'تفعيل' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -175,6 +202,12 @@ export default {
     const searchQuery = ref('')
     const statusFilter = ref('all')
     const isTogglingStatus = ref(false)
+    
+    // Modal state
+    const showModal = ref(false)
+    const selectedCustomer = ref(null)
+    const modalTitle = ref('')
+    const modalMessage = ref('')
 
     // Computed properties
     const filteredCustomers = computed(() => {
@@ -210,21 +243,36 @@ export default {
       // This method can be used for additional logic if needed
     }
 
-    const toggleStatus = async (customer) => {
-      if (isTogglingStatus.value) return
+    const showToggleModal = (customer) => {
+      selectedCustomer.value = customer
+      const action = customer.Status === 'Active' ? 'تعطيل' : 'تفعيل'
+      modalTitle.value = `${action} العميل`
+      modalMessage.value = `هل أنت متأكد من ${action} العميل "${customer.FullName}"؟`
+      showModal.value = true
+    }
+
+    const closeModal = () => {
+      showModal.value = false
+      selectedCustomer.value = null
+      modalTitle.value = ''
+      modalMessage.value = ''
+    }
+
+    const confirmToggleStatus = async () => {
+      if (!selectedCustomer.value || isTogglingStatus.value) return
       
       isTogglingStatus.value = true
+      const customer = selectedCustomer.value
       const newStatus = customer.Status === 'Active' ? 'Disabled' : 'Active'
       const action = newStatus === 'Active' ? 'تفعيل' : 'تعطيل'
       
-      if (confirm(`هل أنت متأكد من ${action} العميل ${customer.FullName}؟`)) {
-        const result = await customerStore.toggleCustomerStatus(customer.id, newStatus)
-        
-        if (result.success) {
-          console.log(`تم ${action} العميل بنجاح`)
-        } else {
-          alert(`حدث خطأ أثناء ${action} العميل`)
-        }
+      const result = await customerStore.toggleCustomerStatus(customer.id, newStatus)
+      
+      if (result.success) {
+        console.log(`تم ${action} العميل بنجاح`)
+        closeModal()
+      } else {
+        alert(`حدث خطأ أثناء ${action} العميل`)
       }
       
       isTogglingStatus.value = false
@@ -264,10 +312,16 @@ export default {
       statusFilter,
       isTogglingStatus,
       filteredCustomers,
+      showModal,
+      selectedCustomer,
+      modalTitle,
+      modalMessage,
       loadCustomers,
       onSearchInput,
       onStatusFilterChange,
-      toggleStatus,
+      showToggleModal,
+      closeModal,
+      confirmToggleStatus,
       formatDate,
       getEmptyStateMessage
     }
@@ -630,6 +684,122 @@ export default {
   transform: translateX(26px);
 }
 
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.modal-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  min-width: 400px;
+  max-width: 500px;
+  animation: slideIn 0.3s ease;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 20px 30px;
+  border-bottom: 1px solid #e9ecef;
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2c3e50;
+  text-align: center;
+}
+
+.modal-body {
+  padding: 30px;
+  text-align: center;
+}
+
+.modal-message {
+  font-size: 16px;
+  color: #495057;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.modal-footer {
+  padding: 20px 30px;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.btn {
+  padding: 12px 30px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 100px;
+}
+
+.btn-cancel {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-cancel:hover {
+  background-color: #5a6268;
+  transform: translateY(-2px);
+}
+
+.btn-confirm {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-confirm:hover {
+  background-color: #218838;
+  transform: translateY(-2px);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 /* Empty state */
 .empty-state {
   text-align: center;
@@ -714,6 +884,11 @@ export default {
   
   .stat-card {
     min-width: 100%;
+  }
+  
+  .modal-container {
+    min-width: 350px;
+    margin: 20px;
   }
 }
 

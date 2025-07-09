@@ -3,7 +3,7 @@
     class="text-center d-flex align-items-center justify-content-center bg-light"
     style="height: 100vh"
   >
-    <div class="form-signin w-100 m-auto" style="max-width: 330px">
+    <div class="form-signin w-100 m-auto" style="max-width: 350px">
       <form @submit.prevent="handleLogin" id="loginForm">
         <img
           class="mb-4"
@@ -13,7 +13,6 @@
         />
         <h1 id="psi" class="h3 mb-3 fw-normal">تسجيل الدخول</h1>
 
-        <!-- Error Alert -->
         <div
           v-if="authStore.getError"
           class="alert alert-danger mb-3"
@@ -23,16 +22,19 @@
         </div>
 
         <div class="mb-3">
-          <label for="floatingInput">اسم المستخدم</label>
+          <label for="floatingInput">رقم الهاتف</label>
           <input
             type="text"
             class="form-control"
             id="floatingInput"
-            placeholder="أدخل اسم المستخدم"
-            v-model="userName"
+            placeholder="أدخل رقم الهاتف"
+            v-model="PhoneNumber"
             :disabled="authStore.getIsLoading"
             required
           />
+           <small class="form-text text-muted" v-if="PhoneNumber && (!PhoneNumber.startsWith('09') || PhoneNumber.length !== 10)">
+            يجب أن يبدأ رقم الهاتف بـ 09 وأن يتكون من 10 أرقام.
+          </small>
         </div>
 
         <div class="mb-3">
@@ -54,12 +56,15 @@
               required
             />
           </div>
+           <small class="form-text text-muted" v-if="password && password.length < 8">
+            يجب أن لا تقل كلمة المرور عن 8 أحرف.
+          </small>
         </div>
 
         <button
           class="btn btn-dark w-100 py-2 mt-3"
           type="submit"
-          :disabled="authStore.getIsLoading || !userName || !password"
+          :disabled="authStore.getIsLoading || !isFormValid"
         >
           <span v-if="authStore.getIsLoading">
             <i class="fas fa-spinner fa-spin me-2"></i>
@@ -68,14 +73,14 @@
           <span v-else> تسجيل دخول </span>
         </button>
 
-        <p class="mt-5 mb-3 text-muted">© CCTT</p>
+        <p class="mt-5 mb-3 text-muted text-center">© CCTT</p>
       </form>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/authStore"; // Adjust path as needed
 
@@ -85,9 +90,17 @@ export default {
     const authStore = useAuthStore();
 
     // Form data
-    const userName = ref("");
+    const PhoneNumber = ref("");
     const password = ref("");
     const showPassword = ref(false);
+
+    // Computed property to check form validity
+    const isFormValid = computed(() => {
+      const isPhoneValid =
+        PhoneNumber.value.startsWith("09") && PhoneNumber.value.length === 10;
+      const isPasswordValid = password.value.length >= 8;
+      return isPhoneValid && isPasswordValid;
+    });
 
     // Methods
     const togglePassword = () => {
@@ -95,18 +108,24 @@ export default {
     };
 
     const handleLogin = async () => {
+      if (!isFormValid.value) {
+        return; // Prevent submission if form is invalid
+      }
       // Clear any previous errors
       authStore.clearError();
 
       try {
-        const result = await authStore.login(userName.value.trim(), password.value);
+        const credentials = {
+          phone_number: PhoneNumber.value.trim(),
+          password: password.value,
+        };
+        const result = await authStore.login(credentials);
 
         if (result.success) {
           router.push("/dashboard");
         }
-        // Error handling is done by the store
       } catch (error) {
-        console.error("Login error:", error);
+        console.error("Login component error:", error);
       }
     };
 
@@ -129,9 +148,10 @@ export default {
 
     return {
       authStore,
-      userName,
+      PhoneNumber,
       password,
       showPassword,
+      isFormValid,
       togglePassword,
       handleLogin,
     };
@@ -245,6 +265,10 @@ export default {
 
 .text-muted {
   color: #6c757d !important;
+  display: block;
+  text-align: right;
+  width: 100%;
+  margin-top: .25rem;
 }
 
 /* Responsive adjustments */

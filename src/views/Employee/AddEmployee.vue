@@ -13,62 +13,51 @@
         <!-- Full Name -->
         <div class="form-group">
           <label for="fullName" class="form-label">الاسم الكامل</label>
-          <input id="fullName" v-model="form.FullName" type="text" class="form-input"
-            :class="{ 'error': errors.FullName }" placeholder="أدخل الاسم الكامل" required />
-          <div v-if="errors.FullName" class="error-message">{{ errors.FullName }}</div>
-        </div>
-
-        <!-- UserName -->
-        <div class="form-group">
-          <label for="userName" class="form-label">اسم المستخدم</label>
-          <input id="userName" v-model="form.UserName" type="text" class="form-input"
-            :class="{ 'error': errors.UserName }" placeholder="أدخل اسم المستخدم" required />
-          <div v-if="errors.UserName" class="error-message">{{ errors.UserName }}</div>
+          <input id="fullName" v-model="form.full_name" type="text" class="form-input"
+            :class="{ 'error': errors.full_name }" placeholder="أدخل الاسم الكامل" required />
+          <div v-if="errors.full_name" class="error-message">{{ errors.full_name }}</div>
         </div>
 
         <!-- Phone Number -->
         <div class="form-group">
           <label for="phone" class="form-label">رقم الهاتف</label>
-          <input id="phone" v-model="form.PhoneNumber" type="tel" class="form-input"
-            :class="{ 'error': errors.PhoneNumber }" placeholder="ادخل رقم الهاتف" maxlength="15" required />
-          <div v-if="errors.PhoneNumber" class="error-message">{{ errors.PhoneNumber }}</div>
+          <input 
+            id="phone" 
+            v-model="form.phone_number" 
+            type="tel" 
+            class="form-input"
+            :class="{ 'error': errors.phone_number }" 
+            placeholder="0912345678" 
+            maxlength="10"
+            @input="formatPhoneInput"
+            @keypress="validatePhoneKeypress"
+            required 
+          />
+          <div v-if="errors.phone_number" class="error-message">{{ errors.phone_number }}</div>
+          <div class="input-help">يجب أن يبدأ بـ 09 ويتكون من 10 أرقام</div>
         </div>
 
         <!-- Email -->
         <div class="form-group">
           <label for="email" class="form-label">البريد الإلكتروني</label>
-          <input id="email" v-model="form.Email" type="email" class="form-input" :class="{ 'error': errors.Email }"
+          <input id="email" v-model="form.email" type="email" class="form-input" :class="{ 'error': errors.email }"
             placeholder="example@domain.com" />
-          <div v-if="errors.Email" class="error-message">{{ errors.Email }}</div>
-        </div>
-
-        <!-- Password -->
-        <div class="form-group">
-          <label for="password" class="form-label">كلمة المرور</label>
-          <div class="password-input-container">
-            <input id="password" v-model="form.Password" :type="showPassword ? 'text' : 'password'"
-              class="form-input password-input" :class="{ 'error': errors.Password }" placeholder="ادخل كلمة المرور"
-              required />
-            <button type="button" @click="togglePasswordVisibility" class="password-toggle">
-              <i class="fas" :class="showPassword ? 'fa-eye-slash' : 'fa-eye'"></i>
-            </button>
-          </div>
-          <div v-if="errors.Password" class="error-message">{{ errors.Password }}</div>
+          <div v-if="errors.email" class="error-message">{{ errors.email }}</div>
         </div>
 
         <!-- Role -->
         <div class="form-group">
           <label for="role" class="form-label">الصلاحيات</label>
           <div class="role-selection">
-            <div class="role-option" :class="{ 'selected': form.Role === 'employee' }" @click="form.Role = 'employee'">
+            <div class="role-option" :class="{ 'selected': form.role === 'EMPLOYEE' }" @click="form.role = 'EMPLOYEE'">
               <div class="role-icon employee">
                 <i class="fas fa-user"></i>
               </div>
               <span class="role-text">موظف</span>
             </div>
-            <div class="role-option" :class="{ 'selected': form.Role === 'admin' }" @click="form.Role = 'admin'">
+            <div class="role-option" :class="{ 'selected': form.role === 'ADMIN' }" @click="form.role = 'ADMIN'">
               <div class="role-icon admin">
-                <i class="fas fa-user"></i>
+                <i class="fas fa-user-shield"></i>
               </div>
               <span class="role-text">مدير</span>
             </div>
@@ -98,6 +87,7 @@
         </div>
         <h3>تم بنجاح!</h3>
         <p>تم إضافة الموظف بنجاح</p>
+        <p>تم ارسال كلمة المرور الى رقم الهاتف الخاص بك</p>
         <button @click="closeSuccessModal" class="btn btn-primary">موافق</button>
       </div>
     </div>
@@ -117,18 +107,15 @@ export default {
 
     // Form data
     const form = reactive({
-      FullName: '',
-      UserName: '',
-      PhoneNumber: '',
-      Email: '',
-      Password: '',
-      Role: 'employee'
+      full_name: '',
+      phone_number: '',
+      email: '',
+      role: 'EMPLOYEE'
     })
 
     // Form state
     const errors = ref({})
     const isSubmitting = ref(false)
-    const showPassword = ref(false)
     const showSuccessModal = ref(false)
 
     // Methods
@@ -137,36 +124,70 @@ export default {
       let isValid = true
 
       // Validate Full Name
-      if (!form.FullName || form.FullName.trim().length < 2) {
-        errors.value.FullName = 'الاسم الكامل مطلوب ويجب أن يكون أكثر من حرفين'
+      if (!form.full_name || form.full_name.trim().length < 2) {
+        errors.value.full_name = 'الاسم الكامل مطلوب ويجب أن يكون أكثر من حرفين'
         isValid = false
       }
 
-      // Validate UserName
-      if (!form.UserName || form.UserName.trim().length < 3) {
-        errors.value.UserName = 'اسم المستخدم مطلوب ويجب أن يكون 3 أحرف على الأقل'
+      // Enhanced Phone Number Validation
+      const phoneNumber = form.phone_number.trim()
+      
+      // Check if phone number is empty
+      if (!phoneNumber) {
+        errors.value.phone_number = 'رقم الهاتف مطلوب'
         isValid = false
       }
-
-      // Validate Phone Number
-      if (!form.PhoneNumber || !/^[0-9]{9,15}$/.test(form.PhoneNumber)) {
-        errors.value.PhoneNumber = 'رقم الهاتف مطلوب ويجب أن يكون 9-15 رقم'
+      // Check if phone number matches the pattern: exactly 10 digits starting with 09
+      else if (!/^09\d{8}$/.test(phoneNumber)) {
+        errors.value.phone_number = 'يجب أن يكون رقم الهاتف 10 أرقام ويبدأ بـ 09'
         isValid = false
       }
 
       // Validate Email (optional but must be valid if provided)
-      if (form.Email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.Email)) {
-        errors.value.Email = 'البريد الإلكتروني غير صحيح'
-        isValid = false
-      }
-
-      // Validate Password
-      if (!form.Password || form.Password.length < 4) {
-        errors.value.Password = 'كلمة المرور مطلوبة ويجب أن تكون 4 أحرف على الأقل'
+      if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+        errors.value.email = 'البريد الإلكتروني غير صحيح'
         isValid = false
       }
 
       return isValid
+    }
+
+    const formatPhoneInput = (event) => {
+      // Remove any non-digit characters
+      let value = event.target.value.replace(/\D/g, '')
+      
+      // Limit to 10 digits
+      if (value.length > 10) {
+        value = value.slice(0, 10)
+      }
+      
+      // Update the form value
+      form.phone_number = value
+      
+      // Clear phone error when user starts typing correctly
+      if (value.startsWith('09') && value.length <= 10) {
+        if (errors.value.phone_number) {
+          delete errors.value.phone_number
+        }
+      }
+    }
+
+    const validatePhoneKeypress = (event) => {
+      // Allow only digits
+      if (!/\d/.test(event.key) && 
+          !['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        event.preventDefault()
+      }
+      
+      // If this is the first character, ensure it's 0
+      if (form.phone_number.length === 0 && event.key !== '0') {
+        event.preventDefault()
+      }
+      
+      // If this is the second character, ensure it's 9
+      if (form.phone_number.length === 1 && event.key !== '9') {
+        event.preventDefault()
+      }
     }
 
     const scrollToFirstError = () => {
@@ -195,11 +216,9 @@ export default {
     const getFieldId = (fieldName) => {
       // Map field names to their corresponding input IDs
       const fieldIdMap = {
-        'FullName': 'fullName',
-        'UserName': 'userName',
-        'PhoneNumber': 'phone',
-        'Email': 'email',
-        'Password': 'password'
+        'full_name': 'fullName',
+        'phone_number': 'phone',
+        'email': 'email'
       }
       return fieldIdMap[fieldName] || fieldName.toLowerCase()
     }
@@ -217,24 +236,22 @@ export default {
       try {
         // Prepare user data
         const userData = {
-          FullName: form.FullName.trim(),
-          UserName: form.UserName.trim(),
-          PhoneNumber: form.PhoneNumber.trim(),
-          Email: form.Email.trim() || null,
-          Password: form.Password.trim(),
-          Role: form.Role,
-          IsActive: true
+          full_name: form.full_name.trim(),
+          phone_number: form.phone_number.trim(),
+          email: form.email.trim() || null,
+          role: form.role,
+          is_active: true
         }
 
-        // Add employee using authStore (different from register)
+        // Add employee using authStore
         const result = await authStore.addEmployee(userData)
 
         if (result.success) {
           showSuccessModal.value = true
           // Reset form
           Object.keys(form).forEach(key => {
-            if (key === 'Role') {
-              form[key] = 'employee'
+            if (key === 'role') {
+              form[key] = 'EMPLOYEE'
             } else {
               form[key] = ''
             }
@@ -242,12 +259,10 @@ export default {
           errors.value = {}
         } else {
           // Handle add employee error and scroll to relevant field
-          if (result.error.includes('اسم المستخدم مستخدم بالفعل')) {
-            errors.value.UserName = result.error
-          } else if (result.error.includes('رقم الهاتف مستخدم بالفعل')) {
-            errors.value.PhoneNumber = result.error
+          if (result.error.includes('رقم الهاتف مستخدم بالفعل')) {
+            errors.value.phone_number = result.error
           } else if (result.error.includes('البريد الالكتروني موجود بالفعل')) {
-            errors.value.Email = result.error
+            errors.value.email = result.error
           } else {
             alert('حدث خطأ أثناء إضافة الموظف: ' + result.error)
           }
@@ -265,8 +280,8 @@ export default {
     const handleCancel = () => {
       // Reset form
       Object.keys(form).forEach(key => {
-        if (key === 'Role') {
-          form[key] = 'employee'
+        if (key === 'role') {
+          form[key] = 'EMPLOYEE'
         } else {
           form[key] = ''
         }
@@ -277,10 +292,6 @@ export default {
       router.push('/dashboard/employees')
     }
 
-    const togglePasswordVisibility = () => {
-      showPassword.value = !showPassword.value
-    }
-
     const closeSuccessModal = () => {
       showSuccessModal.value = false
     }
@@ -289,13 +300,13 @@ export default {
       form,
       errors,
       isSubmitting,
-      showPassword,
       showSuccessModal,
       handleSubmit,
       handleCancel,
-      togglePasswordVisibility,
       closeSuccessModal,
-      scrollToFirstError
+      scrollToFirstError,
+      formatPhoneInput,
+      validatePhoneKeypress
     }
   }
 }
@@ -363,6 +374,11 @@ export default {
   direction: rtl;
 }
 
+.form-input[type="tel"] {
+  letter-spacing: 1px;
+  font-family: 'Courier New', monospace;
+}
+
 .form-input:focus {
   outline: none;
   border-color: #3498db;
@@ -400,30 +416,11 @@ export default {
   color: #bdc3c7;
 }
 
-.password-input-container {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.password-input {
-  padding-left: 50px;
-}
-
-.password-toggle {
-  position: absolute;
-  left: 15px;
-  background: none;
-  border: none;
+.input-help {
+  font-size: 12px;
   color: #7f8c8d;
-  cursor: pointer;
-  padding: 5px;
-  font-size: 16px;
-  transition: color 0.3s ease;
-}
-
-.password-toggle:hover {
-  color: #3498db;
+  margin-top: 5px;
+  font-style: italic;
 }
 
 .role-selection {
@@ -657,16 +654,8 @@ export default {
   animation-delay: 0.4s;
 }
 
-.form-group:nth-child(5) {
-  animation-delay: 0.5s;
-}
-
-.form-group:nth-child(6) {
-  animation-delay: 0.6s;
-}
-
 .form-actions {
-  animation: slideInUp 0.5s ease-out 0.7s;
+  animation: slideInUp 0.5s ease-out 0.5s;
   animation-fill-mode: both;
 }
 

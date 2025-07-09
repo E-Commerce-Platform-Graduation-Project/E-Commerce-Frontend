@@ -1,6 +1,10 @@
 <template>
-  <div id="app" class="rtl-app">
-    <!-- Show sidebar on all pages except login -->
+  <div v-if="!authStore.isInitialized" class="loading-overlay">
+    <div class="spinner"></div>
+    <p class="loading-text">يتم التحميل...</p>
+  </div>
+  
+  <div v-else id="app" class="rtl-app">
     <div v-if="!isLoginPage" class="dashboard-layout">
       <Sidebar/>
       <main class="main-content" :class="{ 'sidebar-expanded': sidebarExpanded }">
@@ -10,7 +14,6 @@
       </main>
     </div>
     
-    <!-- Show only router-view on login page -->
     <router-view v-else />
   </div>
 </template>
@@ -19,6 +22,7 @@
 import Sidebar from './components/Sidebar.vue'
 import { computed, ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from './stores/authStore'
 
 export default {
   name: 'App',
@@ -28,14 +32,15 @@ export default {
   setup() {
     const route = useRoute()
     const sidebarExpanded = ref(localStorage.getItem("is_expanded") === "true")
+    const authStore = useAuthStore()
 
-    // Check if current page is login
     const isLoginPage = computed(() => {
       return route.path === '/login'
     })
 
-    // Listen for sidebar toggle changes
-    onMounted(() => {
+    onMounted(async () => {
+      await authStore.initAuth()
+
       const handleStorageChange = () => {
         sidebarExpanded.value = localStorage.getItem("is_expanded") === "true"
       }
@@ -44,13 +49,9 @@ export default {
         sidebarExpanded.value = event.detail.expanded
       }
       
-      // Listen for storage changes (when sidebar is toggled)
       window.addEventListener('storage', handleStorageChange)
-      
-      // Listen for custom events from the sidebar component
       window.addEventListener('sidebarToggle', handleSidebarToggle)
       
-      // Cleanup
       return () => {
         window.removeEventListener('storage', handleStorageChange)
         window.removeEventListener('sidebarToggle', handleSidebarToggle)
@@ -59,7 +60,8 @@ export default {
     
     return {
       isLoginPage,
-      sidebarExpanded
+      sidebarExpanded,
+      authStore
     }
   }
 }
@@ -92,6 +94,38 @@ export default {
   min-height: 100vh;
 }
 
+/* --- UPDATED STYLES FOR LOADING STATE --- */
+.loading-overlay {
+  display: flex;
+  flex-direction: column; /* Stack spinner and text vertically */
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem; /* Space between spinner and text */
+  height: 100vh;
+  width: 100%;
+  background-color: var(--dark-alt);
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #e2e8f0; /* Light grey border */
+  border-top: 5px solid var(--primary); /* Primary color for spinner part */
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-text {
+  color: var(--primary);
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* Dashboard Layout */
 .dashboard-layout {
   display: flex;
@@ -110,7 +144,6 @@ export default {
   min-height: 100vh;
   transition: margin-right 0.3s ease-in-out;
   
-  // When sidebar is expanded
   &.sidebar-expanded {
     margin-right: var(--sidebar-width);
   }

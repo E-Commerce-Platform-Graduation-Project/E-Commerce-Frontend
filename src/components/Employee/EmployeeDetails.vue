@@ -1,7 +1,6 @@
 <template>
   <div v-if="show" class="modal-overlay" @click="handleOverlayClick">
     <div class="modal-container" @click.stop>
-      <!-- Modal Header -->
       <div class="modal-header">
         <h2 class="modal-title">
           {{ isEditing ? 'تعديل بيانات الموظف' : 'تفاصيل الموظف' }}
@@ -11,150 +10,85 @@
         </button>
       </div>
 
-      <!-- Modal Body -->
       <div class="modal-body">
-        <!-- Employee Avatar and Basic Info -->
         <div class="employee-header">
           <div class="employee-avatar-large">
-            <div class="avatar-circle-large" :class="isEditing ? editForm.Role : employee.Role">
+            <div class="avatar-circle-large" :class="isEditing ? editForm.role : employee.role">
               <i class="fas fa-user"></i>
             </div>
-            <div class="status-badge" :class="{ 'active': isEditing ? editForm.IsActive : employee.IsActive }">
-              {{ (isEditing ? editForm.IsActive : employee.IsActive) ? 'نشط' : 'غير نشط' }}
+            <div class="status-badge" :class="{ 'active': isEditing ? editForm.is_active : employee.is_active }">
+              {{ (isEditing ? editForm.is_active : employee.is_active) ? 'نشط' : 'غير نشط' }}
             </div>
           </div>
           
           <div class="employee-basic-info">
-            <h3 class="employee-name" v-if="!isEditing">{{ employee.FullName || 'غير محدد' }}</h3>
-            <input 
-              v-else
-              v-model="editForm.FullName"
-              class="edit-input employee-name-input"
-              placeholder="الاسم الكامل"
-              :class="{ 'error': errors.FullName }"
-            />
-            <div v-if="errors.FullName" class="error-text">{{ errors.FullName }}</div>
+            <h3 class="employee-name">{{ employee.full_name || 'غير محدد' }}</h3>
             
-            <div class="employee-role" v-if="!isEditing">
-              <i class="fas fa-briefcase"></i>
-              {{ getRoleText(employee.Role) }}
+            <div v-if="isEditing && employee.role !== 'ADMIN'" class="employee-role-edit">
+                <i class="fas fa-briefcase"></i>
+                <select v-model="editForm.role" class="edit-select">
+                    <option value="ADMIN">مدير</option>
+                    <option value="EMPLOYEE">موظف</option>
+                </select>
             </div>
-            <div v-else class="employee-role-edit">
+            <div v-else class="employee-role">
               <i class="fas fa-briefcase"></i>
-              <select v-model="editForm.Role" class="edit-select">
-                <option value="admin">مدير</option>
-                <!-- <option value="manager">مدير فرع</option> -->
-                <option value="employee">موظف</option>
-              </select>
+              {{ getRoleText(employee.role) }}
             </div>
           </div>
         </div>
 
-        <!-- Employee Details Grid -->
         <div class="details-grid">
-          <!-- Personal Information -->
           <div class="detail-section">
             <h4 class="section-title">
               <i class="fas fa-user-circle"></i>
               المعلومات الشخصية
             </h4>
             <div class="detail-items">
-              <!-- Full Name -->
               <div class="detail-item">
                 <span class="detail-label">الاسم الكامل:</span>
-                <span v-if="!isEditing" class="detail-value">{{ employee.FullName || 'غير محدد' }}</span>
-                <div v-else class="edit-field">
-                  <input 
-                    v-model="editForm.FullName"
-                    class="edit-input"
-                    placeholder="الاسم الكامل"
-                    :class="{ 'error': errors.FullName }"
-                  />
-                  <div v-if="errors.FullName" class="error-text">{{ errors.FullName }}</div>
-                </div>
+                <span class="detail-value">{{ employee.full_name || 'غير محدد' }}</span>
               </div>
-
-              <!-- UserName -->
-              <div class="detail-item">
-                <span class="detail-label">اسم المستخدم:</span>
-                <span v-if="!isEditing" class="detail-value">{{ employee.UserName || 'غير محدد' }}</span>
-                <div v-else class="edit-field">
-                  <input 
-                    v-model="editForm.UserName"
-                    class="edit-input"
-                    placeholder="اسم المستخدم"
-                    :class="{ 'error': errors.UserName }"
-                  />
-                  <div v-if="errors.UserName" class="error-text">{{ errors.UserName }}</div>
-                </div>
-              </div>
-              
-              <!-- Phone Number -->
               <div class="detail-item">
                 <span class="detail-label">رقم الهاتف:</span>
-                <span v-if="!isEditing" class="detail-value">{{ employee.PhoneNumber || 'غير محدد' }}</span>
-                <div v-else class="edit-field">
-                  <input 
-                    v-model="editForm.PhoneNumber"
-                    class="edit-input"
-                    placeholder="رقم الهاتف"
-                    :class="{ 'error': errors.PhoneNumber }"
-                  />
-                  <div v-if="errors.PhoneNumber" class="error-text">{{ errors.PhoneNumber }}</div>
-                </div>
+                <span class="detail-value">{{ employee.phone_number || 'غير محدد' }}</span>
               </div>
-              
-              <!-- Email -->
               <div class="detail-item">
                 <span class="detail-label">البريد الإلكتروني:</span>
-                <span v-if="!isEditing" class="detail-value">{{ employee.Email || 'غير محدد' }}</span>
-                <div v-else class="edit-field">
-                  <input 
-                    v-model="editForm.Email"
-                    type="email"
-                    class="edit-input"
-                    placeholder="البريد الإلكتروني"
-                    :class="{ 'error': errors.Email }"
-                  />
-                  <div v-if="errors.Email" class="error-text">{{ errors.Email }}</div>
-                </div>
+                <span class="detail-value">{{ employee.email || 'غير محدد' }}</span>
               </div>
             </div>
           </div>
 
-          <!-- Work Information -->
           <div class="detail-section">
             <h4 class="section-title">
               <i class="fas fa-briefcase"></i>
               معلومات العمل
             </h4>
             <div class="detail-items">
-              <!-- Role -->
               <div class="detail-item">
                 <span class="detail-label">المنصب:</span>
-                <span v-if="!isEditing" class="detail-value role-badge" :class="employee.Role">
-                  {{ getRoleText(employee.Role) }}
-                </span>
-                <div v-else class="edit-field">
-                  <select v-model="editForm.Role" class="edit-select">
-                    <option value="admin">مدير</option>
-                    <!-- <option value="manager">مدير فرع</option> -->
-                    <option value="employee">موظف</option>
+                <div v-if="isEditing && employee.role !== 'ADMIN'" class="edit-field">
+                  <select v-model="editForm.role" class="edit-select">
+                    <option value="ADMIN">مدير</option>
+                    <option value="EMPLOYEE">موظف</option>
                   </select>
                 </div>
+                <span v-else class="detail-value role-badge" :class="employee.role">
+                  {{ getRoleText(employee.role) }}
+                </span>
               </div>
               
-              <!-- Status -->
               <div class="detail-item">
                 <span class="detail-label">الحالة:</span>
-                <span v-if="!isEditing" class="detail-value status-badge" :class="{ 'active': employee.IsActive }">
-                  {{ employee.IsActive ? 'نشط' : 'غير نشط' }}
+                <span v-if="!isEditing" class="detail-value status-badge" :class="{ 'active': employee.is_active }">
+                  {{ employee.is_active ? 'نشط' : 'غير نشط' }}
                 </span>
                 <div v-else class="edit-field">
                   <label class="checkbox-container">
                     <input 
                       type="checkbox" 
-                      v-model="editForm.IsActive"
+                      v-model="editForm.is_active"
                       class="checkbox-input"
                     />
                     <span class="checkbox-custom"></span>
@@ -165,7 +99,6 @@
             </div>
           </div>
 
-          <!-- Activity Information -->
           <div class="detail-section">
             <h4 class="section-title">
               <i class="fas fa-clock"></i>
@@ -174,12 +107,11 @@
             <div class="detail-items">
               <div class="detail-item">
                 <span class="detail-label">آخر تسجيل دخول:</span>
-                <span class="detail-value">{{ formatDate(employee.LastLogin) }}</span>
+                <span class="detail-value">{{ formatDate(employee.last_login) }}</span>
               </div>
             </div>
           </div>
 
-          <!-- Additional Information -->
           <div class="detail-section">
             <h4 class="section-title">
               <i class="fas fa-info-circle"></i>
@@ -190,33 +122,16 @@
                 <span class="detail-label">المعرف الخاص (ID):</span>
                 <span class="detail-value">{{ employee.id }}</span>
               </div>
-              
-
-              <!-- Password (only in edit mode) -->
-              <div v-if="isEditing" class="detail-item">
-                <span class="detail-label">كلمة المرور الجديدة:</span>
-                <div class="edit-field">
-                  <input 
-                    v-model="editForm.Password"
-                    type="password"
-                    class="edit-input"
-                    placeholder="اتركها فارغة للاحتفاظ بكلمة المرور الحالية"
-                  />
-                  <div v-if="errors.Password" class="error-text">{{ errors.Password }}</div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
 
-        <!-- Loading Overlay -->
         <div v-if="isUpdating" class="loading-overlay">
           <div class="spinner"></div>
           <p>جاري تحديث البيانات...</p>
         </div>
       </div>
 
-      <!-- Modal Footer -->
       <div class="modal-footer">
         <button @click="$emit('close')" class="btn btn-secondary" :disabled="isUpdating">
           إغلاق
@@ -245,11 +160,11 @@
           v-if="!isEditing"
           @click="handleToggleStatus" 
           class="btn" 
-          :class="employee.IsActive ? 'btn-danger' : 'btn-success'"
+          :class="employee.is_active ? 'btn-danger' : 'btn-success'"
           :disabled="isUpdating"
         >
-          <i class="fas" :class="employee.IsActive ? 'fa-user-slash' : 'fa-user-check'"></i>
-          {{ employee.IsActive ? 'إلغاء التفعيل' : 'تفعيل' }}
+          <i class="fas" :class="employee.is_active ? 'fa-user-slash' : 'fa-user-check'"></i>
+          {{ employee.is_active ? 'إلغاء التفعيل' : 'تفعيل' }}
         </button>
       </div>
     </div>
@@ -280,34 +195,34 @@ export default {
     const isEditing = ref(false)
     const isUpdating = ref(false)
     const editForm = ref({})
+    
+    // Errors state is kept in case validation is added later
     const errors = ref({})
 
+    // Initialize the form with only the editable fields
     const resetEditForm = () => {
       editForm.value = {
-        FullName: props.employee.FullName || '',
-        UserName: props.employee.UserName || '',
-        PhoneNumber: props.employee.PhoneNumber || '',
-        Email: props.employee.Email || '',
-        Role: props.employee.Role || 'employee',
-        IsActive: props.employee.IsActive || false,
-        Password: ''
+        role: props.employee.role || 'EMPLOYEE',
+        is_active: props.employee.is_active || false
       }
       errors.value = {}
     }
 
-    // Watch for employee changes to reset form
+    // Watch for employee changes to reset the form
     watch(() => props.employee, (newEmployee) => {
       if (newEmployee) {
         resetEditForm()
+        if (isEditing.value) {
+            isEditing.value = false;
+        }
       }
-    }, { immediate: true })
+    }, { immediate: true, deep: true })
 
     // Methods
     const getRoleText = (role) => {
       const roleMap = {
-        admin: 'مدير',
-        employee: 'موظف',
-        // manager: 'مدير فرع'
+        ADMIN: 'مدير',
+        EMPLOYEE: 'موظف'
       }
       return roleMap[role] || 'غير محدد'
     }
@@ -324,9 +239,8 @@ export default {
         minute: '2-digit'
       }
       
-      return date.toLocaleDateString('en-US', options)
+      return date.toLocaleDateString('ar-LY', options)
     }
-
 
     const startEditing = () => {
       resetEditForm()
@@ -338,80 +252,24 @@ export default {
       resetEditForm()
     }
 
-    const validateForm = () => {
-      errors.value = {}
-      let isValid = true
-
-      // Validate Full Name
-      if (!editForm.value.FullName || editForm.value.FullName.trim().length < 2) {
-        errors.value.FullName = 'الاسم الكامل مطلوب ويجب أن يكون أكثر من حرفين'
-        isValid = false
-      }
-
-      // Validate UserName
-      if (!editForm.value.UserName || editForm.value.UserName.trim().length < 3) {
-        errors.value.UserName = 'اسم المستخدم مطلوب ويجب أن يكون أكثر من 3 أحرف'
-        isValid = false
-      }
-
-      // Validate Phone Number
-      if (!editForm.value.PhoneNumber || !/^[0-9]{9,10}$/.test(editForm.value.PhoneNumber)) {
-        errors.value.PhoneNumber = 'رقم الهاتف مطلوب ويجب أن يكون 9-10 رقم'
-        isValid = false
-      }
-
-      // Validate Email
-      if (editForm.value.Email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.value.Email)) {
-        errors.value.Email = 'البريد الإلكتروني غير صحيح'
-        isValid = false
-      }
-
-      // Validate Password (if provided)
-      if (editForm.value.Password && editForm.value.Password.length < 4) {
-        errors.value.Password = 'كلمة المرور يجب أن تكون 4 أحرف على الأقل'
-        isValid = false
-      }
-
-      return isValid
-    }
-
     const saveChanges = async () => {
-      if (!validateForm()) {
-        return
-      }
-
       isUpdating.value = true
 
       try {
-        // Prepare update data
+        // The editForm only contains role and is_active.
+        // The role will be unchanged for admins due to the UI restriction.
         const updateData = {
-          FullName: editForm.value.FullName.trim(),
-          UserName: editForm.value.UserName.trim(),
-          PhoneNumber: editForm.value.PhoneNumber.trim(),
-          Email: editForm.value.Email.trim(),
-          Role: editForm.value.Role,
-          IsActive: editForm.value.IsActive,
+          role: editForm.value.role,
+          is_active: editForm.value.is_active,
         }
 
-        // Add password only if it's provided
-        if (editForm.value.Password && editForm.value.Password.trim()) {
-          updateData.Password = editForm.value.Password.trim()
-        }
-
-        // Update employee using authStore
         const result = await authStore.updateUserById(props.employee.id, updateData)
         
         if (result.success) {
-          // Emit updated employee
-          const updatedEmployee = {
-            ...props.employee,
-            ...updateData
-          }
-          
+          const updatedEmployee = { ...props.employee, ...updateData }
           emit('employee-updated', updatedEmployee)
           isEditing.value = false
           
-          // Show success message (you can replace this with a toast notification)
           alert('تم تحديث بيانات الموظف بنجاح')
         } else {
           throw new Error(result.error || 'حدث خطأ أثناء التحديث')
@@ -423,24 +281,33 @@ export default {
         isUpdating.value = false
       }
     }
+    
+    // Toggles only the user's active status
+    const handleToggleStatus = async () => {
+      isUpdating.value = true;
+      try {
+        const result = await authStore.toggleUserStatus(props.employee.id, !props.employee.is_active)
+        if(result.success) {
+            const updatedEmployee = {
+              ...props.employee,
+              is_active: !props.employee.is_active
+            }
+            emit('employee-updated', updatedEmployee)
+            alert(`تم ${updatedEmployee.is_active ? 'تفعيل' : 'إلغاء تفعيل'} حساب الموظف بنجاح.`)
+        } else {
+            throw new Error(result.error || 'فشل تغيير حالة الموظف')
+        }
+      } catch (error) {
+        console.error('Error toggling user status:', error)
+        alert('حدث خطأ أثناء تغيير حالة الموظف: ' + error.message)
+      } finally {
+        isUpdating.value = false;
+      }
+    }
 
     const handleOverlayClick = () => {
       if (!isEditing.value) {
         emit('close')
-      }
-    }
-
-    const handleToggleStatus = async () => {
-      try {
-        await authStore.toggleUserStatus(props.employee.id, !props.employee.IsActive)
-        const updatedEmployee = {
-          ...props.employee,
-          IsActive: !props.employee.IsActive
-        }
-        emit('employee-updated', updatedEmployee)
-      } catch (error) {
-        console.error('Error toggling user status:', error)
-        alert('حدث خطأ أثناء تغيير حالة الموظف')
       }
     }
 
@@ -570,17 +437,13 @@ export default {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
-.avatar-circle-large.admin {
+.avatar-circle-large.ADMIN {
   background: linear-gradient(135deg, #ff6b6b, #ee5a24);
 }
 
-.avatar-circle-large.employee {
+.avatar-circle-large.EMPLOYEE {
   background: linear-gradient(135deg, #4834d4, #686de0);
 }
-
-/* .avatar-circle-large.manager {
-  background: linear-gradient(135deg, #00d2d3, #01a3a4);
-} */
 
 .employee-basic-info {
   flex: 1;
@@ -591,18 +454,6 @@ export default {
   font-size: 28px;
   font-weight: 700;
   color: #333;
-}
-
-.employee-name-input {
-  font-size: 28px;
-  font-weight: 700;
-  color: #333;
-  background: transparent;
-  border: 2px solid #ddd;
-  border-radius: 8px;
-  padding: 8px 12px;
-  margin: 0 0 10px 0;
-  width: 100%;
 }
 
 .employee-role {
@@ -680,8 +531,6 @@ export default {
   color: #333;
   text-align: left;
   font-size: 14px;
-  /*flex: 1;*/
-  
 }
 
 .edit-field {
@@ -691,25 +540,6 @@ export default {
   gap: 5px;
 }
 
-.edit-input {
-  padding: 8px 12px;
-  border: 2px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  direction: rtl;
-  transition: border-color 0.3s ease;
-}
-
-.edit-input:focus {
-  outline: none;
-  border-color: #2196F3;
-  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
-}
-
-.edit-input.error {
-  border-color: #f44336;
-}
-
 .edit-select {
   padding: 8px 12px;
   border: 2px solid #ddd;
@@ -717,7 +547,6 @@ export default {
   font-size: 14px;
   background: white;
   cursor: pointer;
-  
 }
 
 .edit-select:focus {
@@ -763,18 +592,16 @@ export default {
   color: #333;
 }
 
-.error-text {
-  color: #f44336;
-  font-size: 12px;
-  margin-top: 2px;
-}
+/* --- STYLE UPDATE START --- */
 
+/* General status badge style for inline display */
 .status-badge {
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
   color: white;
+  display: inline-block;
 }
 
 .status-badge.active {
@@ -785,6 +612,16 @@ export default {
   background: #f44336;
 }
 
+/* Scoped style for the header badge to position it over the avatar */
+.employee-header .status-badge {
+  position: absolute;
+  top: -10px;
+  right: -15px;
+  border: 2px solid white;
+}
+
+/* --- STYLE UPDATE END --- */
+
 .role-badge {
   padding: 4px 12px;
   border-radius: 20px;
@@ -793,17 +630,13 @@ export default {
   color: white;
 }
 
-.role-badge.admin {
+.role-badge.ADMIN {
   background: #ff6b6b;
 }
 
-.role-badge.employee {
+.role-badge.EMPLOYEE {
   background: #4834d4;
 }
-
-/* .role-badge.manager {
-  background: #00d2d3;
-} */
 
 .loading-overlay {
   position: absolute;
@@ -892,13 +725,13 @@ export default {
   background: #45a049;
 }
 
-.btn-warning {
-  background: #ff9800;
+.btn-danger {
+  background: #f44336;
   color: white;
 }
 
-.btn-warning:hover:not(:disabled) {
-  background: #f57c00;
+.btn-danger:hover:not(:disabled) {
+  background: #d32f2f;
 }
 
 /* Responsive Design */
@@ -925,12 +758,13 @@ export default {
     text-align: center;
     gap: 15px;
   }
-
-  .employee-name {
-    font-size: 24px;
+  
+  .employee-header .status-badge {
+      position: static;
+      margin-top: 10px;
   }
 
-  .employee-name-input {
+  .employee-name {
     font-size: 24px;
   }
 
@@ -938,7 +772,7 @@ export default {
     justify-content: center;
     font-size: 16px;
   }
-
+  
   .employee-role-edit {
     justify-content: center;
     font-size: 16px;

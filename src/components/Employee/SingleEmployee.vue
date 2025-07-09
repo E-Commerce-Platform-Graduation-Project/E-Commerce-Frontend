@@ -1,62 +1,66 @@
 <template>
-  <div class="employee-row" :class="{ 'inactive': !employee.IsActive }" @click="$emit('view-employee', employee)">
+  <div class="employee-row" :class="{ 'inactive': !employee.is_active }" >
     <!-- Employee Info -->
     <div class="employee-info">
       <!-- Avatar -->
-      <div class="employee-avatar">
-        <div class="avatar-circle" :class="employee.Role">
+      <div class="employee-avatar" @click="$emit('view-employee', employee)">
+        <div class="avatar-circle" :class="employee.role.toLowerCase()">
           <i class="fas fa-user"></i>
         </div>
-        <div class="status-indicator" :class="{ 'active': employee.IsActive }"></div>
+        <div class="status-indicator" :class="{ 'active': employee.is_active }"></div>
       </div>
 
       <!-- Employee Details -->
       <div class="employee-details">
-        <h4 class="employee-name">{{ employee.FullName || 'غير محدد' }}</h4>
+        <h4 class="employee-name">{{ employee.full_name || 'غير محدد' }}</h4>
         <p class="employee-role">
           <i class="fas fa-briefcase"></i>
-          {{ getRoleText(employee.Role) }}
+          {{ getRoleText(employee.role) }}
         </p>
       </div>
     </div>
 
-    <!-- Username -->
+    <!-- Phone Number -->
     <div class="username-info">
       <div class="username-text">
-        <i class="fas fa-user-circle"></i>
-        <span>{{ employee.UserName || 'غير محدد' }}</span>
+        <i class="fas fa-phone"></i>
+        <span>{{ employee.phone_number || 'غير محدد' }}</span>
       </div>
     </div>
 
-    <!-- Contact Info -->
+    <!-- Email Info -->
     <div class="contact-info">
       <div class="phone-number">
-        <i class="fas fa-phone"></i>
-        <span>{{ employee.PhoneNumber || 'غير محدد' }}</span>
+        <i class="fas fa-envelope"></i>
+        <span>{{ employee.email || 'غير محدد' }}</span>
       </div>
     </div>
 
     <!-- Role Badge -->
     <div class="role-badge">
-      <span class="badge" :class="employee.Role">
-        {{ getRoleText(employee.Role) }}
+      <span class="badge" :class="employee.role.toLowerCase()">
+        {{ getRoleText(employee.role) }}
       </span>
     </div>
 
-    <!-- Join Date -->
+    <!-- Last Login -->
     <div class="join-date">
       <i class="fas fa-calendar"></i>
-      <span>{{ formatDate(employee.LastLogin) }}</span>
+      <span>{{ formatDate(employee.last_login) }}</span>
     </div>
 
     <!-- Actions -->
     <div class="employee-actions">
       <!-- Toggle Status Button -->
-      <button @click="$emit('toggle-activate', employee)" class="action-btn toggle-btn"
-        :class="{ 'deactivate': employee.IsActive, 'activate': !employee.IsActive }"
-        :title="employee.IsActive ? 'إلغاء التفعيل' : 'تفعيل'">
-        <i class="fas" :class="employee.IsActive ? 'fa-user-slash' : 'fa-user-check'"></i>
-      </button>
+      <div class="status-toggle-container">
+        <button 
+          @click="$emit('toggle-activate', employee)"
+          :class="['status-toggle', { 'active': employee.is_active }]"
+          :title="employee.is_active ? 'إلغاء التفعيل' : 'تفعيل'"
+        >
+          <div class="toggle-slider"></div>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -85,24 +89,26 @@ export default {
     // Methods
     const getRoleText = (role) => {
       const roleMap = {
-        admin: 'مدير',
-        employee: 'موظف',
-        //manager: 'مدير فرع'
+        'ADMIN': 'مدير',
+        'EMPLOYEE': 'موظف',
+        'MANAGER': 'مدير فرع'
       }
       return roleMap[role] || 'غير محدد'
     }
 
     const formatDate = (dateString) => {
-      if (!dateString) return 'غير محدد'
+      if (!dateString) return 'لم يسجل دخول'
 
       const date = new Date(dateString)
       const options = {
         year: 'numeric',
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
       }
 
-      return date.toLocaleDateString('en-US', options)
+      return date.toLocaleDateString('ar-EG', options)
     }
 
     return {
@@ -117,7 +123,7 @@ export default {
 <style scoped>
 .employee-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1.5fr 1fr 1fr 1fr;
   gap: 15px;
   align-items: center;
   padding: 20px;
@@ -166,6 +172,10 @@ export default {
 
 .avatar-circle.employee {
   background: #2883a7;
+}
+
+.avatar-circle.manager {
+  background: #ff9800;
 }
 
 .status-indicator {
@@ -255,6 +265,10 @@ export default {
   background: #2883a7;
 }
 
+.badge.manager {
+  background: #ff9800;
+}
+
 .join-date {
   display: flex;
   align-items: center;
@@ -317,6 +331,50 @@ export default {
 .toggle-btn.deactivate:hover {
   background: #ff0000;
   color: white;
+}
+
+/* Status toggle - copied from customers file */
+.status-toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-toggle {
+  position: relative;
+  width: 50px;
+  height: 24px;
+  border-radius: 12px;
+  border: none;
+  background-color: #dc3545;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.status-toggle.active {
+  background-color: #28a745;
+}
+
+.status-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: white;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.status-toggle.active .toggle-slider {
+  transform: translateX(26px);
 }
 
 /* Responsive Design */

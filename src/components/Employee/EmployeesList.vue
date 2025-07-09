@@ -5,10 +5,10 @@
       <!-- Table Header -->
       <div class="table-header">
         <div class="header-cell name-cell">الاسم</div>
-        <div class="header-cell username-cell">اسم المستخدم</div>
         <div class="header-cell phone-cell">رقم الهاتف</div>
+        <div class="header-cell email-cell">البريد الإلكتروني</div>
         <div class="header-cell role-cell">الدور</div>
-        <div class="header-cell date-cell">اخر تسجيل دخول</div>
+        <div class="header-cell date-cell">آخر تسجيل دخول</div>
         <div class="header-cell actions-cell">إجراءات</div>
       </div>
 
@@ -86,14 +86,14 @@ export default {
     }
 
     const handleToggleActivate = async (employee) => {
-      const action = employee.IsActive ? 'deactivate' : 'activate'
-      const actionText = employee.IsActive ? 'إلغاء تفعيل' : 'تفعيل'
+      const action = employee.is_active ? 'deactivate' : 'activate'
+      const actionText = employee.is_active ? 'إلغاء تفعيل' : 'تفعيل'
       
       confirmAction.value = {
         title: `${actionText} الموظف`,
-        message: `هل أنت متأكد من ${actionText} الموظف "${employee.FullName}"؟`,
+        message: `هل أنت متأكد من ${actionText} الموظف "${employee.full_name}"؟`,
         confirmText: actionText,
-        type: employee.IsActive ? 'danger' : 'success',
+        type: employee.is_active ? 'danger' : 'success',
         action: 'toggle-status',
         employee: employee
       }
@@ -110,10 +110,10 @@ export default {
       
       try {
         if (action === 'toggle-status') {
-          await authStore.toggleUserStatus(employee.id, !employee.IsActive)
+          await authStore.toggleUserStatus(employee.id, !employee.is_active)
           const updatedEmployee = {
             ...employee,
-            IsActive: !employee.IsActive
+            is_active: !employee.is_active
           }
           emit('employee-updated', updatedEmployee)
         } else if (action === 'delete') {
@@ -183,7 +183,7 @@ export default {
 
 .table-header {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1.5fr 1fr 1fr 1fr;
   gap: 15px;
   padding: 20px;
   background: #f8f9fa;

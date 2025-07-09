@@ -84,16 +84,22 @@ export default {
     const selectedEmployee = ref(null)
     const showEmployeeDetails = ref(false)
 
-    // Computed
+    // Computed - Filter out current user and apply search
     const filteredEmployees = computed(() => {
+      // First filter out the current user
+      const employeesExceptCurrent = employees.value.filter(employee => 
+        employee.id !== authStore.user?.id
+      )
+      
+      // Then apply search filter if there's a search query
       if (!searchQuery.value) {
-        return employees.value
+        return employeesExceptCurrent
       }
       
       const query = searchQuery.value.toLowerCase()
-      return employees.value.filter(employee => 
-        employee.FullName?.toLowerCase().includes(query) ||
-        employee.PhoneNumber?.includes(query)
+      return employeesExceptCurrent.filter(employee => 
+        employee.full_name?.toLowerCase().includes(query) ||
+        employee.phone_number?.includes(query)
       )
     })
 

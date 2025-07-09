@@ -130,8 +130,8 @@
             to="/settings" 
             class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded"
           >
-            <span class="material-icons me-3">settings</span>
-            <span class="sidebar-text">الاعدادات</span>
+            <i class="fas fa-user-cog me-3"></i>
+            <span class="sidebar-text">الملف الشخصي</span>
           </router-link>
         </nav>
       </div>

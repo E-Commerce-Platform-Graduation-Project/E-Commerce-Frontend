@@ -14,26 +14,8 @@ import AddProduct from '@/views/Product/AddProduct.vue'
 import Employees from '@/views/Employee/Employees.vue'
 import AddEmployee from '@/views/Employee/AddEmployee.vue'
 import Settings from '@/views/Settings.vue'
+
 const routes = [
-  
-  // {
-  //   path: '/admin/dashboard',
-  //   name: 'AdminDashboard',
-  //   component: AdminDashboard,
-  //   meta: { 
-  //     requiresAuth: true,
-  //     requiredRole: 'admin'
-  //   }
-  // },
-  // {
-  //   path: '/employee/dashboard',
-  //   name: 'EmployeeDashboard',
-  //   component: EmployeeDashboard,
-  //   meta: { 
-  //     requiresAuth: true,
-  //     requiredRole: 'employee'
-  //   }
-  // },
   {
     path: '/login',
     name: 'Login',
@@ -59,56 +41,56 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-   path: '/categories',
+    path: '/categories',
     name: 'Categories',
     component: Categories,
     meta: { requiresAuth: true }
   },
   {
-   path: '/add-category',
+    path: '/add-category',
     name: 'AddCategory',
     component: AddCategory,
     meta: { requiresAuth: true }
   },
   {
-   path: '/products',
+    path: '/products',
     name: 'Products',
     component: Products,
     meta: { requiresAuth: true }
   },
   {
-   path: '/add-product',
+    path: '/add-product',
     name: 'AddProduct',
     component: AddProduct,
     meta: { requiresAuth: true }
   },
   {
-   path: '/employees',
+    path: '/employees',
     name: 'Employees',
     component: Employees,
     meta: { 
       requiresAuth: true,
-      requiredRole: 'admin'
-     }
+      requiredRole: 'ADMIN'
+    }
   },
   {
-   path: '/add-employee',
+    path: '/add-employee',
     name: 'AddEmployee',
     component: AddEmployee,
     meta: { 
       requiresAuth: true,
-      requiredRole: 'admin'
-     }
+      requiredRole: 'ADMIN'
+    }
   },
   {
-   path: '/settings',
+    path: '/settings',
     name: 'Settings',
     component: Settings,
     meta: { 
-      requiresAuth: true,
-     }
+      requiresAuth: true
+    }
   },
-  //ادخال خاطيء
+  // Default redirects
   {
     path: '/',
     redirect: '/login'
@@ -134,7 +116,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   const isAuthenticated = authStore.getIsAuthenticated
-  const userRole = authStore.getUserRole
+  const userRole = authStore.getCurrentUser?.role // Updated to use getCurrentUser
 
   // Check if route requires authentication
   if (to.meta.requiresAuth && !isAuthenticated) {
@@ -144,27 +126,14 @@ router.beforeEach(async (to, from, next) => {
 
   // Check if route requires guest (not authenticated)
   if (to.meta.requiresGuest && isAuthenticated) {
-    // // Redirect based on role
-    // if (userRole === 'admin') {
-    //   next('/admin/dashboard')
-    // } else if (userRole === 'employee') {
-    //   next('/employee/dashboard')
-    // } else {
     next('/dashboard')
-    // }
     return
   }
 
   // Check role-based access
   if (to.meta.requiredRole && userRole !== to.meta.requiredRole) {
-    // Redirect to appropriate dashboard based on user's role
-    // if (userRole === 'admin') {
-    //   next('/admin/dashboard')
-    // } else if (userRole === 'employee') {
-    //   next('/employee/dashboard')
-    // } else {
+    // If user doesn't have required role, redirect to dashboard
     next('/dashboard')
-    // }
     return
   }
 

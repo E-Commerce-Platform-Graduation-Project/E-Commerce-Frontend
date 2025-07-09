@@ -1,11 +1,10 @@
 <template>
   <div class="user-profile-section">
-    <!-- User Avatar and Info -->
     <div class="user-info d-flex align-items-center p-3" @click="toggleDropdown">
       <div class="user-avatar me-3">
         <img 
           :src="userAvatar" 
-          :alt="currentUser?.FullName || 'مستخدم'" 
+          :alt="currentUser?.full_name || 'مستخدم'" 
           class="avatar-img rounded-circle"
           @error="handleImageError"
         />
@@ -24,16 +23,44 @@
       </div>
     </div>
 
-    <!-- Dropdown Menu with smooth transition -->
     <transition name="dropdown-slide">
       <div class="user-dropdown" v-if="isDropdownOpen && sidebarExpanded">
         <div class="dropdown-content">
           <div 
             class="dropdown-item logout-item d-flex align-items-center w-100" 
-            @click="handleLogout"
+            @click="showLogoutModal"
           >
             <span class="material-icons me-2">logout</span>
             <span>تسجيل الخروج</span>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <transition name="modal-fade">
+      <div class="modal-overlay" v-if="isLogoutModalOpen" @click="hideLogoutModal">
+        <div class="modal-container" @click.stop>
+          <div class="modal-header">
+            <h5 class="modal-title">تسجيل الخروج</h5>
+          </div>
+          <div class="modal-body">
+            <p class="modal-text">هل أنت متأكد من تسجيل الخروج ؟</p>
+          </div>
+          <div class="modal-footer">
+            <button 
+              type="button" 
+              class="btn btn-cancel" 
+              @click="hideLogoutModal"
+            >
+              إلغاء
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-confirm" 
+              @click="confirmLogout"
+            >
+              تسجيل الخروج
+            </button>
           </div>
         </div>
       </div>
@@ -58,77 +85,75 @@ export default {
     const router = useRouter()
     const authStore = useAuthStore()
     const isDropdownOpen = ref(false)
+    const isLogoutModalOpen = ref(false)
 
-    // Get current user from store
     const currentUser = computed(() => authStore.getCurrentUser)
 
-    // Computed user full name
     const fullName = computed(() => {
       if (!currentUser.value) return 'مستخدم'
-      return currentUser.value.FullName || 'مستخدم'
+      return currentUser.value.full_name || 'مستخدم'
     })
 
-    // User role text in Arabic
     const userRoleText = computed(() => {
-      const role = currentUser.value?.Role
+      const role = currentUser.value?.role
       switch (role) {
-        case 'admin':
+        case 'ADMIN':
           return 'مدير'
-        case 'employee':
+        case 'EMPLOYEE':
           return 'موظف'
-        case 'manager':
-          return 'مدير قسم'
         default:
           return 'مستخدم'
       }
     })
 
-    // User avatar - you can customize this logic
     const userAvatar = computed(() => {
-      // If user has profile image
-      if (currentUser.value?.ProfileImage) {
-        return currentUser.value.ProfileImage
+      if (currentUser.value?.profile_image) {
+        return currentUser.value.profile_image
       }
-      
-      // Default avatar based on user initials or role
       return generateAvatarUrl(fullName.value)
     })
 
-    // Generate avatar URL (you can use a service like UI Avatars)
     const generateAvatarUrl = (name) => {
       const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2)
       return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=646464&color=ffffff&size=40&rounded=true&font-size=0.6`
     }
 
-    // Handle image error - fallback to generated avatar
     const handleImageError = (event) => {
       event.target.src = generateAvatarUrl(fullName.value)
     }
 
-    // Toggle dropdown
     const toggleDropdown = () => {
       if (!props.sidebarExpanded) return
       isDropdownOpen.value = !isDropdownOpen.value
     }
 
-    // Close dropdown when clicking outside
     const closeDropdown = (event) => {
       if (!event.target.closest('.user-profile-section')) {
         isDropdownOpen.value = false
       }
     }
 
-    // Handle logout
-    const handleLogout = async () => {
+    const showLogoutModal = () => {
+      isDropdownOpen.value = false
+      isLogoutModalOpen.value = true
+    }
+
+    const hideLogoutModal = () => {
+      isLogoutModalOpen.value = false
+    }
+
+    // Handle logout confirmation
+    const confirmLogout = async () => {
       try {
-        authStore.logout()
+        // --- FIX: Wait for the logout action to complete ---
+        await authStore.logout()
+        isLogoutModalOpen.value = false
         await router.push('/login')
       } catch (error) {
         console.error('Logout error:', error)
       }
     }
 
-    // Lifecycle hooks
     onMounted(() => {
       document.addEventListener('click', closeDropdown)
     })
@@ -143,8 +168,11 @@ export default {
       userRoleText,
       userAvatar,
       isDropdownOpen,
+      isLogoutModalOpen,
       toggleDropdown,
-      handleLogout,
+      showLogoutModal,
+      hideLogoutModal,
+      confirmLogout,
       handleImageError
     }
   }
@@ -152,6 +180,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+/* Your existing styles are fine and do not need changes */
 .user-profile-section {
   border-top: 1px solid var(--border-color);
   margin-top: auto;
@@ -272,7 +301,104 @@ export default {
   }
 }
 
-// Smooth dropdown transition
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-container {
+  background: white;
+  border-radius: 12px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: center;
+  
+  .modal-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+  }
+}
+
+.modal-body {
+  padding: 20px 24px;
+  text-align: center;
+  
+  .modal-text {
+    font-size: 1rem;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.5;
+  }
+}
+
+.modal-footer {
+  padding: 16px 24px 24px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  
+  .btn {
+    padding: 8px 24px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    min-width: 80px;
+    
+    &.btn-cancel {
+      background-color: #f3f4f6;
+      color: #6b7280;
+      
+      &:hover {
+        background-color: #e5e7eb;
+      }
+    }
+    
+    &.btn-confirm {
+      background-color: #b91010;
+      color: white;
+      
+      &:hover {
+        background-color: #960505;
+      }
+    }
+  }
+}
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.3s ease-in-out;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-fade-enter-to,
+.modal-fade-leave-from {
+  opacity: 1;
+}
+
 .dropdown-slide-enter-active {
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   transform-origin: top;
@@ -299,19 +425,6 @@ export default {
   transform: scaleY(1) translateY(0);
 }
 
-// Remove the old slideDown animation as it's replaced by the transition
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-// Mobile responsiveness
 @media (max-width: 768px) {
   .user-profile-section {
     .user-info {
@@ -323,6 +436,22 @@ export default {
       .user-details .user-name {
         font-size: 0.8rem;
       }
+    }
+  }
+  
+  .modal-container {
+    width: 350px;
+    
+    .modal-header {
+      padding: 16px 20px 12px;
+    }
+    
+    .modal-body {
+      padding: 16px 20px;
+    }
+    
+    .modal-footer {
+      padding: 12px 20px 20px;
     }
   }
 }
