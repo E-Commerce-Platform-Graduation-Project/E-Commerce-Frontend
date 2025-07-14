@@ -1,18 +1,15 @@
 <template>
   <div class="add-category-container">
-    <!-- Header -->
     <div class="header">
       <h1 class="title">إضافة فئة جديدة</h1>
       <p class="subtitle">أنشئ فئة جديدة لتنظيم المنتجات</p>
     </div>
 
-    <!-- Form -->
     <div class="form-container">
       <form @submit.prevent="handleSubmit" class="category-form">
-        <!-- Category Name -->
         <div class="form-group">
           <label for="categoryName" class="form-label">
-            اسم الفئة *
+            اسم الفئة
           </label>
           <input
             id="categoryName"
@@ -21,12 +18,10 @@
             class="form-input"
             :class="{ 'error': errors.name }"
             placeholder="أدخل اسم الفئة"
-            required
           />
           <span v-if="errors.name" class="error-message">{{ errors.name }}</span>
         </div>
 
-        <!-- Category Description -->
         <div class="form-group">
           <label for="categoryDescription" class="form-label">
             وصف الفئة
@@ -40,7 +35,6 @@
           ></textarea>
         </div>
 
-        <!-- Category Type -->
         <div class="form-group">
           <label class="form-label">نوع الفئة</label>
           <div class="radio-group">
@@ -75,7 +69,6 @@
           </div>
         </div>
 
-        <!-- Parent Category Selection (only if subcategory) -->
         <div v-if="categoryType === 'sub'" class="form-group">
           <label for="parentCategory" class="form-label">
             الفئة الأساسية *
@@ -85,7 +78,7 @@
             v-model="formData.parentCategoryID"
             class="form-select"
             :class="{ 'error': errors.parentCategoryID }"
-            required
+            
           >
             <option value="">اختر الفئة الأساسية</option>
             <option
@@ -101,17 +94,14 @@
           </span>
         </div>
 
-        <!-- Error Message -->
         <div v-if="error" class="alert alert-error">
           {{ error }}
         </div>
 
-        <!-- Success Message -->
         <div v-if="successMessage" class="alert alert-success">
           {{ successMessage }}
         </div>
 
-        <!-- Form Actions -->
         <div class="form-actions">
           <button
             type="button"
@@ -124,7 +114,7 @@
           <button
             type="submit"
             class="btn btn-primary"
-            :disabled="isLoading || !isFormValid"
+            :disabled="isLoading"
           >
             <span v-if="isLoading" class="loading-spinner"></span>
             {{ isLoading ? 'جاري الحفظ...' : 'حفظ الفئة' }}
@@ -133,7 +123,6 @@
       </form>
     </div>
 
-    <!-- Success Modal -->
     <div v-if="showSuccessModal" class="modal-overlay" @click="closeSuccessModal">
       <div class="success-modal" @click.stop>
         <div class="success-icon">
@@ -149,7 +138,7 @@
 
 <script>
 import { useCategoryStore } from '@/stores/categoryStore'
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 
 export default {
@@ -175,11 +164,6 @@ export default {
     const isLoading = computed(() => categoryStore.getIsLoading)
     const error = computed(() => categoryStore.getError)
 
-    const isFormValid = computed(() => {
-      return formData.name.trim() !== '' && 
-             (categoryType.value === 'main' || formData.parentCategoryID)
-    })
-
     // Methods
     const validateForm = () => {
       // Clear previous errors
@@ -187,11 +171,13 @@ export default {
 
       let isValid = true
 
-      // Validate name
-      if (!formData.name.trim()) {
+      // Validate name - improved logic
+      const trimmedName = formData.name ? formData.name.trim() : ''
+      
+      if (!trimmedName) {
         errors.name = 'اسم الفئة مطلوب'
         isValid = false
-      } else if (formData.name.trim().length < 2) {
+      } else if (trimmedName.length < 2) {
         errors.name = 'اسم الفئة يجب أن يكون على الأقل حرفين'
         isValid = false
       }
@@ -239,8 +225,10 @@ export default {
 
     const handleSubmit = async () => {
       if (!validateForm()) {
-        // Scroll to the first error field
-        scrollToFirstError()
+        // Force reactivity update
+        nextTick(() => {
+          scrollToFirstError()
+        })
         return
       }
 
@@ -271,7 +259,9 @@ export default {
         // Handle specific errors and scroll to relevant field
         if (result.error && result.error.includes('اسم الفئة')) {
           errors.name = result.error
-          scrollToFirstError()
+          nextTick(() => {
+            scrollToFirstError()
+          })
         }
       }
     }
@@ -307,7 +297,6 @@ export default {
       mainCategories,
       isLoading,
       error,
-      isFormValid,
       handleSubmit,
       handleCancel,
       closeSuccessModal,

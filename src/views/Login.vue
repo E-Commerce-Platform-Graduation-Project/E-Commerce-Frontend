@@ -1,126 +1,241 @@
 <template>
-  <div
-    class="text-center d-flex align-items-center justify-content-center bg-light"
-    style="height: 100vh"
-  >
-    <div class="form-signin w-100 m-auto" style="max-width: 350px">
-      <form @submit.prevent="handleLogin" id="loginForm">
-        <img
-          class="mb-4"
-          width="72"
-          alt="Logo"
-          src="../assets/icons/e-commerce-logo.png"
-        />
-        <h1 id="psi" class="h3 mb-3 fw-normal">تسجيل الدخول</h1>
+  <div class="text-center d-flex align-items-center justify-content-center bg-light" style="height: 100vh">
+    <div class="form-container w-100 m-auto" style="max-width: 400px">
+      <div v-if="formMode === 'login'">
+        <form @submit.prevent="handleLogin" id="loginForm" novalidate>
+          <img class="mb-4" width="72" alt="Logo" src="../assets/icons/e-commerce-logo3.png" />
+          <h1 id="psi" class="h3 mb-3 fw-normal">تسجيل الدخول</h1>
 
-        <div
-          v-if="authStore.getError"
-          class="alert alert-danger mb-3"
-          role="alert"
-        >
+          <div v-if="authStore.getError" class="alert alert-danger mb-3" role="alert">
+            {{ authStore.getError }}
+          </div>
+
+          <div class="mb-3">
+            <label for="floatingInput">رقم الهاتف</label>
+            <input type="text" class="form-control" :class="{ 'is-invalid': phoneError }" id="floatingInput" placeholder="أدخل رقم الهاتف" v-model="PhoneNumber" :disabled="authStore.getIsLoading" required />
+            <div v-if="phoneError" class="invalid-feedback text-end d-block">
+              {{ phoneError }}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="floatingPassword">كلمة المرور</label>
+            <div class="input-group password-input-group">
+              <span class="input-group-text password-toggle" @click="togglePassword">
+                <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+              </span>
+              <input :type="showPassword ? 'text' : 'password'" class="form-control password-input" :class="{ 'is-invalid': passwordError }" id="floatingPassword" placeholder="أدخل كلمة المرور" v-model="password" :disabled="authStore.getIsLoading" required />
+            </div>
+            <div v-if="passwordError" class="invalid-feedback text-end d-block">
+              {{ passwordError }}
+            </div>
+          </div>
+
+          <div class="text-start mb-3 text-center">
+            نسيت كلمة المرور؟
+            <a href="#" @click.prevent="switchToResetMode" class="forgot-password-link">
+              قم باعادة تعيينها الان
+            </a>
+          </div>
+
+          <button class="btn btn-dark w-100 py-2 mt-3" type="submit" :disabled="authStore.getIsLoading">
+            <span v-if="authStore.getIsLoading">
+              <i class="fas fa-spinner fa-spin me-2"></i>
+              جاري تسجيل الدخول...
+            </span>
+            <span v-else> تسجيل دخول </span>
+          </button>
+
+          <p class="mt-5 mb-3 text-muted text-center">© CCTT</p>
+        </form>
+      </div>
+
+      <div v-else class="card p-4 shadow-sm">
+        <div class="text-center mb-4">
+           <img class="mb-3" width="72" alt="Logo" src="../assets/icons/e-commerce-logo3.png" />
+           <h1 class="h3 mb-2 fw-normal">إعادة تعيين كلمة المرور</h1>
+        </div>
+
+        <div v-if="authStore.getError" class="alert alert-danger" role="alert">
           {{ authStore.getError }}
         </div>
-
-        <div class="mb-3">
-          <label for="floatingInput">رقم الهاتف</label>
-          <input
-            type="text"
-            class="form-control"
-            id="floatingInput"
-            placeholder="أدخل رقم الهاتف"
-            v-model="PhoneNumber"
-            :disabled="authStore.getIsLoading"
-            required
-          />
-           <small class="form-text text-muted" v-if="PhoneNumber && (!PhoneNumber.startsWith('09') || PhoneNumber.length !== 10)">
-            يجب أن يبدأ رقم الهاتف بـ 09 وأن يتكون من 10 أرقام.
-          </small>
+        
+        <div v-if="successMessage" class="alert alert-success" role="alert">
+          {{ successMessage }}
         </div>
 
-        <div class="mb-3">
-          <label for="floatingPassword">كلمة المرور</label>
-          <div class="input-group password-input-group">
-            <span
-              class="input-group-text password-toggle"
-              @click="togglePassword"
-            >
-              <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-            </span>
-            <input
-              :type="showPassword ? 'text' : 'password'"
-              class="form-control password-input"
-              id="floatingPassword"
-              placeholder="أدخل كلمة المرور"
-              v-model="password"
-              :disabled="authStore.getIsLoading"
-              required
-            />
+        <form v-if="formMode === 'reset-request'" @submit.prevent="handleRequestReset" novalidate>
+          <p class="text-muted text-center mb-3">أدخل رقم هاتفك لإرسال رمز التحقق.</p>
+          <div class="mb-3">
+            <label for="phoneInput">رقم الهاتف</label>
+            <input type="text" class="form-control" :class="{ 'is-invalid': resetPhoneError }" id="phoneInput" v-model="resetPhoneNumber" :disabled="authStore.getIsLoading" required placeholder="09xxxxxxxx" />
+             <div v-if="resetPhoneError" class="invalid-feedback text-end d-block">
+                {{ resetPhoneError }}
+            </div>
           </div>
-           <small class="form-text text-muted" v-if="password && password.length < 8">
-            يجب أن لا تقل كلمة المرور عن 8 أحرف.
-          </small>
+          <button class="btn btn-dark w-100 py-2" type="submit" :disabled="authStore.getIsLoading">
+            <span v-if="authStore.getIsLoading"><i class="fas fa-spinner fa-spin"></i></span>
+            <span v-else>إرسال الرمز</span>
+          </button>
+        </form>
+
+        <form v-if="formMode === 'reset-verify'" @submit.prevent="handleVerifyOtp">
+          <p class="text-muted text-center mb-3">تم إرسال رمز مكون من 6 أرقام إلى هاتفك.</p>
+          <div class="mb-3">
+            <label>رمز التحقق (OTP)</label>
+            <div class="otp-container" dir="ltr">
+              <input v-for="(digit, index) in otp" :key="index" type="text" class="form-control otp-input text-center" maxlength="1" v-model="otp[index]" @input="handleOtpInput(index, $event)" @keydown.delete="handleOtpBackspace(index, $event)" :ref="el => otpInputs[index] = el" :disabled="authStore.getIsLoading" />
+            </div>
+          </div>
+          <button class="btn btn-dark w-100 py-2" type="submit" :disabled="authStore.getIsLoading || !isOtpComplete">
+             <span v-if="authStore.getIsLoading"><i class="fas fa-spinner fa-spin"></i></span>
+             <span v-else>التحقق من الرمز</span>
+          </button>
+        </form>
+
+        <form v-if="formMode === 'reset-set-password'" @submit.prevent="handleSetNewPassword">
+           <p class="text-muted text-center mb-3">أدخل كلمة المرور الجديدة.</p>
+          <div class="mb-3">
+            <label for="newPassword">كلمة المرور الجديدة</label>
+            <input type="password" class="form-control" id="newPassword" v-model="newPassword" required :disabled="authStore.getIsLoading" />
+          </div>
+          <div class="mb-3">
+            <label for="confirmPassword">تأكيد كلمة المرور الجديدة</label>
+            <input type="password" class="form-control" id="confirmPassword" v-model="confirmPassword" required :disabled="authStore.getIsLoading" />
+             <small v-if="newPassword && confirmPassword && newPassword !== confirmPassword" class="form-text text-danger">
+                كلمتا المرور غير متطابقتين.
+            </small>
+          </div>
+          <button class="btn btn-dark w-100 py-2" type="submit" :disabled="authStore.getIsLoading || !isPasswordFormValid">
+            <span v-if="authStore.getIsLoading"><i class="fas fa-spinner fa-spin"></i></span>
+            <span v-else>حفظ كلمة المرور</span>
+          </button>
+        </form>
+        
+        <div class="text-center mt-4">
+            <a href="#" @click.prevent="switchToLoginMode" class="back-to-login">العودة إلى تسجيل الدخول</a>
         </div>
-
-        <button
-          class="btn btn-dark w-100 py-2 mt-3"
-          type="submit"
-          :disabled="authStore.getIsLoading || !isFormValid"
-        >
-          <span v-if="authStore.getIsLoading">
-            <i class="fas fa-spinner fa-spin me-2"></i>
-            جاري تسجيل الدخول...
-          </span>
-          <span v-else> تسجيل دخول </span>
-        </button>
-
-        <p class="mt-5 mb-3 text-muted text-center">© CCTT</p>
-      </form>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, onBeforeUnmount, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { useAuthStore } from "../stores/authStore"; // Adjust path as needed
+import { useAuthStore } from "../stores/authStore";
 
 export default {
   setup() {
     const router = useRouter();
     const authStore = useAuthStore();
 
-    // Form data
+    // General state
+    const formMode = ref('login'); // 'login', 'reset-request', 'reset-verify', 'reset-set-password'
+
+    // Login form data
     const PhoneNumber = ref("");
     const password = ref("");
     const showPassword = ref(false);
 
-    // Computed property to check form validity
-    const isFormValid = computed(() => {
-      const isPhoneValid =
-        PhoneNumber.value.startsWith("09") && PhoneNumber.value.length === 10;
-      const isPasswordValid = password.value.length >= 8;
-      return isPhoneValid && isPasswordValid;
-    });
+    // Password reset form data
+    const resetPhoneNumber = ref('');
+    const otp = ref(new Array(6).fill(''));
+    const otpInputs = ref([]);
+    const resetToken = ref(null);
+    const newPassword = ref('');
+    const confirmPassword = ref('');
+    const successMessage = ref('');
 
-    // Methods
+    // Validation Errors
+    const phoneError = ref('');
+    const passwordError = ref('');
+    const resetPhoneError = ref('');
+
+
+    // --- COMPUTED PROPERTIES ---
+    const isOtpComplete = computed(() => otp.value.every(digit => digit !== '' && !isNaN(digit)));
+    const isPasswordFormValid = computed(() => newPassword.value && newPassword.value === confirmPassword.value && newPassword.value.length >= 8);
+
+
+    // --- METHODS ---
     const togglePassword = () => {
       showPassword.value = !showPassword.value;
     };
+    
+    const clearForms = () => {
+        PhoneNumber.value = '';
+        password.value = '';
+        resetPhoneNumber.value = '';
+        otp.value.fill('');
+        newPassword.value = '';
+        confirmPassword.value = '';
+        successMessage.value = '';
+        phoneError.value = '';
+        passwordError.value = '';
+        resetPhoneError.value = '';
+        authStore.clearError();
+    };
 
+    const switchToResetMode = () => {
+        clearForms();
+        formMode.value = 'reset-request';
+    };
+
+    const switchToLoginMode = () => {
+        clearForms();
+        formMode.value = 'login';
+    };
+
+    // --- Validation Functions ---
+    const validateLogin = () => {
+        let isValid = true;
+        phoneError.value = '';
+        passwordError.value = '';
+
+        if (!PhoneNumber.value) {
+            phoneError.value = 'الرجاء إدخال رقم الهاتف.';
+            isValid = false;
+        } else if (!PhoneNumber.value.startsWith("09") || PhoneNumber.value.length !== 10) {
+            phoneError.value = 'يجب أن يبدأ رقم الهاتف بـ 09 وأن يتكون من 10 أرقام.';
+            isValid = false;
+        }
+
+        if (!password.value) {
+            passwordError.value = 'الرجاء إدخال كلمة المرور.';
+            isValid = false;
+        } else if (password.value.length < 8) {
+            passwordError.value = 'يجب أن لا تقل كلمة المرور عن 8 أحرف.';
+            isValid = false;
+        }
+        return isValid;
+    };
+
+    const validateResetPhone = () => {
+        let isValid = true;
+        resetPhoneError.value = '';
+
+        if (!resetPhoneNumber.value) {
+            resetPhoneError.value = 'الرجاء إدخال رقم الهاتف.';
+            isValid = false;
+        } else if (!resetPhoneNumber.value.startsWith('09') || resetPhoneNumber.value.length !== 10) {
+            resetPhoneError.value = 'يجب أن يبدأ رقم الهاتف بـ 09 وأن يتكون من 10 أرقام.';
+            isValid = false;
+        }
+        return isValid;
+    };
+
+
+    // --- Handlers ---
     const handleLogin = async () => {
-      if (!isFormValid.value) {
-        return; // Prevent submission if form is invalid
-      }
-      // Clear any previous errors
       authStore.clearError();
-
+      if (!validateLogin()) return;
+      
       try {
-        const credentials = {
+        const result = await authStore.login({
           phone_number: PhoneNumber.value.trim(),
           password: password.value,
-        };
-        const result = await authStore.login(credentials);
-
+        });
         if (result.success) {
           router.push("/dashboard");
         }
@@ -129,14 +244,64 @@ export default {
       }
     };
 
-    // Check if user is already authenticated
+    const handleRequestReset = async () => {
+      authStore.clearError();
+      if (!validateResetPhone()) return;
+
+      const result = await authStore.requestPasswordReset({ phone_number: resetPhoneNumber.value });
+      if (result.success) {
+        formMode.value = 'reset-verify';
+        await nextTick();
+        otpInputs.value[0]?.focus();
+      }
+    };
+
+    const handleVerifyOtp = async () => {
+      authStore.clearError();
+      const otpCode = otp.value.join('');
+      const result = await authStore.verifyPasswordResetOTP({ phone_number: resetPhoneNumber.value, otp_code: otpCode });
+      if (result.success) {
+        resetToken.value = result.reset_token;
+        formMode.value = 'reset-set-password';
+      }
+    };
+
+    const handleSetNewPassword = async () => {
+        if (!isPasswordFormValid.value) return;
+        authStore.clearError();
+        const result = await authStore.setNewPassword({
+            reset_token: resetToken.value,
+            new_password: newPassword.value,
+        });
+        if (result.success) {
+            successMessage.value = 'تم تغيير كلمة المرور بنجاح! سيتم توجيهك لتسجيل الدخول.';
+            setTimeout(() => {
+                switchToLoginMode();
+            }, 3000);
+        }
+    };
+
+    const handleOtpInput = (index, event) => {
+        const value = event.target.value;
+        if (value && !isNaN(value)) {
+            if (index < otpInputs.value.length - 1) {
+                otpInputs.value[index + 1].focus();
+            }
+        }
+    };
+
+    const handleOtpBackspace = (index, event) => {
+        if (event.target.value === '' && index > 0) {
+            otpInputs.value[index - 1].focus();
+        }
+    };
+
+    // --- LIFECYCLE HOOKS ---
     onMounted(async () => {
       await authStore.initAuth();
-
       if (authStore.getIsAuthenticated) {
         router.push("/dashboard");
       }
-      
       const urlParams = new URLSearchParams(window.location.search);
       const message = urlParams.get("message");
       if (message === "account_deactivated") {
@@ -145,21 +310,56 @@ export default {
         alert("الحساب غير موجود");
       }
     });
+    
+    onBeforeUnmount(() => {
+        authStore.clearError();
+    });
 
     return {
       authStore,
+      formMode,
       PhoneNumber,
       password,
       showPassword,
-      isFormValid,
+      resetPhoneNumber,
+      otp,
+      otpInputs,
+      newPassword,
+      confirmPassword,
+      successMessage,
+      isOtpComplete,
+      isPasswordFormValid,
+      phoneError,
+      passwordError,
+      resetPhoneError,
       togglePassword,
       handleLogin,
+      switchToResetMode,
+      switchToLoginMode,
+      handleRequestReset,
+      handleVerifyOtp,
+      handleSetNewPassword,
+      handleOtpInput,
+      handleOtpBackspace,
     };
   },
 };
 </script>
 
 <style scoped>
+/* General Styles */
+.form-container {
+  padding: 2rem 1rem;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.form-container img {
+  display: block;
+  margin: 0 auto;
+}
+
 .mb-3 label {
   display: block;
   text-align: right;
@@ -167,66 +367,24 @@ export default {
   font-weight: 500;
 }
 
-/* Style the input group for RTL */
-.input-group {
-  direction: ltr; /* Keep the group LTR so icons stay on the left */
+/* Make sure invalid feedback is visible and aligned */
+.invalid-feedback {
+    text-align: right;
+    display: block;
 }
 
-.input-group .form-control {
-  direction: rtl; /* But keep the input RTL for Arabic text */
+
+.alert {
+  direction: rtl;
   text-align: right;
 }
 
-.input-group-text {
-  background-color: #f8f9fa;
-  border-color: #ced4da;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.input-group-text:hover {
-  background-color: #e9ecef;
-}
-
-.password-toggle {
-  user-select: none;
-}
-
-.password-toggle i {
-  color: #6c757d;
-  transition: color 0.3s ease;
-}
-
-.password-toggle:hover i {
-  color: #495057;
-}
-
-.form-control {
-  border-radius: 0.375rem;
-  border: 1px solid #ced4da;
-  padding: 0.75rem;
-  font-size: 1rem;
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
-
-.form-control:focus {
-  border-color: #80bdff;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-.form-control:disabled {
-  background-color: #e9ecef;
-  opacity: 1;
-}
-
-.password-input-group .form-control {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.password-input-group .input-group-text {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
+.text-muted {
+  color: #6c757d !important;
+  display: block;
+  text-align: right;
+  width: 100%;
+  margin-top: .25rem;
 }
 
 .btn-dark {
@@ -246,67 +404,73 @@ export default {
   opacity: 0.65;
 }
 
-.form-signin {
-  padding: 2rem 1rem;
-  background: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-}
-
-.form-signin img {
-  display: block;
-  margin: 0 auto;
-}
-
-.alert {
-  direction: rtl;
-  text-align: right;
-}
-
-.text-muted {
-  color: #6c757d !important;
-  display: block;
-  text-align: right;
-  width: 100%;
-  margin-top: .25rem;
-}
-
-/* Responsive adjustments */
-@media (max-width: 576px) {
-  .form-signin {
-    padding: 1.5rem 1rem;
-    margin: 1rem;
-  }
-  
-  .form-signin img {
-    width: 60px;
-  }
-  
-  .h3 {
-    font-size: 1.5rem;
-  }
-}
-
-/* RTL specific styles */
-[dir="rtl"] .input-group-text {
-  border-radius: 0.375rem 0 0 0.375rem;
-}
-
-[dir="rtl"] .password-input-group .form-control {
-  border-radius: 0 0.375rem 0.375rem 0;
-}
-
-/* Loading spinner animation */
 .fa-spin {
   animation: fa-spin 2s infinite linear;
 }
 
 @keyframes fa-spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
+
+/* Login Form Specific */
+.input-group {
+  direction: ltr;
+}
+
+.input-group .form-control {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Handle invalid state on input groups */
+.input-group .form-control.is-invalid {
+    border-right-width: 1px;
+    border-color: #dc3545;
+}
+.input-group .form-control.is-invalid:focus {
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+
+
+.password-toggle {
+  cursor: pointer;
+}
+
+.forgot-password-link {
+    color: #000000;
+    text-decoration: none;
+    font-size: 1.0rem;
+    font-weight: 500;
+}
+
+.forgot-password-link:hover {
+    text-decoration: underline;
+}
+
+/* Password Reset Specific */
+.otp-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.otp-input {
+  width: 45px;
+  height: 50px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  text-align: center !important;
+  direction: ltr !important;
+}
+
+.back-to-login {
+    color: #6c757d;
+    text-decoration: none;
+}
+
+.back-to-login:hover {
+    text-decoration: underline;
+}
+
 </style>

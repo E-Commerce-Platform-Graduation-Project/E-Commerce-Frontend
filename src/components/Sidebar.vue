@@ -14,7 +14,7 @@
     <!-- Logo Section (Fixed) -->
     <div class="sidebar-header p-3 text-center">
       <img :src="logoURL" alt="Vue" class="logo-img" />
-      <p>متجرنا الالكتروني</p>
+      <p class="fw-bold">Flaww Store</p>
     </div>
 
     <!-- Menu Toggle (Fixed) -->
@@ -145,7 +145,7 @@
 <script>
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
-import logoURL from "../assets/icons/e-commerce-logo.png";
+import logoURL from "../assets/icons/e-commerce-logo3.png";
 import { useAuthStore } from "../stores/authStore";
 import UserProfile from "./UserProfile.vue";
 

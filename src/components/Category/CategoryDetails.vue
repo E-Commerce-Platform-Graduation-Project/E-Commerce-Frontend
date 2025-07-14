@@ -2,7 +2,6 @@
   <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
-        <!-- Modal Header -->
         <div class="modal-header bg-gradient text-white" :class="getHeaderClass()">
           <div class="d-flex align-items-center">
             <div>
@@ -12,12 +11,9 @@
           </div>
         </div>
 
-        <!-- Modal Body -->
         <div class="modal-body p-0">
-          <!-- Category Info Card -->
           <div class="card border-0 rounded-0">
             <div class="card-body p-4">
-              <!-- Basic Information -->
               <div class="row mb-4">
                 <div class="col-md-12">
                   <h5 class="card-title mb-3" :class="getTitleColorClass()">
@@ -51,15 +47,9 @@
                       <span class="fs-6">{{ parentCategory.name }}</span>
                     </div>
                   </div>
-
-                  <div class="mb-3">
-                    <label class="fw-semibold text-muted mb-1">تاريخ الإنشاء:</label>
-                    <p class="mb-0 text-muted">{{ formatDate(category.createdDate) }}</p>
-                  </div>
                 </div>
               </div>
 
-              <!-- Subcategories Section -->
               <div v-if="subcategories.length > 0" class="mb-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                   <h5 class="mb-0" :class="getTitleColorClass()">
@@ -81,8 +71,7 @@
                     :key="subcategory.id"
                     class="col-md-6 col-lg-4 mb-3"
                   >
-                    <div class="card subcategory-card h-100 border-0 shadow-sm cursor-pointer"
-                         @click="viewSubcategory(subcategory)">
+                    <div class="card subcategory-card h-100 border-0 shadow-sm cursor-pointer">
                       <div class="card-body p-3">
                         <div class="d-flex align-items-start">
                           <i class="fas fa-folder-open me-3 mt-1" :class="getSubcategoryIconClass()"></i>
@@ -91,9 +80,6 @@
                             <p class="card-text text-muted small mb-2">
                               {{ subcategory.description || 'لا يوجد وصف' }}
                             </p>
-                            <small class="text-muted">
-                              تاريخ الإنشاء: {{ formatDate(subcategory.createdDate) }}
-                            </small>
                           </div>
                         </div>
                       </div>
@@ -102,7 +88,6 @@
                 </div>
               </div>
 
-              <!-- Empty State for Subcategories -->
               <div v-else-if="!category.parentCategoryID" class="text-center py-4">
                 <div class="empty-state">
                   <i class="fas fa-folder-plus fa-3x text-muted mb-3"></i>
@@ -111,7 +96,6 @@
                 </div>
               </div>
 
-              <!-- Category Actions -->
               <div class="border-top pt-4">
                 <h5 class="mb-3" :class="getTitleColorClass()">
                   <i class="fas fa-cogs me-2"></i>
@@ -125,9 +109,7 @@
                     <i class="fas fa-edit me-2"></i>
                     تعديل الفئة
                   </button>
-                  <!-- Delete button with proper conditions -->
                   <button 
-                    v-if="canDeleteCategory"
                     class="btn btn-danger"
                     @click="deleteCategory"
                   >
@@ -140,7 +122,6 @@
           </div>
         </div>
 
-        <!-- Modal Footer -->
         <div class="modal-footer bg-light">
           <button 
             type="button" 
@@ -151,6 +132,25 @@
             إغلاق
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="showModal" class="custom-modal-overlay">
+    <div class="custom-modal">
+      <div class="custom-modal-header">
+        <div class="icon-container" :class="modalType === 'error' ? 'icon-error' : 'icon-confirm'">
+          <i class="fas" :class="modalType === 'error' ? 'fa-times' : 'fa-trash-alt'"></i>
+        </div>
+      </div>
+      <div class="custom-modal-body">
+        <h4 class="modal-title-custom">{{ modalTitle }}</h4>
+        <p>{{ modalMessage }}</p>
+      </div>
+      <div class="custom-modal-footer">
+        <button v-if="modalType === 'confirm'" @click="hideModal" class="btn btn-secondary">إلغاء</button>
+        <button v-if="modalType === 'confirm'" @click="onConfirm" class="btn btn-danger">تأكيد</button>
+        <button v-if="modalType === 'error'" @click="hideModal" class="btn btn-danger">إغلاق</button>
       </div>
     </div>
   </div>
@@ -178,6 +178,11 @@ export default {
     
     // State
     const showAllSubcategories = ref(false)
+    const showModal = ref(false);
+    const modalType = ref('confirm'); // 'confirm' or 'error'
+    const modalTitle = ref('');
+    const modalMessage = ref('');
+    const onConfirm = ref(null);
 
     // Computed
     const allCategories = computed(() => categoryStore.getAllCategories)
@@ -195,22 +200,18 @@ export default {
       if (showAllSubcategories.value) {
         return subcategories.value
       }
-      return subcategories.value.slice(0, 6) // Show first 6 subcategories by default
+      return subcategories.value.slice(0, 0)
     })
 
     const categoryPath = computed(() => {
       return categoryStore.getCategoryPath(props.category.id)
     })
 
-    const canDeleteCategory = computed(() => {
-      // Only allow deletion if it's a subcategory OR if it's a main category with no subcategories
-      if (props.category.parentCategoryID) {
-        return true // Can delete subcategories
-      }
-      return subcategories.value.length === 0 // Can only delete main categories with no subcategories
-    })
-
     // Methods
+    const hideModal = () => {
+      showModal.value = false;
+    };
+    
     const getTitleColorClass = () => {
       return props.category.parentCategoryID ? 'text-custom-child' : 'text-danger'
     }
@@ -235,16 +236,6 @@ export default {
       return props.category.parentCategoryID ? 'bg-custom-child' : 'bg-danger'
     }
 
-    const formatDate = (dateString) => {
-      if (!dateString) return 'غير محدد'
-      const date = new Date(dateString)
-      return date.toLocaleDateString('ar-EG', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
-    }
-
     const toggleSubcategoriesView = () => {
       showAllSubcategories.value = !showAllSubcategories.value
     }
@@ -258,44 +249,56 @@ export default {
     }
 
     const viewSubcategory = (subcategory) => {
-      // Close current modal and emit to parent to show subcategory details
       emit('close')
-      // You might want to emit a specific event for viewing subcategory
-      // or handle this in the parent component
     }
 
     const deleteCategory = async () => {
-      const confirmMessage = props.category.parentCategoryID 
-        ? 'هل أنت متأكد من حذف هذه الفئة الفرعية؟'
-        : 'هل أنت متأكد من حذف هذه الفئة الرئيسية؟'
-        
-      if (confirm(confirmMessage)) {
-        const result = await categoryStore.deleteCategory(props.category.id)
+      if (!props.category.parentCategoryID && subcategories.value.length > 0) {
+        modalType.value = 'error';
+        modalTitle.value = 'حدث خطأ!';
+        modalMessage.value = 'لا يمكنك حذف فئة رئيسية تحتوي على فئات فرعية.';
+        onConfirm.value = null;
+        showModal.value = true;
+        return;
+      }
+      
+      modalType.value = 'confirm';
+      modalTitle.value = 'تأكيد الحذف';
+      modalMessage.value = `هل أنت متأكد من حذف فئة "${props.category.name}"؟`;
+      
+      onConfirm.value = async () => {
+        hideModal();
+        const result = await categoryStore.deleteCategory(props.category.id);
         if (result.success) {
-          emit('category-updated')
-          emit('close')
+          emit('category-updated');
+          emit('close');
         } else {
-          // Handle error - you might want to show a toast or alert
-          alert(result.error || 'حدث خطأ أثناء حذف الفئة')
+          modalType.value = 'error';
+          modalTitle.value = 'حدث خطأ!';
+          modalMessage.value = result.error || 'حدث خطأ أثناء حذف الفئة.';
+          onConfirm.value = null;
+          showModal.value = true;
+        }
+      };
+
+      showModal.value = true;
+    }
+
+    const handleKeydown = (event) => {
+      if (event.key === 'Escape') {
+        if (showModal.value) {
+          hideModal();
+        } else {
+          closeModal();
         }
       }
     }
 
-    // Handle keyboard events
-    const handleKeydown = (event) => {
-      if (event.key === 'Escape') {
-        closeModal()
-      }
-    }
-
-    // Lifecycle
     onMounted(() => {
       document.addEventListener('keydown', handleKeydown)
-      // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden'
     })
 
-    // Cleanup on unmount
     onUnmounted(() => {
       document.removeEventListener('keydown', handleKeydown)
       document.body.style.overflow = 'auto'
@@ -308,19 +311,23 @@ export default {
       subcategories,
       displayedSubcategories,
       categoryPath,
-      canDeleteCategory,
       getTitleColorClass,
       getSubcategoryIconClass,
       getParentIconClass,
       getCategoryTypeText,
       getHeaderClass,
       getTypeBadgeClass,
-      formatDate,
       toggleSubcategoriesView,
       closeModal,
       editCategory,
       viewSubcategory,
-      deleteCategory
+      deleteCategory,
+      showModal,
+      modalType,
+      modalTitle,
+      modalMessage,
+      onConfirm,
+      hideModal
     }
   }
 }
@@ -388,48 +395,111 @@ export default {
   transition: all 0.2s ease;
 }
 
-/* RTL Support */
 [dir="rtl"] .breadcrumb-custom .breadcrumb-item + .breadcrumb-item::before {
   content: "\\";
 }
 
-/* Responsive adjustments */
+/* Custom Modal Styles */
+.custom-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1060;
+  direction: rtl;
+}
+
+.custom-modal {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 15px;
+  width: 90%;
+  max-width: 450px;
+  text-align: center;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  opacity: 0;
+  animation: modal-animation 0.3s ease-out forwards;
+}
+
+@keyframes modal-animation {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.custom-modal-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.icon-container {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 40px;
+  color: white;
+  background-color: #dc3545; /* Red for both error and confirm */
+}
+
+.modal-title-custom {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #343a40;
+}
+
+.custom-modal-body p {
+  font-size: 1.1rem;
+  color: #6c757d;
+  margin-bottom: 2rem;
+}
+
+.custom-modal-footer {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.custom-modal-footer .btn {
+  padding: 0.7rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 8px;
+  min-width: 100px;
+}
+
 @media (max-width: 768px) {
   .modal-dialog {
     margin: 0.5rem;
     max-width: calc(100% - 1rem);
   }
-  
-  .modal-xl {
-    max-width: calc(100% - 1rem);
-  }
-  
-  .d-flex.flex-wrap.gap-2 {
-    gap: 0.5rem !important;
-  }
-  
-  .btn {
-    font-size: 0.875rem;
-  }
-  
-  .row .col-md-6,
-  .row .col-lg-4 {
-    margin-bottom: 1rem;
-  }
+  .modal-xl { max-width: calc(100% - 1rem); }
+  .d-flex.flex-wrap.gap-2 { gap: 0.5rem !important; }
+  .btn { font-size: 0.875rem; }
+  .row .col-md-6, .row .col-lg-4 { margin-bottom: 1rem; }
 }
 
-/* Animation for modal */
 .modal.show {
   animation: fadeIn 0.3s ease;
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modal-content {

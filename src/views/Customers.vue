@@ -50,7 +50,7 @@
             <input 
               v-model="searchQuery" 
               type="text" 
-              placeholder="البحث برقم الهاتف أو الاسم أو البريد الإلكتروني..."
+              placeholder="البحث برقم الهاتف..."
               class="form-control search-input"
               @input="onSearchInput"
             />
@@ -217,9 +217,7 @@ export default {
       if (searchQuery.value.trim()) {
         const query = searchQuery.value.trim().toLowerCase()
         customers = customers.filter(customer => 
-          customer.phone_number.includes(query) ||
-          customer.full_name.toLowerCase().includes(query) ||
-          customer.email.toLowerCase().includes(query)
+          customer.phone_number.includes(query)
         )
       }
 

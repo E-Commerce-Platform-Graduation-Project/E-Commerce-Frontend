@@ -1,24 +1,20 @@
 <template>
   <div class="add-employee-container">
-    <!-- Header -->
     <div class="page-header">
       <h1 class="page-title">إضافة موظف</h1>
       <p class="page-subtitle">إضافة موظف جديد إلى النظام</p>
     </div>
 
-    <!-- Form Container -->
     <div class="form-container">
       <form @submit.prevent="handleSubmit" class="employee-form">
 
-        <!-- Full Name -->
         <div class="form-group">
           <label for="fullName" class="form-label">الاسم الكامل</label>
           <input id="fullName" v-model="form.full_name" type="text" class="form-input"
-            :class="{ 'error': errors.full_name }" placeholder="أدخل الاسم الكامل" required />
+            :class="{ 'error': errors.full_name }" placeholder="أدخل الاسم الكامل" />
           <div v-if="errors.full_name" class="error-message">{{ errors.full_name }}</div>
         </div>
 
-        <!-- Phone Number -->
         <div class="form-group">
           <label for="phone" class="form-label">رقم الهاتف</label>
           <input 
@@ -31,13 +27,11 @@
             maxlength="10"
             @input="formatPhoneInput"
             @keypress="validatePhoneKeypress"
-            required 
           />
           <div v-if="errors.phone_number" class="error-message">{{ errors.phone_number }}</div>
           <div class="input-help">يجب أن يبدأ بـ 09 ويتكون من 10 أرقام</div>
         </div>
 
-        <!-- Email -->
         <div class="form-group">
           <label for="email" class="form-label">البريد الإلكتروني</label>
           <input id="email" v-model="form.email" type="email" class="form-input" :class="{ 'error': errors.email }"
@@ -45,7 +39,6 @@
           <div v-if="errors.email" class="error-message">{{ errors.email }}</div>
         </div>
 
-        <!-- Role -->
         <div class="form-group">
           <label for="role" class="form-label">الصلاحيات</label>
           <div class="role-selection">
@@ -64,7 +57,6 @@
           </div>
         </div>
 
-        <!-- Action Buttons -->
         <div class="form-actions">
           <button type="button" @click="handleCancel" class="btn btn-cancel" :disabled="isSubmitting">
             إلغاء
@@ -79,23 +71,33 @@
       </form>
     </div>
 
-    <!-- Success Modal -->
     <div v-if="showSuccessModal" class="modal-overlay" @click="closeSuccessModal">
-      <div class="success-modal" @click.stop>
-        <div class="success-icon">
+      <div class="modal-dialog success-modal" @click.stop>
+        <div class="modal-icon success-icon">
           <i class="fas fa-check-circle"></i>
         </div>
         <h3>تم بنجاح!</h3>
-        <p>تم إضافة الموظف بنجاح</p>
-        <p>تم ارسال كلمة المرور الى رقم الهاتف الخاص بك</p>
+        <p>تم إضافة الموظف بنجاح. سيتم إرسال كلمة المرور إلى رقم هاتف الموظف.</p>
         <button @click="closeSuccessModal" class="btn btn-primary">موافق</button>
       </div>
     </div>
+    
+    <div v-if="showErrorModal" class="modal-overlay" @click="closeErrorModal">
+      <div class="modal-dialog error-modal" @click.stop>
+        <div class="modal-icon error-icon">
+          <i class="fas fa-times-circle"></i>
+        </div>
+        <h3>حدث خطأ!</h3>
+        <p>{{ modalErrorMessage }}</p>
+        <button @click="closeErrorModal" class="btn btn-danger">إغلاق</button>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script>
-import { ref, reactive } from 'vue'
+import { ref, reactive, nextTick } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useRouter } from 'vue-router'
 
@@ -117,6 +119,8 @@ export default {
     const errors = ref({})
     const isSubmitting = ref(false)
     const showSuccessModal = ref(false)
+    const showErrorModal = ref(false)
+    const modalErrorMessage = ref('')
 
     // Methods
     const validateForm = () => {
@@ -124,27 +128,33 @@ export default {
       let isValid = true
 
       // Validate Full Name
-      if (!form.full_name || form.full_name.trim().length < 2) {
-        errors.value.full_name = 'الاسم الكامل مطلوب ويجب أن يكون أكثر من حرفين'
+      if (!form.full_name || form.full_name.trim().length === 0) {
+        errors.value.full_name = 'الاسم الكامل مطلوب'
+        isValid = false
+      } else if (form.full_name.trim().length < 2) {
+        errors.value.full_name = 'الاسم الكامل يجب أن يكون أكثر من حرفين'
         isValid = false
       }
 
       // Enhanced Phone Number Validation
-      const phoneNumber = form.phone_number.trim()
+      const phoneNumber = form.phone_number ? form.phone_number.trim() : ''
       
-      // Check if phone number is empty
-      if (!phoneNumber) {
+      if (!phoneNumber || phoneNumber.length === 0) {
         errors.value.phone_number = 'رقم الهاتف مطلوب'
         isValid = false
       }
-      // Check if phone number matches the pattern: exactly 10 digits starting with 09
       else if (!/^09\d{8}$/.test(phoneNumber)) {
         errors.value.phone_number = 'يجب أن يكون رقم الهاتف 10 أرقام ويبدأ بـ 09'
         isValid = false
       }
 
-      // Validate Email (optional but must be valid if provided)
-      if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      // Validate Email (required and must be valid)
+      const email = form.email ? form.email.trim() : ''
+      
+      if (!email || email.length === 0) {
+        errors.value.email = 'البريد الإلكتروني مطلوب'
+        isValid = false
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         errors.value.email = 'البريد الإلكتروني غير صحيح'
         isValid = false
       }
@@ -153,18 +163,11 @@ export default {
     }
 
     const formatPhoneInput = (event) => {
-      // Remove any non-digit characters
       let value = event.target.value.replace(/\D/g, '')
-      
-      // Limit to 10 digits
       if (value.length > 10) {
         value = value.slice(0, 10)
       }
-      
-      // Update the form value
       form.phone_number = value
-      
-      // Clear phone error when user starts typing correctly
       if (value.startsWith('09') && value.length <= 10) {
         if (errors.value.phone_number) {
           delete errors.value.phone_number
@@ -173,48 +176,44 @@ export default {
     }
 
     const validatePhoneKeypress = (event) => {
-      // Allow only digits
       if (!/\d/.test(event.key) && 
           !['Backspace', 'Delete', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
         event.preventDefault()
       }
-      
-      // If this is the first character, ensure it's 0
       if (form.phone_number.length === 0 && event.key !== '0') {
         event.preventDefault()
       }
-      
-      // If this is the second character, ensure it's 9
       if (form.phone_number.length === 1 && event.key !== '9') {
         event.preventDefault()
       }
     }
 
-    const scrollToFirstError = () => {
-      // Find the first field with an error
+    const scrollToFirstError = async () => {
+      // Wait for DOM to update with error messages
+      await nextTick()
+      
       const firstErrorField = Object.keys(errors.value)[0]
       if (firstErrorField) {
-        // Get the corresponding input element
         const fieldElement = document.getElementById(getFieldId(firstErrorField))
         if (fieldElement) {
-          // Scroll to the field with smooth animation
           fieldElement.scrollIntoView({
             behavior: 'smooth',
             block: 'center'
           })
-          // Focus the field
-          fieldElement.focus()
-          // Add a visual highlight effect
-          fieldElement.classList.add('error-highlight')
+          
+          // Wait a bit for scroll to complete, then focus and highlight
           setTimeout(() => {
-            fieldElement.classList.remove('error-highlight')
-          }, 2000)
+            fieldElement.focus()
+            fieldElement.classList.add('error-highlight')
+            setTimeout(() => {
+              fieldElement.classList.remove('error-highlight')
+            }, 2000)
+          }, 300)
         }
       }
     }
 
     const getFieldId = (fieldName) => {
-      // Map field names to their corresponding input IDs
       const fieldIdMap = {
         'full_name': 'fullName',
         'phone_number': 'phone',
@@ -224,17 +223,14 @@ export default {
     }
 
     const handleSubmit = async () => {
-      // Validate form first
       if (!validateForm()) {
-        // Scroll to the first error field
-        scrollToFirstError()
+        await scrollToFirstError()
         return
       }
 
       isSubmitting.value = true
 
       try {
-        // Prepare user data
         const userData = {
           full_name: form.full_name.trim(),
           phone_number: form.phone_number.trim(),
@@ -243,57 +239,47 @@ export default {
           is_active: true
         }
 
-        // Add employee using authStore
         const result = await authStore.addEmployee(userData)
 
         if (result.success) {
           showSuccessModal.value = true
-          // Reset form
           Object.keys(form).forEach(key => {
-            if (key === 'role') {
-              form[key] = 'EMPLOYEE'
-            } else {
-              form[key] = ''
-            }
+            form[key] = key === 'role' ? 'EMPLOYEE' : ''
           })
           errors.value = {}
         } else {
-          // Handle add employee error and scroll to relevant field
-          if (result.error.includes('رقم الهاتف مستخدم بالفعل')) {
-            errors.value.phone_number = result.error
-          } else if (result.error.includes('البريد الالكتروني موجود بالفعل')) {
-            errors.value.email = result.error
+          if (result.error && typeof result.error === 'string') {
+                modalErrorMessage.value = result.error;
+                showErrorModal.value = true;
           } else {
-            alert('حدث خطأ أثناء إضافة الموظف: ' + result.error)
+              modalErrorMessage.value = 'حدث خطأ غير معروف. يرجى المحاولة مرة أخرى.';
+              showErrorModal.value = true;
           }
-          // Scroll to the field with error
-          scrollToFirstError()
+          await scrollToFirstError()
         }
       } catch (error) {
         console.error('Error adding employee:', error)
-        alert('حدث خطأ غير متوقع أثناء إضافة الموظف')
+        modalErrorMessage.value = 'حدث خطأ غير متوقع أثناء الاتصال بالخادم.';
+        showErrorModal.value = true;
       } finally {
         isSubmitting.value = false
       }
     }
 
     const handleCancel = () => {
-      // Reset form
       Object.keys(form).forEach(key => {
-        if (key === 'role') {
-          form[key] = 'EMPLOYEE'
-        } else {
-          form[key] = ''
-        }
+        form[key] = key === 'role' ? 'EMPLOYEE' : ''
       })
       errors.value = {}
-
-      // Navigate back to employees list or dashboard
-      router.push('/dashboard/employees')
+      router.push('/employees')
     }
 
     const closeSuccessModal = () => {
       showSuccessModal.value = false
+    }
+
+    const closeErrorModal = () => {
+      showErrorModal.value = false
     }
 
     return {
@@ -301,9 +287,12 @@ export default {
       errors,
       isSubmitting,
       showSuccessModal,
+      showErrorModal,
+      modalErrorMessage,
       handleSubmit,
       handleCancel,
       closeSuccessModal,
+      closeErrorModal,
       scrollToFirstError,
       formatPhoneInput,
       validatePhoneKeypress
@@ -399,17 +388,9 @@ export default {
 }
 
 @keyframes errorPulse {
-  0% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.02);
-  }
-
-  100% {
-    transform: scale(1);
-  }
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
 }
 
 .form-input::placeholder {
@@ -465,14 +446,8 @@ export default {
   font-size: 20px;
 }
 
-.role-icon.employee {
-  background: #2883a7;
-}
-
-.role-icon.admin {
-  background: tomato;
-}
-
+.role-icon.employee { background: #2883a7; }
+.role-icon.admin { background: tomato; }
 .role-text {
   font-size: 16px;
   font-weight: 600;
@@ -484,6 +459,19 @@ export default {
   font-size: 14px;
   margin-top: 5px;
   font-weight: 500;
+  display: block;
+  animation: errorSlideIn 0.3s ease-out;
+}
+
+@keyframes errorSlideIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(-10px);
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0);
+  }
 }
 
 .form-actions {
@@ -517,33 +505,33 @@ export default {
   background: #95a5a6;
   color: white;
 }
-
 .btn-cancel:hover:not(:disabled) {
   background: #7f8c8d;
   transform: translateY(-2px);
 }
-
 .btn-save {
   background: linear-gradient(135deg, #27ae60, #2ecc71);
   color: white;
 }
-
 .btn-save:hover:not(:disabled) {
   background: linear-gradient(135deg, #229954, #27ae60);
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(39, 174, 96, 0.3);
 }
-
 .btn-primary {
   background: #3498db;
   color: white;
 }
+.btn-primary:hover { background: #2980b9; }
 
-.btn-primary:hover {
-  background: #2980b9;
+.btn-danger {
+    background: #e74c3c;
+    color: white;
 }
+.btn-danger:hover { background: #c0392b; }
 
-/* Success Modal */
+
+/* Modals */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -557,7 +545,7 @@ export default {
   z-index: 1000;
 }
 
-.success-modal {
+.modal-dialog {
   background: white;
   border-radius: 20px;
   padding: 40px;
@@ -568,22 +556,14 @@ export default {
 }
 
 @keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-50px) scale(0.9);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(-50px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.success-icon {
+.modal-icon {
   width: 80px;
   height: 80px;
   margin: 0 auto 20px;
-  background: linear-gradient(135deg, #27ae60, #2ecc71);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -592,82 +572,50 @@ export default {
   font-size: 32px;
 }
 
-.success-modal h3 {
+.success-icon {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+}
+
+.error-icon {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.modal-dialog h3 {
   font-size: 24px;
   color: #2c3e50;
   margin: 0 0 10px 0;
 }
 
-.success-modal p {
+.modal-dialog p {
   color: #7f8c8d;
   margin: 0 0 30px 0;
   font-size: 16px;
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
-  .add-employee-container {
-    padding: 10px;
-  }
-
-  .page-title {
-    font-size: 24px;
-  }
-
-  .employee-form {
-    padding: 30px 20px;
-  }
-
-  .role-selection {
-    flex-direction: column;
-    gap: 15px;
-  }
-
-  .form-actions {
-    flex-direction: column;
-  }
-
-  .btn {
-    width: 100%;
-  }
+  .add-employee-container { padding: 10px; }
+  .page-title { font-size: 24px; }
+  .employee-form { padding: 30px 20px; }
+  .role-selection { flex-direction: column; gap: 15px; }
+  .form-actions { flex-direction: column; }
+  .btn { width: 100%; }
 }
 
-/* Animation for form elements */
 .form-group {
   animation: slideInUp 0.5s ease-out;
   animation-fill-mode: both;
 }
-
-.form-group:nth-child(1) {
-  animation-delay: 0.1s;
-}
-
-.form-group:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.form-group:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-.form-group:nth-child(4) {
-  animation-delay: 0.4s;
-}
-
+.form-group:nth-child(1) { animation-delay: 0.1s; }
+.form-group:nth-child(2) { animation-delay: 0.2s; }
+.form-group:nth-child(3) { animation-delay: 0.3s; }
+.form-group:nth-child(4) { animation-delay: 0.4s; }
 .form-actions {
   animation: slideInUp 0.5s ease-out 0.5s;
   animation-fill-mode: both;
 }
 
 @keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

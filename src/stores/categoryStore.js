@@ -193,7 +193,7 @@ export const useCategoryStore = defineStore('category', {
           success: true
         }
       } catch (error) {
-        this.error = error.response?.data?.detail || 'حدث خطأ أثناء حذف الفئة'
+        this.error = error.response?.data?.error || 'حدث خطأ أثناء حذف الفئة'
         console.error('Delete category error:', error)
         return {
           success: false,
