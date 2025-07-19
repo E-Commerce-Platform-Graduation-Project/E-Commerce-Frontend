@@ -1,6 +1,5 @@
 <template>
   <div class="container-fluid px-3 px-lg-4">
-    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-2">
       <h3 class="h2 fw-bold text-dark mb-0">الموظفين</h3>
       <router-link 
@@ -12,7 +11,6 @@
       </router-link>
     </div>
 
-    <!-- Search Bar -->
     <div class="mb-4">
       <div class="position-relative" style="max-width: 400px;">
         <input
@@ -26,7 +24,6 @@
       </div>
     </div>
 
-    <!-- Loading State -->
     <div v-if="isLoading" class="d-flex flex-column align-items-center justify-content-center py-5 text-muted">
       <div class="spinner-border text-primary mb-3" role="status">
         <span class="visually-hidden">Loading...</span>
@@ -34,23 +31,75 @@
       <p class="mb-0">جاري تحميل الموظفين...</p>
     </div>
 
-    <!-- Error State -->
     <div v-else-if="error" class="text-center py-5">
       <p class="text-danger fs-5 mb-3">{{ error }}</p>
       <button @click="fetchEmployees" class="btn btn-primary">إعادة المحاولة</button>
     </div>
 
-    <!-- Employees List -->
-    <div v-else class="bg-white rounded-3 shadow-sm overflow-hidden">
-      <EmployeesList 
-        :employees="filteredEmployees"
-        @employee-updated="handleEmployeeUpdated"
-        @employee-deleted="handleEmployeeDeleted"
-        @view-employee="handleViewEmployee"
-      />
+    <div v-else>
+      <div class="bg-white rounded-3 shadow-sm overflow-hidden">
+        <EmployeesList 
+          :employees="paginatedEmployees"
+          @employee-updated="handleEmployeeUpdated"
+          @employee-deleted="handleEmployeeDeleted"
+          @view-employee="handleViewEmployee"
+        />
+        <div v-if="filteredEmployees.length === 0" class="text-center py-5 text-muted">
+            <i class="fas fa-user-friends fa-3x mb-3"></i>
+            <p class="fs-5">
+                {{ searchQuery ? 'لم يتم العثور على موظفين يطابقون البحث.' : 'لا يوجد موظفين لعرضهم.' }}
+            </p>
+        </div>
+      </div>
+
+      <div v-if="!isLoading && !error && totalEmployees > 0" class="pagination-container mt-4">
+        <div class="pagination-wrapper">
+          <button 
+            @click="goToPage(currentPage - 1)"
+            :disabled="currentPage === 1"
+            class="pagination-btn prev-btn"
+          >
+            <i class="fas fa-chevron-right"></i>
+            السابق
+          </button>
+          
+          <div class="page-numbers">
+            <button
+              v-for="page in visiblePages"
+              :key="page"
+              @click="goToPage(page)"
+              :class="['page-number', { 'active': page === currentPage, 'disabled': typeof page !== 'number' }]"
+              :disabled="typeof page !== 'number'"
+            >
+              {{ page }}
+            </button>
+          </div>
+          
+          <button 
+            @click="goToPage(currentPage + 1)"
+            :disabled="currentPage === totalPages"
+            class="pagination-btn next-btn"
+          >
+            التالي
+            <i class="fas fa-chevron-left"></i>
+          </button>
+        </div>
+        
+        <div class="page-size-selector">
+          <label for="pageSize">عدد الموظفين في الصفحة:</label>
+          <select 
+            id="pageSize"
+            v-model="itemsPerPage" 
+            @change="onPageSizeChange"
+            class="page-size-select"
+          >
+            <option value="10">10</option>
+            <option value="20">20</option>
+          </select>
+        </div>
+      </div>
     </div>
 
-    <!-- Employee Details Modal -->
     <EmployeeDetails
       v-if="selectedEmployee"
       :employee="selectedEmployee"
@@ -62,7 +111,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
 import EmployeesList from '@/components/Employee/EmployeesList.vue'
 import EmployeeDetails from '@/components/Employee/EmployeeDetails.vue'
@@ -84,23 +133,50 @@ export default {
     const selectedEmployee = ref(null)
     const showEmployeeDetails = ref(false)
 
-    // Computed - Filter out current user and apply search
+    // Pagination State
+    const currentPage = ref(1)
+    const itemsPerPage = ref(10)
+
+    // Computed: Filter out current user from the server-filtered list
     const filteredEmployees = computed(() => {
-      // First filter out the current user
-      const employeesExceptCurrent = employees.value.filter(employee => 
-        employee.id !== authStore.user?.id
-      )
+      if (!employees.value) return []
+      return employees.value.filter(employee => employee.id !== authStore.user?.id)
+    })
+
+    // Pagination Computed Properties
+    const totalEmployees = computed(() => filteredEmployees.value.length)
+    const totalPages = computed(() => {
+      if (totalEmployees.value === 0) return 1
+      return Math.ceil(totalEmployees.value / itemsPerPage.value)
+    })
+    const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value)
+    const endIndex = computed(() => Math.min(startIndex.value + itemsPerPage.value, totalEmployees.value))
+
+    const paginatedEmployees = computed(() => {
+      return filteredEmployees.value.slice(startIndex.value, endIndex.value)
+    })
+    
+    const visiblePages = computed(() => {
+      const pages = []
+      const total = totalPages.value
+      const current = currentPage.value
       
-      // Then apply search filter if there's a search query
-      if (!searchQuery.value) {
-        return employeesExceptCurrent
+      if (total <= 1) return []
+      
+      if (total <= 7) {
+        for (let i = 1; i <= total; i++) pages.push(i)
+      } else {
+        pages.push(1)
+        if (current > 4) pages.push('...')
+        const start = Math.max(2, current - 2)
+        const end = Math.min(total - 1, current + 2)
+        for (let i = start; i <= end; i++) {
+          if (i > 1 && !pages.includes(i)) pages.push(i)
+        }
+        if (current < total - 3) pages.push('...')
+        if (!pages.includes(total)) pages.push(total)
       }
-      
-      const query = searchQuery.value.toLowerCase()
-      return employeesExceptCurrent.filter(employee => 
-        employee.full_name?.toLowerCase().includes(query) ||
-        employee.phone_number?.includes(query)
-      )
+      return pages
     })
 
     // Methods
@@ -109,7 +185,7 @@ export default {
       error.value = null
       
       try {
-        const allUsers = await authStore.getAllUsers()
+        const allUsers = await authStore.getAllUsers(searchQuery.value)
         employees.value = allUsers
       } catch (err) {
         error.value = 'حدث خطأ أثناء تحميل الموظفين'
@@ -119,22 +195,47 @@ export default {
       }
     }
 
+    const goToPage = (page) => {
+      if (page >= 1 && page <= totalPages.value && typeof page === 'number') {
+        currentPage.value = page
+      }
+    }
+
+    const onPageSizeChange = () => {
+      currentPage.value = 1
+    }
+
+    // Watchers
+    let debounceTimer = null
+    watch(searchQuery, () => {
+      clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        currentPage.value = 1 // Reset to first page on new search
+        fetchEmployees()
+      }, 500)
+    })
+
+    watch(totalPages, (newTotalPages) => {
+        if (currentPage.value > newTotalPages && newTotalPages > 0) {
+            currentPage.value = newTotalPages;
+        } else if (newTotalPages === 0) {
+            currentPage.value = 1;
+        }
+    });
+
+    // Event Handlers
     const handleEmployeeUpdated = (updatedEmployee) => {
       const index = employees.value.findIndex(emp => emp.id === updatedEmployee.id)
       if (index !== -1) {
-        employees.value[index] = updatedEmployee
+        employees.value[index] = { ...employees.value[index], ...updatedEmployee };
       }
-      
-      // Update selected employee if it's the same one
       if (selectedEmployee.value && selectedEmployee.value.id === updatedEmployee.id) {
-        selectedEmployee.value = updatedEmployee
+        selectedEmployee.value = { ...selectedEmployee.value, ...updatedEmployee };
       }
     }
 
     const handleEmployeeDeleted = (deletedEmployeeId) => {
       employees.value = employees.value.filter(emp => emp.id !== deletedEmployeeId)
-      
-      // Close details if deleted employee was selected
       if (selectedEmployee.value && selectedEmployee.value.id === deletedEmployeeId) {
         closeEmployeeDetails()
       }
@@ -163,11 +264,19 @@ export default {
       selectedEmployee,
       showEmployeeDetails,
       filteredEmployees,
+      paginatedEmployees,
+      totalEmployees,
+      totalPages,
+      currentPage,
+      itemsPerPage,
+      visiblePages,
       fetchEmployees,
       handleEmployeeUpdated,
       handleEmployeeDeleted,
       handleViewEmployee,
-      closeEmployeeDetails
+      closeEmployeeDetails,
+      goToPage,
+      onPageSizeChange
     }
   }
 }
@@ -205,6 +314,123 @@ export default {
   font-size: 16px;
 }
 
+/* Pagination Styles */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.pagination-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pagination-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #007bff;
+  color: #007bff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 5px;
+  margin: 0 15px;
+}
+
+.page-number {
+  min-width: 40px;
+  height: 40px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-number:hover:not(.disabled) {
+  border-color: #007bff;
+  color: #007bff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+}
+
+.page-number.active {
+  border-color: #007bff;
+  background: #007bff;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+}
+
+.page-number.active:hover {
+  transform: translateY(-2px);
+}
+
+.page-number.disabled {
+  cursor: default;
+  background-color: #f8f9fa;
+  border-color: #e9ecef;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #495057;
+}
+
+.page-size-select {
+  padding: 8px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-size-select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .container-fluid {
@@ -221,6 +447,11 @@ export default {
   .add-btn-custom {
     align-self: stretch;
     justify-content: center;
+  }
+
+  .pagination-container {
+    flex-direction: column;
+    gap: 20px;
   }
 }
 </style>

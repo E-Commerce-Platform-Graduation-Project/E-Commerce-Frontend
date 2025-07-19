@@ -5,7 +5,6 @@
       <h3 class="h2 fw-bold text-dark mb-0">العملاء</h3>
     </div>
 
-    <!-- Header -->
     <div class="row mb-4">
       <div class="col-md-12">
         <div class="stats-container">
@@ -42,7 +41,6 @@
       </div>
     </div>
 
-    <!-- Search and Filter Bar -->
     <div class="row mb-4">
       <div class="col-md-8">
         <div class="search-filter-container">
@@ -50,9 +48,8 @@
             <input 
               v-model="searchQuery" 
               type="text" 
-              placeholder="البحث برقم الهاتف..."
+              placeholder="البحث برقم الهاتف ..."
               class="form-control search-input"
-              @input="onSearchInput"
             />
             <i class="fas fa-search search-icon"></i>
           </div>
@@ -60,7 +57,6 @@
             <select 
               v-model="statusFilter" 
               class="form-control status-filter"
-              @change="onStatusFilterChange"
             >
               <option value="all">جميع العملاء</option>
               <option value="active">العملاء النشطين</option>
@@ -72,7 +68,16 @@
       </div>
     </div>
 
-    <!-- Loading State -->
+    <div class="row mb-3">
+      <div class="col-12">
+        <div class="pagination-info">
+          <span class="info-text">
+            عرض {{ totalCustomers > 0 ? startIndex + 1 : 0 }} - {{ endIndex }} من {{ totalCustomers }} عميل
+          </span>
+        </div>
+      </div>
+    </div>
+
     <div v-if="customerStore.getIsLoading" class="text-center py-5">
       <div class="spinner-border text-primary mb-3" role="status">
         <span class="sr-only">Loading...</span>
@@ -80,7 +85,6 @@
       <p class="text-muted">جاري تحميل بيانات العملاء...</p>
     </div>
 
-    <!-- Error State -->
     <div v-if="customerStore.getError" class="alert alert-danger" role="alert">
       <div class="d-flex align-items-center">
         <i class="fas fa-exclamation-triangle mr-2"></i>
@@ -88,15 +92,13 @@
           <strong>خطأ!</strong> {{ customerStore.getError }}
         </div>
       </div>
-      <button @click="loadCustomers" class="btn btn-danger btn-sm mt-2">
+      <button @click="customerStore.fetchCustomers(searchQuery)" class="btn btn-danger btn-sm mt-2">
         <i class="fas fa-redo mr-1"></i>
         إعادة المحاولة
       </button>
     </div>
 
-    <!-- Customers List -->
     <div v-if="!customerStore.getIsLoading && !customerStore.getError" class="customers-container">
-      <!-- Header Row -->
       <div class="customer-header">
         <div class="header-item">الاسم</div>
         <div class="header-item">رقم الهاتف</div>
@@ -105,13 +107,11 @@
         <div class="header-item">الحالة</div>
       </div>
 
-      <!-- Customer Rows -->
       <div 
-        v-for="customer in filteredCustomers" 
+        v-for="customer in paginatedCustomers" 
         :key="customer.id"
         :class="['customer-row', { 'disabled-customer': !customer.is_active }]"
       >
-        <!-- Customer Avatar and Name -->
         <div class="customer-info">
           <div class="customer-avatar">
             <i class="fas fa-user"></i>
@@ -123,25 +123,21 @@
           </div>
         </div>
 
-        <!-- Phone Number -->
         <div class="customer-phone">
           <i class="fas fa-phone"></i>
           {{ customer.phone_number }}
         </div>
 
-        <!-- Email -->
         <div class="customer-email">
           <i class="fas fa-envelope"></i>
           {{ customer.email }}
         </div>
 
-        <!-- Registration Date -->
         <div class="registration-date">
           <i class="fas fa-calendar-alt"></i>
           {{ formatDate(customer.registration_date) }}
         </div>
 
-        <!-- Status Toggle -->
         <div class="">
           <div class="status-toggle-container">
             <button 
@@ -155,14 +151,59 @@
         </div>
       </div>
       
-      <!-- Empty State -->
-      <div v-if="filteredCustomers.length === 0" class="empty-state">
+      <div v-if="paginatedCustomers.length === 0" class="empty-state">
         <i class="fas fa-users"></i>
         <p>لا يوجد عملاء {{ getEmptyStateMessage() }}</p>
       </div>
     </div>
 
-    <!-- Toggle Status Modal -->
+    <div v-if="!customerStore.getIsLoading && !customerStore.getError && totalCustomers > 0" class="pagination-container">
+      <div class="pagination-wrapper">
+        <button 
+          @click="goToPage(currentPage - 1)"
+          :disabled="currentPage === 1"
+          class="pagination-btn prev-btn"
+        >
+          <i class="fas fa-chevron-right"></i>
+          السابق
+        </button>
+        
+        <div class="page-numbers">
+          <button
+            v-for="page in visiblePages"
+            :key="page"
+            @click="goToPage(page)"
+            :class="['page-number', { 'active': page === currentPage, 'disabled': typeof page !== 'number' }]"
+            :disabled="typeof page !== 'number'"
+          >
+            {{ page }}
+          </button>
+        </div>
+        
+        <button 
+          @click="goToPage(currentPage + 1)"
+          :disabled="currentPage === totalPages"
+          class="pagination-btn next-btn"
+        >
+          التالي
+          <i class="fas fa-chevron-left"></i>
+        </button>
+      </div>
+      
+      <div class="page-size-selector">
+        <label for="pageSize">عدد العملاء في الصفحة:</label>
+        <select 
+          id="pageSize"
+          v-model="itemsPerPage" 
+          @change="onPageSizeChange"
+          class="page-size-select"
+        >
+          <option value="10">10</option>
+          <option value="20">20</option>
+        </select>
+      </div>
+    </div>
+
     <div v-if="showModal" class="modal-overlay" @click="closeModal">
       <div class="modal-container" @click.stop>
         <div class="modal-header">
@@ -192,7 +233,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useCustomerStore } from '@/stores/customerStore'
 
 export default {
@@ -202,6 +243,8 @@ export default {
     const searchQuery = ref('')
     const statusFilter = ref('all')
     const isTogglingStatus = ref(false)
+    const currentPage = ref(1)
+    const itemsPerPage = ref(10) // Changed: Default page size is now 10
     
     // Modal state
     const showModal = ref(false)
@@ -211,17 +254,10 @@ export default {
 
     // Computed properties
     const filteredCustomers = computed(() => {
+      // The store returns pre-filtered data from the server based on the search query.
+      // We only need to apply the client-side status filter here.
       let customers = customerStore.getAllCustomers
 
-      // Apply search filter (phone, name, or email)
-      if (searchQuery.value.trim()) {
-        const query = searchQuery.value.trim().toLowerCase()
-        customers = customers.filter(customer => 
-          customer.phone_number.includes(query)
-        )
-      }
-
-      // Apply status filter
       if (statusFilter.value === 'active') {
         customers = customers.filter(customer => customer.is_active === true)
       } else if (statusFilter.value === 'inactive') {
@@ -231,19 +267,84 @@ export default {
       return customers
     })
 
-    // Methods
-    const loadCustomers = async () => {
-      await customerStore.fetchCustomers()
+    const totalCustomers = computed(() => filteredCustomers.value.length)
+    
+    const totalPages = computed(() => {
+      if (totalCustomers.value === 0) return 1; // Ensure totalPages is at least 1
+      return Math.ceil(totalCustomers.value / itemsPerPage.value)
+    })
+
+    const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value)
+
+    const endIndex = computed(() => {
+      const end = startIndex.value + itemsPerPage.value
+      return Math.min(end, totalCustomers.value)
+    })
+
+    const paginatedCustomers = computed(() => {
+      return filteredCustomers.value.slice(startIndex.value, endIndex.value)
+    })
+    
+    const visiblePages = computed(() => {
+        const pages = []
+        const total = totalPages.value
+        const current = currentPage.value
+        
+        if (total <= 1) return [] // Don't show page numbers if only one page
+        
+        if (total <= 7) {
+            for (let i = 1; i <= total; i++) pages.push(i)
+        } else {
+            pages.push(1)
+            if (current > 4) pages.push('...')
+            const start = Math.max(2, current - 2)
+            const end = Math.min(total - 1, current + 2)
+            for (let i = start; i <= end; i++) {
+                if (i > 1 && !pages.includes(i)) pages.push(i)
+            }
+            if (current < total - 3) pages.push('...')
+            if (!pages.includes(total)) pages.push(total)
+        }
+        return pages
+    })
+
+
+    // --- METHODS & WATCHERS ---
+
+    // Debounce timer for search
+    let debounceTimer = null
+
+    // Watch for changes in the search query and fetch data from the server
+    watch(searchQuery, (newQuery) => {
+      clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        currentPage.value = 1 // Reset to the first page for a new search
+        customerStore.fetchCustomers(newQuery)
+      }, 500) // 500ms delay to avoid excessive API calls
+    })
+
+    // Watch for changes in totalPages to adjust currentPage if it becomes invalid
+    watch(totalPages, (newTotalPages) => {
+      if (currentPage.value > newTotalPages && newTotalPages > 0) {
+        currentPage.value = newTotalPages
+      } else if (newTotalPages === 0) {
+        currentPage.value = 1
+      }
+    })
+    
+    // Initial data load when the component is mounted
+    onMounted(() => {
+      customerStore.fetchCustomers()
+    })
+
+    const goToPage = (page) => {
+      if (page >= 1 && page <= totalPages.value && typeof page === 'number') {
+        currentPage.value = page
+      }
     }
 
-    const onSearchInput = () => {
-      // The computed property will automatically react to searchQuery changes
-      // This method can be used for additional logic if needed
-    }
-
-    const onStatusFilterChange = () => {
-      // The computed property will automatically react to statusFilter changes
-      // This method can be used for additional logic if needed
+    const onPageSizeChange = () => {
+      currentPage.value = 1
     }
 
     const showToggleModal = (customer) => {
@@ -257,37 +358,30 @@ export default {
     const closeModal = () => {
       showModal.value = false
       selectedCustomer.value = null
-      modalTitle.value = ''
-      modalMessage.value = ''
     }
 
     const confirmToggleStatus = async () => {
-      if (!selectedCustomer.value || isTogglingStatus.value) return
+      if (!selectedCustomer.value) return
       
       isTogglingStatus.value = true
       const customer = selectedCustomer.value
-      const newStatus = !customer.is_active
-      const action = newStatus ? 'تفعيل' : 'تعطيل'
-      
-      const result = await customerStore.toggleCustomerStatus(customer.id, newStatus)
-      console.log(newStatus)
+      const result = await customerStore.toggleCustomerStatus(customer.id, !customer.is_active)
       
       if (result.success) {
-        console.log(`تم ${action} العميل بنجاح`)
+        // Changed: Refetch the customer list to reflect the status change
+        await customerStore.fetchCustomers(searchQuery.value)
         closeModal()
       } else {
-        alert(`حدث خطأ أثناء ${action} العميل`)
+        alert(`حدث خطأ أثناء تحديث حالة العميل`)
       }
       
       isTogglingStatus.value = false
     }
-
+    
     const formatDate = (dateString) => {
       const date = new Date(dateString)
       return date.toLocaleDateString('ar-EG', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+        year: 'numeric', month: 'long', day: 'numeric'
       })
     }
 
@@ -296,33 +390,31 @@ export default {
         const statusText = statusFilter.value === 'active' ? 'نشطين' : 'معطلين'
         return `${statusText} يطابقون البحث المحدد`
       }
-      if (searchQuery.value.trim()) {
-        return 'يطابقون البحث المحدد'
-      }
-      if (statusFilter.value !== 'all') {
-        return statusFilter.value === 'active' ? 'نشطين' : 'معطلين'
-      }
+      if (searchQuery.value.trim()) return 'يطابقون البحث المحدد'
+      if (statusFilter.value !== 'all') return statusFilter.value === 'active' ? 'نشطين' : 'معطلين'
       return 'مسجلين في النظام'
     }
-
-    // Lifecycle
-    onMounted(() => {
-      loadCustomers()
-    })
 
     return {
       customerStore,
       searchQuery,
       statusFilter,
       isTogglingStatus,
+      currentPage,
+      itemsPerPage,
       filteredCustomers,
+      paginatedCustomers,
+      totalCustomers,
+      totalPages,
+      startIndex,
+      endIndex,
+      visiblePages,
       showModal,
       selectedCustomer,
       modalTitle,
       modalMessage,
-      loadCustomers,
-      onSearchInput,
-      onStatusFilterChange,
+      goToPage,
+      onPageSizeChange,
       showToggleModal,
       closeModal,
       confirmToggleStatus,
@@ -482,12 +574,28 @@ export default {
   pointer-events: none;
 }
 
+/* Pagination Info */
+.pagination-info {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.info-text {
+  color: #6c757d;
+  font-size: 14px;
+  background-color: #f8f9fa;
+  padding: 8px 16px;
+  border-radius: 20px;
+  display: inline-block;
+}
+
 /* Customers container */
 .customers-container {
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   overflow: hidden;
+  margin-bottom: 30px;
 }
 
 /* Header */
@@ -688,6 +796,124 @@ export default {
   transform: translateX(26px);
 }
 
+/* Pagination Styles */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 30px;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.pagination-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pagination-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #007bff;
+  color: #007bff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 5px;
+  margin: 0 15px;
+}
+
+.page-number {
+  min-width: 40px;
+  height: 40px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-number:hover:not(.disabled) {
+  border-color: #007bff;
+  color: #007bff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+}
+
+.page-number.active {
+  border-color: #007bff;
+  background: #007bff;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+}
+
+.page-number.active:hover {
+  transform: translateY(-2px);
+}
+
+.page-number.disabled {
+  cursor: default;
+  background-color: #f8f9fa;
+  border-color: #e9ecef;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #495057;
+}
+
+.page-size-select {
+  padding: 8px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-size-select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
 /* Modal Styles */
 .modal-overlay {
   position: fixed;
@@ -824,14 +1050,10 @@ export default {
 
 /* Responsive design */
 @media (max-width: 1200px) {
-  .customer-header,
-  .customer-row {
-    grid-template-columns: 2fr 1fr 1.5fr 1fr;
-  }
-  
   .search-filter-container {
     flex-direction: column;
     gap: 15px;
+    align-items: stretch;
   }
   
   .filter-container {
@@ -839,48 +1061,54 @@ export default {
   }
   
   .stats-container {
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 20px;
+  }
+
+  .stat-card {
+    min-width: calc(50% - 10px);
+    flex-grow: 1;
   }
 }
 
-@media (max-width: 768px) {
-  .customer-header,
-  .customer-row {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-  
+@media (max-width: 991px) {
   .customer-header {
     display: none;
   }
-  
   .customer-row {
-    background: white;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-  
-  .customer-info {
-    justify-content: space-between;
-  }
-  
-  .customer-phone,
-  .customer-email,
-  .registration-date {
-    justify-content: center;
-  }
-  
-  .customer-status {
-    justify-content: center;
-  }
-  
-  .row.mb-4 .col-md-6,
-  .row.mb-4 .col-md-3 {
+    grid-template-columns: 1fr;
+    gap: 15px;
     margin-bottom: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07);
+    border-bottom: none;
+    padding: 20px;
   }
   
+  .customer-row > div {
+    text-align: right;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 0;
+    border-bottom: 1px solid #f1f3f4;
+  }
+
+  .customer-row > div:last-child {
+    border-bottom: none;
+  }
+  
+  .customer-row::before {
+    display: none;
+  }
+
+  .customer-info {
+    justify-content: flex-start;
+  }
+}
+
+
+@media (max-width: 768px) {
   .stats-container {
     flex-direction: column;
     gap: 15px;
@@ -891,8 +1119,13 @@ export default {
   }
   
   .modal-container {
-    min-width: 350px;
+    min-width: 90%;
     margin: 20px;
+  }
+
+  .pagination-container {
+    flex-direction: column;
+    gap: 20px;
   }
 }
 

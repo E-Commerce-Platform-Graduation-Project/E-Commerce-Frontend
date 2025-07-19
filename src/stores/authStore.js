@@ -247,9 +247,15 @@ export const useAuthStore = defineStore('auth', {
     // ADMIN-ONLY STAFF MANAGEMENT ACTIONS (/users/staff/)
     // =================================================================
     
-    async getAllUsers() {
+    async getAllUsers(searchQuery = '') {
       if (!this.isAdmin) throw new Error('Unauthorized: Admin access required');
-      const response = await api.get('/users/staff/');
+      
+      let endpoint = '/users/staff/';
+      if (searchQuery && searchQuery.trim() !== '') {
+        endpoint += `?search=${encodeURIComponent(searchQuery.trim())}`;
+      }
+
+      const response = await api.get(endpoint);
       return response.data;
     },
     
