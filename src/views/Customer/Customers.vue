@@ -17,7 +17,7 @@
               <div class="stat-label">إجمالي العملاء</div>
             </div>
           </div>
-          
+
           <div class="stat-card active-customers">
             <div class="stat-icon">
               <i class="fas fa-users"></i>
@@ -27,7 +27,7 @@
               <div class="stat-label">العملاء النشطون</div>
             </div>
           </div>
-          
+
           <div class="stat-card disabled-customers">
             <div class="stat-icon">
               <i class="fas fa-users"></i>
@@ -45,19 +45,12 @@
       <div class="col-md-8">
         <div class="search-filter-container">
           <div class="search-container">
-            <input 
-              v-model="searchQuery" 
-              type="text" 
-              placeholder="البحث برقم الهاتف ..."
-              class="form-control search-input"
-            />
+            <input v-model="searchQuery" type="text" placeholder="البحث برقم الهاتف ..."
+              class="form-control search-input" />
             <i class="fas fa-search search-icon"></i>
           </div>
           <div class="filter-container">
-            <select 
-              v-model="statusFilter" 
-              class="form-control status-filter"
-            >
+            <select v-model="statusFilter" class="form-control status-filter">
               <option value="all">جميع العملاء</option>
               <option value="active">العملاء النشطين</option>
               <option value="inactive">العملاء المعطلين</option>
@@ -107,11 +100,8 @@
         <div class="header-item">الحالة</div>
       </div>
 
-      <div 
-        v-for="customer in paginatedCustomers" 
-        :key="customer.id"
-        :class="['customer-row', { 'disabled-customer': !customer.is_active }]"
-      >
+      <div v-for="customer in paginatedCustomers" :key="customer.id"
+        :class="['customer-row', { 'disabled-customer': !customer.is_active }]" @click="viewCustomerDetails(customer)">
         <div class="customer-info">
           <div class="customer-avatar">
             <i class="fas fa-user"></i>
@@ -138,66 +128,48 @@
           {{ formatDate(customer.registration_date) }}
         </div>
 
-        <div class="">
+        <div @click.stop>
           <div class="status-toggle-container">
-            <button 
-              @click="showToggleModal(customer)"
-              :class="['status-toggle', { 'active': customer.is_active }]"
-              :disabled="isTogglingStatus"
-            >
+            <button @click="showToggleModal(customer)" :class="['status-toggle', { 'active': customer.is_active }]"
+              :disabled="isTogglingStatus">
               <div class="toggle-slider"></div>
             </button>
           </div>
         </div>
       </div>
-      
+
       <div v-if="paginatedCustomers.length === 0" class="empty-state">
         <i class="fas fa-users"></i>
         <p>لا يوجد عملاء {{ getEmptyStateMessage() }}</p>
       </div>
     </div>
 
-    <div v-if="!customerStore.getIsLoading && !customerStore.getError && totalCustomers > 0" class="pagination-container">
+    <div v-if="!customerStore.getIsLoading && !customerStore.getError && totalCustomers > 0"
+      class="pagination-container">
       <div class="pagination-wrapper">
-        <button 
-          @click="goToPage(currentPage - 1)"
-          :disabled="currentPage === 1"
-          class="pagination-btn prev-btn"
-        >
+        <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="pagination-btn prev-btn">
           <i class="fas fa-chevron-right"></i>
           السابق
         </button>
-        
+
         <div class="page-numbers">
-          <button
-            v-for="page in visiblePages"
-            :key="page"
-            @click="goToPage(page)"
+          <button v-for="page in visiblePages" :key="page" @click="goToPage(page)"
             :class="['page-number', { 'active': page === currentPage, 'disabled': typeof page !== 'number' }]"
-            :disabled="typeof page !== 'number'"
-          >
+            :disabled="typeof page !== 'number'">
             {{ page }}
           </button>
         </div>
-        
-        <button 
-          @click="goToPage(currentPage + 1)"
-          :disabled="currentPage === totalPages"
-          class="pagination-btn next-btn"
-        >
+
+        <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages"
+          class="pagination-btn next-btn">
           التالي
           <i class="fas fa-chevron-left"></i>
         </button>
       </div>
-      
+
       <div class="page-size-selector">
         <label for="pageSize">عدد العملاء في الصفحة:</label>
-        <select 
-          id="pageSize"
-          v-model="itemsPerPage" 
-          @change="onPageSizeChange"
-          class="page-size-select"
-        >
+        <select id="pageSize" v-model="itemsPerPage" @change="onPageSizeChange" class="page-size-select">
           <option value="10">10</option>
           <option value="20">20</option>
         </select>
@@ -213,17 +185,10 @@
           <p class="modal-message">{{ modalMessage }}</p>
         </div>
         <div class="modal-footer">
-          <button 
-            @click="closeModal" 
-            class="btn btn-cancel"
-          >
+          <button @click="closeModal" class="btn btn-cancel">
             إلغاء
           </button>
-          <button 
-            @click="confirmToggleStatus" 
-            class="btn btn-confirm"
-            :disabled="isTogglingStatus"
-          >
+          <button @click="confirmToggleStatus" class="btn btn-confirm" :disabled="isTogglingStatus">
             {{ isTogglingStatus ? 'جاري التحديث...' : (selectedCustomer?.is_active ? 'تعطيل' : 'تفعيل') }}
           </button>
         </div>
@@ -232,207 +197,173 @@
   </div>
 </template>
 
-<script>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useCustomerStore } from '@/stores/customerStore'
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { useCustomerStore } from '@/stores/customerStore';
 
-export default {
-  name: 'Customers',
-  setup() {
-    const customerStore = useCustomerStore()
-    const searchQuery = ref('')
-    const statusFilter = ref('all')
-    const isTogglingStatus = ref(false)
-    const currentPage = ref(1)
-    const itemsPerPage = ref(10) // Changed: Default page size is now 10
-    
-    // Modal state
-    const showModal = ref(false)
-    const selectedCustomer = ref(null)
-    const modalTitle = ref('')
-    const modalMessage = ref('')
+const router = useRouter();
+const customerStore = useCustomerStore();
+const searchQuery = ref('');
+const statusFilter = ref('all');
+const isTogglingStatus = ref(false);
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
 
-    // Computed properties
-    const filteredCustomers = computed(() => {
-      // The store returns pre-filtered data from the server based on the search query.
-      // We only need to apply the client-side status filter here.
-      let customers = customerStore.getAllCustomers
+// Modal state
+const showModal = ref(false);
+const selectedCustomer = ref(null);
+const modalTitle = ref('');
+const modalMessage = ref('');
 
-      if (statusFilter.value === 'active') {
-        customers = customers.filter(customer => customer.is_active === true)
-      } else if (statusFilter.value === 'inactive') {
-        customers = customers.filter(customer => customer.is_active === false)
-      }
+// Computed properties
+const filteredCustomers = computed(() => {
+  let customers = customerStore.getAllCustomers;
 
-      return customers
-    })
-
-    const totalCustomers = computed(() => filteredCustomers.value.length)
-    
-    const totalPages = computed(() => {
-      if (totalCustomers.value === 0) return 1; // Ensure totalPages is at least 1
-      return Math.ceil(totalCustomers.value / itemsPerPage.value)
-    })
-
-    const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value)
-
-    const endIndex = computed(() => {
-      const end = startIndex.value + itemsPerPage.value
-      return Math.min(end, totalCustomers.value)
-    })
-
-    const paginatedCustomers = computed(() => {
-      return filteredCustomers.value.slice(startIndex.value, endIndex.value)
-    })
-    
-    const visiblePages = computed(() => {
-        const pages = []
-        const total = totalPages.value
-        const current = currentPage.value
-        
-        if (total <= 1) return [] // Don't show page numbers if only one page
-        
-        if (total <= 7) {
-            for (let i = 1; i <= total; i++) pages.push(i)
-        } else {
-            pages.push(1)
-            if (current > 4) pages.push('...')
-            const start = Math.max(2, current - 2)
-            const end = Math.min(total - 1, current + 2)
-            for (let i = start; i <= end; i++) {
-                if (i > 1 && !pages.includes(i)) pages.push(i)
-            }
-            if (current < total - 3) pages.push('...')
-            if (!pages.includes(total)) pages.push(total)
-        }
-        return pages
-    })
-
-
-    // --- METHODS & WATCHERS ---
-
-    // Debounce timer for search
-    let debounceTimer = null
-
-    // Watch for changes in the search query and fetch data from the server
-    watch(searchQuery, (newQuery) => {
-      clearTimeout(debounceTimer)
-      debounceTimer = setTimeout(() => {
-        currentPage.value = 1 // Reset to the first page for a new search
-        customerStore.fetchCustomers(newQuery)
-      }, 500) // 500ms delay to avoid excessive API calls
-    })
-
-    // Watch for changes in totalPages to adjust currentPage if it becomes invalid
-    watch(totalPages, (newTotalPages) => {
-      if (currentPage.value > newTotalPages && newTotalPages > 0) {
-        currentPage.value = newTotalPages
-      } else if (newTotalPages === 0) {
-        currentPage.value = 1
-      }
-    })
-    
-    // Initial data load when the component is mounted
-    onMounted(() => {
-      customerStore.fetchCustomers()
-    })
-
-    const goToPage = (page) => {
-      if (page >= 1 && page <= totalPages.value && typeof page === 'number') {
-        currentPage.value = page
-      }
-    }
-
-    const onPageSizeChange = () => {
-      currentPage.value = 1
-    }
-
-    const showToggleModal = (customer) => {
-      selectedCustomer.value = customer
-      const action = customer.is_active ? 'تعطيل' : 'تفعيل'
-      modalTitle.value = `${action} العميل`
-      modalMessage.value = `هل أنت متأكد من ${action} العميل "${customer.full_name}"؟`
-      showModal.value = true
-    }
-
-    const closeModal = () => {
-      showModal.value = false
-      selectedCustomer.value = null
-    }
-
-    const confirmToggleStatus = async () => {
-      if (!selectedCustomer.value) return
-      
-      isTogglingStatus.value = true
-      const customer = selectedCustomer.value
-      const result = await customerStore.toggleCustomerStatus(customer.id, !customer.is_active)
-      
-      if (result.success) {
-        // Changed: Refetch the customer list to reflect the status change
-        await customerStore.fetchCustomers(searchQuery.value)
-        closeModal()
-      } else {
-        alert(`حدث خطأ أثناء تحديث حالة العميل`)
-      }
-      
-      isTogglingStatus.value = false
-    }
-    
-    const formatDate = (dateString) => {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('ar-EG', {
-        year: 'numeric', month: 'long', day: 'numeric'
-      })
-    }
-
-    const getEmptyStateMessage = () => {
-      if (searchQuery.value.trim() && statusFilter.value !== 'all') {
-        const statusText = statusFilter.value === 'active' ? 'نشطين' : 'معطلين'
-        return `${statusText} يطابقون البحث المحدد`
-      }
-      if (searchQuery.value.trim()) return 'يطابقون البحث المحدد'
-      if (statusFilter.value !== 'all') return statusFilter.value === 'active' ? 'نشطين' : 'معطلين'
-      return 'مسجلين في النظام'
-    }
-
-    return {
-      customerStore,
-      searchQuery,
-      statusFilter,
-      isTogglingStatus,
-      currentPage,
-      itemsPerPage,
-      filteredCustomers,
-      paginatedCustomers,
-      totalCustomers,
-      totalPages,
-      startIndex,
-      endIndex,
-      visiblePages,
-      showModal,
-      selectedCustomer,
-      modalTitle,
-      modalMessage,
-      goToPage,
-      onPageSizeChange,
-      showToggleModal,
-      closeModal,
-      confirmToggleStatus,
-      formatDate,
-      getEmptyStateMessage
-    }
+  if (statusFilter.value === 'active') {
+    customers = customers.filter(customer => customer.is_active === true);
+  } else if (statusFilter.value === 'inactive') {
+    customers = customers.filter(customer => customer.is_active === false);
   }
-}
+
+  return customers;
+});
+
+const totalCustomers = computed(() => filteredCustomers.value.length);
+
+const totalPages = computed(() => {
+  if (totalCustomers.value === 0) return 1;
+  return Math.ceil(totalCustomers.value / itemsPerPage.value);
+});
+
+const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value);
+
+const endIndex = computed(() => {
+  const end = startIndex.value + itemsPerPage.value;
+  return Math.min(end, totalCustomers.value);
+});
+
+const paginatedCustomers = computed(() => {
+  return filteredCustomers.value.slice(startIndex.value, endIndex.value);
+});
+
+const visiblePages = computed(() => {
+  const pages = [];
+  const total = totalPages.value;
+  const current = currentPage.value;
+
+  if (total <= 1) return [];
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (current > 4) pages.push('...');
+    const start = Math.max(2, current - 2);
+    const end = Math.min(total - 1, current + 2);
+    for (let i = start; i <= end; i++) {
+      if (i > 1 && !pages.includes(i)) pages.push(i);
+    }
+    if (current < total - 3) pages.push('...');
+    if (!pages.includes(total)) pages.push(total);
+  }
+  return pages;
+});
+
+
+// --- METHODS & WATCHERS ---
+
+let debounceTimer = null;
+
+watch(searchQuery, (newQuery) => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    currentPage.value = 1;
+    customerStore.fetchCustomers(newQuery);
+  }, 500);
+});
+
+watch(totalPages, (newTotalPages) => {
+  if (currentPage.value > newTotalPages && newTotalPages > 0) {
+    currentPage.value = newTotalPages;
+  } else if (newTotalPages === 0) {
+    currentPage.value = 1;
+  }
+});
+
+onMounted(() => {
+  customerStore.fetchCustomers();
+});
+
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value && typeof page === 'number') {
+    currentPage.value = page;
+  }
+};
+
+const onPageSizeChange = () => {
+  currentPage.value = 1;
+};
+
+const viewCustomerDetails = (customer) => {
+  router.push(`/customers/${customer.id}`);
+};
+
+const showToggleModal = (customer) => {
+  selectedCustomer.value = customer;
+  const action = customer.is_active ? 'تعطيل' : 'تفعيل';
+  modalTitle.value = `${action} العميل`;
+  modalMessage.value = `هل أنت متأكد من ${action} العميل "${customer.full_name}"؟`;
+  showModal.value = true;
+};
+
+const closeModal = () => {
+  showModal.value = false;
+  selectedCustomer.value = null;
+};
+
+const confirmToggleStatus = async () => {
+  if (!selectedCustomer.value) return;
+
+  isTogglingStatus.value = true;
+  const customer = selectedCustomer.value;
+  const result = await customerStore.toggleCustomerStatus(customer.id, !customer.is_active);
+
+  if (result.success) {
+    await customerStore.fetchCustomers(searchQuery.value);
+    closeModal();
+  } else {
+    alert(`حدث خطأ أثناء تحديث حالة العميل`);
+  }
+
+  isTogglingStatus.value = false;
+};
+
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('ar-EG', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  });
+};
+
+const getEmptyStateMessage = () => {
+  if (searchQuery.value.trim() && statusFilter.value !== 'all') {
+    const statusText = statusFilter.value === 'active' ? 'نشطين' : 'معطلين';
+    return `${statusText} يطابقون البحث المحدد`;
+  }
+  if (searchQuery.value.trim()) return 'يطابقون البحث المحدد';
+  if (statusFilter.value !== 'all') return statusFilter.value === 'active' ? 'نشطين' : 'معطلين';
+  return 'مسجلين في النظام';
+};
 </script>
 
 <style scoped>
-/* Main container */
+/* Your existing styles from the provided file */
 .container-fluid {
   padding: 30px;
   min-height: 100vh;
 }
 
-/* Stats Container */
 .stats-container {
   display: flex;
   gap: 30px;
@@ -473,11 +404,11 @@ export default {
 }
 
 .active-customers .stat-icon {
-  background: #3bad1e
+  background: #3bad1e;
 }
 
 .disabled-customers .stat-icon {
-  background: #e03b3b
+  background: #e03b3b;
 }
 
 .stat-content {
@@ -498,7 +429,6 @@ export default {
   font-weight: 800;
 }
 
-/* Search and Filter Container */
 .search-filter-container {
   display: flex;
   gap: 20px;
@@ -510,7 +440,8 @@ export default {
   flex: 1;
 }
 
-.search-input {
+.search-input,
+.status-filter {
   padding: 18px 50px 18px 20px;
   border: 2px solid #e9ecef;
   border-radius: 8px;
@@ -523,7 +454,8 @@ export default {
   width: 100%;
 }
 
-.search-input:focus {
+.search-input:focus,
+.status-filter:focus {
   outline: none;
   border-color: #007bff;
   box-shadow: 0 4px 20px rgba(0, 123, 255, 0.2);
@@ -544,24 +476,9 @@ export default {
 }
 
 .status-filter {
-  padding: 18px 50px 18px 20px;
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
-  font-size: 18px;
-  background-color: white;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-  text-align: right;
-  direction: rtl;
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-}
-
-.status-filter:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 4px 20px rgba(0, 123, 255, 0.2);
 }
 
 .filter-icon {
@@ -574,7 +491,6 @@ export default {
   pointer-events: none;
 }
 
-/* Pagination Info */
 .pagination-info {
   text-align: center;
   margin-bottom: 15px;
@@ -589,7 +505,6 @@ export default {
   display: inline-block;
 }
 
-/* Customers container */
 .customers-container {
   background: white;
   border-radius: 12px;
@@ -598,7 +513,6 @@ export default {
   margin-bottom: 30px;
 }
 
-/* Header */
 .customer-header {
   display: grid;
   grid-template-columns: 2fr 1fr 1.5fr 1fr 0.5fr;
@@ -617,7 +531,6 @@ export default {
   letter-spacing: 0.5px;
 }
 
-/* Customer rows */
 .customer-row {
   display: grid;
   grid-template-columns: 2fr 1fr 1.5fr 1fr 0.5fr;
@@ -627,6 +540,7 @@ export default {
   align-items: center;
   transition: all 0.3s ease;
   text-align: right;
+  cursor: pointer;
 }
 
 .customer-row:hover {
@@ -639,7 +553,6 @@ export default {
   border-bottom: none;
 }
 
-/* Disabled customer styling */
 .disabled-customer {
   opacity: 0.5;
   background-color: #f8f9fa;
@@ -651,7 +564,6 @@ export default {
   box-shadow: none;
 }
 
-/* Customer info */
 .customer-info {
   display: flex;
   align-items: center;
@@ -708,49 +620,26 @@ export default {
   display: inline-block;
 }
 
-/* Phone number */
-.customer-phone {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #495057;
-  font-size: 17px;
-}
-
-.customer-phone i {
-  color: #454a4b;
-}
-
-/* Email */
-.customer-email {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #495057;
-  font-size: 14px;
-}
-
-.customer-email i {
-  color: #fd7e14;
-}
-
-/* Registration date */
+.customer-phone,
+.customer-email,
 .registration-date {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #6c757d;
+  color: #495057;
+}
+
+.customer-phone {
+  font-size: 17px;
+}
+
+.customer-email {
   font-size: 14px;
 }
 
-.registration-date i {
-  color: #212923;
-}
-
-/* Status toggle */
-.customer-status {
-  display: flex;
-  justify-content: start;
+.registration-date {
+  font-size: 14px;
+  color: #6c757d;
 }
 
 .status-toggle-container {
@@ -796,7 +685,6 @@ export default {
   transform: translateX(26px);
 }
 
-/* Pagination Styles */
 .pagination-container {
   display: flex;
   justify-content: space-between;
@@ -914,7 +802,6 @@ export default {
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
-/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1014,6 +901,7 @@ export default {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -1024,13 +912,13 @@ export default {
     transform: translateY(-50px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
   }
 }
 
-/* Empty state */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
@@ -1048,18 +936,17 @@ export default {
   margin: 0;
 }
 
-/* Responsive design */
 @media (max-width: 1200px) {
   .search-filter-container {
     flex-direction: column;
     gap: 15px;
     align-items: stretch;
   }
-  
+
   .filter-container {
     min-width: 100%;
   }
-  
+
   .stats-container {
     flex-wrap: wrap;
     gap: 20px;
@@ -1075,6 +962,7 @@ export default {
   .customer-header {
     display: none;
   }
+
   .customer-row {
     grid-template-columns: 1fr;
     gap: 15px;
@@ -1084,8 +972,8 @@ export default {
     border-bottom: none;
     padding: 20px;
   }
-  
-  .customer-row > div {
+
+  .customer-row>div {
     text-align: right;
     display: flex;
     align-items: center;
@@ -1094,10 +982,10 @@ export default {
     border-bottom: 1px solid #f1f3f4;
   }
 
-  .customer-row > div:last-child {
+  .customer-row>div:last-child {
     border-bottom: none;
   }
-  
+
   .customer-row::before {
     display: none;
   }
@@ -1107,17 +995,16 @@ export default {
   }
 }
 
-
 @media (max-width: 768px) {
   .stats-container {
     flex-direction: column;
     gap: 15px;
   }
-  
+
   .stat-card {
     min-width: 100%;
   }
-  
+
   .modal-container {
     min-width: 90%;
     margin: 20px;
@@ -1129,7 +1016,6 @@ export default {
   }
 }
 
-/* Loading and error states */
 .spinner-border {
   width: 3rem;
   height: 3rem;

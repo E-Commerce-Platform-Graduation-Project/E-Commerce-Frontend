@@ -5,12 +5,16 @@ import { useAuthStore } from '@/stores/authStore'
 // Import your components
 import Login from '../views/Login.vue'
 import Dashboard from '../views/Dashboard.vue'
-import Customers from '@/views/Customers.vue'
+import Customers from '@/views/Customer/Customers.vue'
+import CustomerDetails from '@/views/Customer/CustomerDetails.vue'
 import Orders from '@/views/Orders.vue'
 import Categories from '@/views/Category/Categories.vue'
 import Products from '@/views/Product/Products.vue'
 import AddCategory from '@/views/Category/AddCategory.vue'
 import AddProduct from '@/views/Product/AddProduct.vue'
+import AddPurchaseInvoice from '@/views/Product/AddPurchaseInvoice.vue'
+import PurchaseInvoices from '@/views/Product/PurchaseInvoices.vue'
+import PurchaseInvoiceDetails from '@/views/Product/PurchaseInvoiceDetails.vue'
 import Employees from '@/views/Employee/Employees.vue'
 import AddEmployee from '@/views/Employee/AddEmployee.vue'
 import Settings from '@/views/Settings.vue'
@@ -31,6 +35,13 @@ const routes = [
     path: '/customers',
     name: 'Customers',
     component: Customers,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/customers/:id', // This is the new dynamic route
+    name: 'CustomerDetails',
+    component: CustomerDetails,
+    props: true, // This allows the ID to be passed as a prop
     meta: { requiresAuth: true }
   },
   {
@@ -58,11 +69,30 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/purchase-invoices/:id', // This is the new dynamic route
+    name: 'PurchaseInvoiceDetails',
+    component: PurchaseInvoiceDetails,
+    props: true, // This allows the ID to be passed as a prop
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/add-product',
     name: 'AddProduct',
     component: AddProduct,
     meta: { requiresAuth: true }
   },
+  {
+    path: '/add-purchase-invoice',
+    name: 'AddPurchaseInvoice',
+    component: AddPurchaseInvoice,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/purchase-invoices',
+    name: 'PurchaseInvoices',
+    component: PurchaseInvoices,
+    meta: { requiresAuth: true }
+  },  
   {
     path: '/employees',
     name: 'Employees',

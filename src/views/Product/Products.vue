@@ -50,42 +50,13 @@
     </div>
     <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
-    <!-- Products Grid -->
-    <div v-else-if="filteredProducts.length > 0" class="row g-4">
-      <div v-for="product in filteredProducts" :key="product.id" class="col-xl-3 col-lg-4 col-md-6">
-        <div class="card product-card h-100" :class="{ 'product-disabled': !product.is_active }" @click="openDetailsModal(product)">
-          <img :src="product.images[0]" class="card-img-top" :alt="product.name" @error="onImageError">
-          <div class="card-body d-flex flex-column">
-            <h5 class="card-title">{{ product.name }}</h5>
-            <p class="card-text text-muted small flex-grow-1">{{ getCategoryName(product.categoryId) }}</p>
-            
-            <div class="d-flex justify-content-between align-items-center mb-3">
-              <span class="price fw-bold fs-5">{{ product.sellingPrice }} دينار</span>
-              <span class="badge" :class="getStockBadgeClass(product.quantity)">
-                {{ getStockStatus(product.quantity) }}
-              </span>
-            </div>
-
-            <div class="d-flex justify-content-between align-items-center mt-auto pt-3 border-top" @click.stop>
-                <div class="status-toggle-container">
-                    <button 
-                        @click="productStore.toggleProductStatus(product.id)"
-                        :class="['status-toggle', { 'active': product.is_active }]"
-                        >
-                        <div class="toggle-slider"></div>
-                    </button>
-                    <label class="form-check-label small">
-                        {{ product.is_active ? 'ظاهر' : 'مخفي' }}
-                    </label>
-                </div>
-              <button class="btn btn-outline-secondary btn-sm" @click="openEditModal(product)">
-                <i class="fas fa-pen"></i> تعديل
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- NEW: Product List Component -->
+    <ProductsList 
+        v-else-if="filteredProducts.length > 0"
+        :products="filteredProducts"
+        @view-details="openDetailsModal"
+        @edit-product="openEditModal"
+    />
     
     <!-- Empty State -->
     <div v-else class="text-center py-5">
@@ -118,6 +89,7 @@ import { useProductStore } from '@/stores/productStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import EditProduct from '@/components/Product/EditProduct.vue'; 
 import ProductDetails from '@/components/Product/ProductDetails.vue';
+import ProductsList from '@/components/Product/ProductsList.vue'; // Import the new component
 
 const productStore = useProductStore();
 const categoryStore = useCategoryStore();
@@ -175,27 +147,6 @@ onMounted(() => {
   productStore.fetchProducts();
   categoryStore.fetchCategories();
 });
-
-const getCategoryName = (categoryId) => {
-    const category = categoryStore.getAllCategories.find(cat => cat.id == categoryId);
-    return category ? category.name : 'فئة غير معروفة';
-};
-
-const getStockStatus = (quantity) => {
-    if (quantity > 10) return 'متوفر';
-    if (quantity > 0) return 'كمية محدودة';
-    return 'نفذ المخزون';
-};
-
-const getStockBadgeClass = (quantity) => {
-    if (quantity > 10) return 'bg-success-subtle text-success-emphasis';
-    if (quantity > 0) return 'bg-warning-subtle text-warning-emphasis';
-    return 'bg-danger-subtle text-danger-emphasis';
-};
-
-const onImageError = (event) => {
-    event.target.src = 'https://placehold.co/600x600/CCCCCC/FFFFFF?text=No+Image';
-};
 
 const openDetailsModal = (product) => {
     selectedProduct.value = product;
@@ -287,65 +238,5 @@ const handleProductUpdate = () => {
 .parent-category {
     font-weight: bold;
     color: #000;
-}
-
-/* Product Card Styling */
-.product-card {
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, opacity 0.3s ease-in-out;
-  border: 1px solid #e9ecef;
-  cursor: pointer;
-}
-.product-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-}
-.product-disabled {
-    opacity: 0.6;
-}
-.product-disabled:hover {
-    transform: none;
-    box-shadow: none;
-}
-.card-img-top {
-  height: 200px;
-  object-fit: cover;
-}
-.price {
-  color: #329c32;
-}
-
-/* Custom Toggle Switch */
-.status-toggle-container {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.status-toggle {
-  position: relative;
-  width: 50px;
-  height: 24px;
-  border-radius: 12px;
-  border: none;
-  background-color: #dc3545;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  outline: none;
-}
-.status-toggle.active {
-  background-color: #198754;
-}
-.toggle-slider {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background-color: white;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-.status-toggle.active .toggle-slider {
-  transform: translateX(26px);
 }
 </style>

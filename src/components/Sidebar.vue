@@ -1,16 +1,14 @@
 <template>
-  <aside 
-    :class="[
-      'sidebar',
-      'd-flex',
-      'flex-column',
-      'bg-white',
-      'border-start',
-      'shadow',
-      'overflow-hidden',
-      { 'sidebar-expanded': is_expanded }
-    ]"
-  >
+  <aside :class="[
+    'sidebar',
+    'd-flex',
+    'flex-column',
+    'bg-white',
+    'border-start',
+    'shadow',
+    'overflow-hidden',
+    { 'sidebar-expanded': is_expanded }
+  ]">
     <!-- Logo Section (Fixed) -->
     <div class="sidebar-header p-3 text-center">
       <img :src="logoURL" alt="Vue" class="logo-img" />
@@ -19,11 +17,7 @@
 
     <!-- Menu Toggle (Fixed) -->
     <div class="sidebar-toggle d-flex justify-content-end px-3 mb-3">
-      <button 
-        class="btn btn-link p-0 menu-toggle-btn" 
-        @click="ToggleMenu"
-        type="button"
-      >
+      <button class="btn btn-link p-0 menu-toggle-btn" @click="ToggleMenu" type="button">
         <span class="material-icons fs-2 text-secondary">keyboard_double_arrow_right</span>
       </button>
     </div>
@@ -36,66 +30,71 @@
           القائمة الرئيسية
         </h6>
         <nav class="nav flex-column mb-4">
-          <router-link 
-            to="/dashboard" 
-            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded"
-          >
+          <router-link to="/dashboard"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">home</span>
             <span class="sidebar-text">لوحة التحكم</span>
           </router-link>
-          <router-link 
-            to="/customers" 
-            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded"
-          >
+          <router-link to="/customers"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">group</span>
             <span class="sidebar-text">العملاء</span>
           </router-link>
-          <router-link 
-            to="/orders" 
-            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded"
-          >
+          <router-link to="/orders"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">shopping_basket</span>
             <span class="sidebar-text">الطلبات</span>
           </router-link>
         </nav>
       </div>
 
-      <!-- Categories & Products -->
+      <!-- Categories -->
       <div class="menu-section">
         <h6 class="sidebar-heading text-uppercase text-muted small fw-bold px-2 mb-2">
-          الفئات والمنتجات
+          ادارة الفئات
         </h6>
         <nav class="nav flex-column mb-4">
-          <router-link 
-            to="/categories" 
-            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded"
-          >
+          <router-link to="/categories"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">category</span>
             <span class="sidebar-text">الفئات</span>
           </router-link>
-          <router-link 
-            to="/add-category" 
-            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded"
-          >
+          <router-link to="/add-category"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">add</span>
             <span class="sidebar-text">اضافة فئة</span>
           </router-link>
-          <router-link 
-            to="/products" 
-            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded"
-          >
+            </nav>
+      </div>
+
+      <div class="menu-section">
+        <h6 class="sidebar-heading text-uppercase text-muted small fw-bold px-2 mb-2">
+          ادارة المنتجات
+        </h6>
+        <nav class="nav flex-column mb-4">
+          <router-link to="/products"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">inventory</span>
             <span class="sidebar-text">المنتجات</span>
           </router-link>
-          <router-link 
-            to="/add-product" 
-            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded"
-          >
+          <router-link to="/add-product"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">add</span>
             <span class="sidebar-text">اضافة منتج</span>
           </router-link>
-        </nav>
+          <router-link to="/purchase-invoices"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
+            <span class="material-icons me-3">request_page</span>
+            <span class="sidebar-text">فواتير الشراء</span>
+          </router-link>
+          <router-link to="/add-purchase-invoice"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
+            <span class="material-icons me-3">add</span>
+            <span class="sidebar-text">اضافة فاتورة شراء</span>
+          </router-link>
+              </nav>
       </div>
+      
 
       <!-- Employee Management (Admin Only) -->
       <div v-if="isAdmin" class="menu-section">
@@ -103,17 +102,13 @@
           ادارة الموظفين
         </h6>
         <nav class="nav flex-column mb-4">
-          <router-link 
-            to="/employees" 
-            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded"
-          >
+          <router-link to="/employees"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">assignment_ind</span>
             <span class="sidebar-text">الموظفين</span>
           </router-link>
-          <router-link 
-            to="/add-employee" 
-            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded"
-          >
+          <router-link to="/add-employee"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">add</span>
             <span class="sidebar-text">اضافة موظف</span>
           </router-link>
@@ -126,10 +121,8 @@
           الاعدادات
         </h6>
         <nav class="nav flex-column">
-          <router-link 
-            to="/settings" 
-            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded"
-          >
+          <router-link to="/settings"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <i class="fas fa-user-cog me-3"></i>
             <span class="sidebar-text">الملف الشخصي</span>
           </router-link>
@@ -161,10 +154,10 @@ export default {
     const ToggleMenu = () => {
       is_expanded.value = !is_expanded.value;
       localStorage.setItem("is_expanded", is_expanded.value);
-      
+
       // Emit custom event to update main content layout
-      window.dispatchEvent(new CustomEvent('sidebarToggle', { 
-        detail: { expanded: is_expanded.value } 
+      window.dispatchEvent(new CustomEvent('sidebarToggle', {
+        detail: { expanded: is_expanded.value }
       }));
     };
 
@@ -192,12 +185,12 @@ export default {
   background-color: var(--dark) !important;
   border-color: var(--border-color) !important;
   z-index: 1000;
-  
+
   // Fixed header section
   .sidebar-header {
     flex-shrink: 0;
     border-bottom: 1px solid var(--border-color);
-    
+
     .logo-img {
       width: 2rem;
       height: auto;
@@ -207,10 +200,10 @@ export default {
   // Fixed toggle section
   .sidebar-toggle {
     flex-shrink: 0;
-    
+
     .menu-toggle-btn {
       transition: transform 0.2s ease-in-out;
-      
+
       &:hover {
         .material-icons {
           color: var(--primary) !important;
@@ -225,32 +218,32 @@ export default {
     overflow-y: auto;
     overflow-x: hidden;
     flex: 1;
-    
+
     // Force LTR direction to move scrollbar to right side
     direction: ltr;
-    
+
     // Custom scrollbar styling
     &::-webkit-scrollbar {
       width: 6px;
     }
-    
+
     &::-webkit-scrollbar-track {
       background: transparent;
     }
-    
+
     &::-webkit-scrollbar-thumb {
       background-color: rgba(0, 0, 0, 0.2);
       border-radius: 3px;
-      
+
       &:hover {
         background-color: rgba(0, 0, 0, 0.3);
       }
     }
-    
+
     // Firefox scrollbar
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
-    
+
     // Reset content back to RTL
     .menu-section {
       direction: rtl;
@@ -283,7 +276,7 @@ export default {
     color: var(--grey) !important;
     transition: all 0.2s ease-in-out;
     margin-bottom: 0.25rem;
-    
+
     .material-icons {
       font-size: 1.5rem;
       color: var(--grey);
@@ -294,7 +287,7 @@ export default {
     &:hover {
       background-color: var(--hover-bg) !important;
       transform: translateX(-2px);
-      
+
       .material-icons,
       .sidebar-text {
         color: var(--primary) !important;
@@ -304,7 +297,7 @@ export default {
     &.router-link-active {
       background-color: var(--active-bg) !important;
       border-right: 3px solid var(--primary);
-      
+
       .material-icons,
       .sidebar-text {
         color: var(--primary-alt) !important;
@@ -315,11 +308,11 @@ export default {
   // Expanded state
   &.sidebar-expanded {
     width: var(--sidebar-width);
-    
+
     .sidebar-toggle .menu-toggle-btn {
       transform: rotate(-180deg);
     }
-    
+
     .sidebar-heading,
     .sidebar-text {
       opacity: 1;
