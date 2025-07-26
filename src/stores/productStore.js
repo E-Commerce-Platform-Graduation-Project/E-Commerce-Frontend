@@ -1,71 +1,116 @@
 import { defineStore } from 'pinia';
 import api from '@/api'; // Assuming you have a centralized api instance
 
-// --- Mock Data for Frontend Development ---
 const mockProducts = [
   {
     id: 1,
     name: 'قبعة بيسبول رياضية',
     description: 'قبعة رياضية كلاسيكية بشعار مطرز، مثالية للحماية من الشمس.',
-    sellingPrice: 35,
+    // ADDED: Prices are now part of the main product object
     purchasePrice: 20,
+    sellingPrice: 35,
     profitMargin: 75,
-    quantity: 80,
-    categoryId: 10, // قبعات
+    productType: 'accessory', 
+    categoryId: 10,
     is_active: true,
-    images: ['/images-for-test/baseball-cap.jpg'],
+    variants: [
+      { 
+        colorName: 'أحمر', 
+        colorHex: '#dc2626', 
+        images: ['/images-for-test/baseball-cap-red.jpg'], 
+        stock: [{ size: 'مقاس واحد', quantity: 30 }]
+      },
+      { 
+        colorName: 'أزرق', 
+        colorHex: '#2563eb', 
+        images: ['/images-for-test/baseball-cap.jpg'], 
+        stock: [{ size: 'مقاس واحد', quantity: 50 }]
+      },
+    ],
   },
   {
     id: 2,
     name: 'نظارة شمسية عصرية',
     description: 'نظارة شمسية عصرية مع حماية كاملة من الأشعة فوق البنفسجية.',
-    sellingPrice: 75,
     purchasePrice: 40,
+    sellingPrice: 75,
     profitMargin: 87.5,
-    quantity: 45,
-    categoryId: 11, // نظارات
+    productType: 'accessory',
+    categoryId: 11,
     is_active: true,
-    images: ['/images-for-test/sunglasses.jpg'],
+    variants: [
+      { 
+        colorName: 'أسود', 
+        colorHex: '#000000', 
+        images: ['/images-for-test/sunglasses.jpg'], 
+        stock: [{ size: 'مقاس واحد', quantity: 45 }]
+      },
+    ],
   },
   {
     id: 3,
     name: 'حذاء جري رياضي',
     description: 'حذاء رياضي خفيف الوزن ومريح، مصمم للجري والتمارين الرياضية.',
-    sellingPrice: 180,
     purchasePrice: 110,
+    sellingPrice: 180,
     profitMargin: 63.64,
-    quantity: 30,
-    categoryId: 13, // احذية رياضية
+    productType: 'shoes',
+    categoryId: 13,
     is_active: true,
-    images: ['/images-for-test/runnig-shoose.jpg'],
+    variants: [
+      { 
+        colorName: 'أبيض', 
+        colorHex: '#ffffff', 
+        images: ['/images-for-test/runnig-shoose-white.jpg'], 
+        stock: [
+          { size: '42', quantity: 15 },
+          { size: '43', quantity: 10 }
+        ]
+      },
+      { 
+        colorName: 'أسود', 
+        colorHex: '#000000', 
+        images: ['/images-for-test/runnig-shoose.jpg'], 
+        stock: [{ size: '43', quantity: 15 }]
+      },
+    ],
   },
   {
     id: 4,
     name: 'بدلة رياضية كاملة',
     description: 'بدلة رياضية مريحة وأنيقة، مكونة من قطعتين.',
-    sellingPrice: 220,
     purchasePrice: 150,
+    sellingPrice: 220,
     profitMargin: 46.67,
-    quantity: 20,
-    categoryId: 15, // بدل رياضية
+    productType: 'shirt',
+    categoryId: 15,
     is_active: true,
-    images: ['/images-for-test/SportSuit.jpg'],
+    variants: [
+      { 
+        colorName: 'رمادي', 
+        colorHex: '#6b7280', 
+        images: ['/images-for-test/SportSuit.jpg'], 
+        stock: [
+          { size: 'L', quantity: 10 },
+          { size: 'M', quantity: 10 }
+        ]
+      },
+    ],
   },
   {
     id: 5,
     name: 'بنطلون رياضي قطني',
     description: 'بنطلون رياضي مصنوع من القطن الناعم، مثالي للراحة والاسترخاء.',
-    sellingPrice: 90,
     purchasePrice: 55,
-    profitMargin: 63.64, // Adding profit margin for consistency
-    quantity: 0, // Out of stock example
-    categoryId: 16, // بناطيل رياضية
+    sellingPrice: 90,
+    profitMargin: 63.64,
+    productType: 'pants',
+    categoryId: 16,
     is_active: false,
-    images: ['/images-for-test/selk-sport-pants.jpeg'],
+    variants: [], // Product defined but no colors/stock yet
   },
 ];
 
-// New structure for purchase invoices
 const mockInvoices = [
   {
     id: 2024001,
@@ -73,29 +118,9 @@ const mockInvoices = [
     user: 'مدير النظام',
     totalAmount: 2350,
     items: [
-      { productId: 1, quantityAdded: 50, purchasePrice: 20 },
-      { productId: 3, quantityAdded: 5, purchasePrice: 110 },
-      { productId: 2, quantityAdded: 20, purchasePrice: 40 },
-    ],
-  },
-  {
-    id: 2024002,
-    date: '2024-07-18',
-    user: 'أحمد علي',
-    totalAmount: 4800,
-    items: [
-      { productId: 4, quantityAdded: 20, purchasePrice: 150 },
-      { productId: 3, quantityAdded: 10, purchasePrice: 110 },
-      { productId: 1, quantityAdded: 35, purchasePrice: 20 },
-    ],
-  },
-  {
-    id: 2024003,
-    date: '2024-07-15',
-    user: 'مدير النظام',
-    totalAmount: 1600,
-    items: [
-      { productId: 2, quantityAdded: 40, purchasePrice: 40 },
+      { productId: 1, quantityAdded: 50, purchasePrice: 20, color: 'أزرق', size: 'مقاس واحد' },
+      { productId: 3, quantityAdded: 5, purchasePrice: 110, color: 'أبيض', size: '42' },
+      { productId: 2, quantityAdded: 20, purchasePrice: 40, color: 'أسود', size: 'مقاس واحد' },
     ],
   },
 ];
@@ -109,6 +134,15 @@ export const useProductStore = defineStore('product', {
   }),
 
   getters: {
+    // Calculates total quantity for a product across all its variants and sizes
+    getProductTotalQuantity: (state) => (productId) => {
+        const product = state.products.find(p => p.id === productId);
+        if (!product || !product.variants) return 0;
+        return product.variants.reduce((total, variant) => {
+            const variantTotal = variant.stock.reduce((subTotal, stockItem) => subTotal + stockItem.quantity, 0);
+            return total + variantTotal;
+        }, 0);
+    },
     getAllProducts: (state) => state.products,
     getProductById: (state) => (id) => state.products.find(p => p.id === id),
     getAllInvoices: (state) => state.purchaseInvoices,
@@ -124,9 +158,8 @@ export const useProductStore = defineStore('product', {
 
   actions: {
     async fetchAllData() {
-      if (this.products.length > 0) return { success: true }; // Avoid refetching
+      if (this.products.length > 0) return { success: true };
       this.isLoading = true;
-      this.error = null;
       try {
         await new Promise(resolve => setTimeout(resolve, 500));
         this.products = mockProducts;
@@ -140,34 +173,38 @@ export const useProductStore = defineStore('product', {
       }
     },
 
-    // Legacy method for backward compatibility
     async fetchProducts() {
       return this.fetchAllData();
     },
 
     /**
-     * Adds a new product definition to the system.
-     * Prices and quantity are initialized to 0.
-     * @param {object} productData - Contains name, description, categoryId, images.
+     * Adds a new product with its color variations.
+     * @param {object} productData - Contains base product info and an array of `colorVariations`.
      */
     async addProduct(productData) {
       this.isLoading = true;
-      this.error = null;
       try {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         const newProduct = {
           id: Math.max(...this.products.map(p => p.id), 0) + 1,
           name: productData.name,
           description: productData.description,
           categoryId: productData.categoryId,
-          // **FIX**: Correctly pass the profit margin from the form data
           profitMargin: productData.profitMargin, 
-          images: productData.images.map(img => typeof img === 'string' ? img : (img.url || img)),
+          productType: productData.productType,
+          // Initialize prices for the main product
           purchasePrice: 0,
           sellingPrice: 0,
-          quantity: 0,
           is_active: true,
+          // Map the colorVariations from the form to the new variants structure
+          variants: productData.colorVariations.map(variation => ({
+            colorName: variation.colorName,
+            colorHex: variation.colorHex,
+            // In a real app, you'd upload images and get back URLs. Here we simulate it.
+            images: variation.images.map(img => img.url),
+            stock: [], // Initialize with empty stock
+          })),
         };
 
         this.products.push(newProduct);
@@ -179,57 +216,61 @@ export const useProductStore = defineStore('product', {
         this.isLoading = false;
       }
     },
+
     /**
-     * Processes a purchase invoice with multiple items.
-     * @param {Array} invoiceItems - Array of items { productId, purchasePrice, quantityToAdd }
+     * Processes a purchase invoice, adding quantities to specific product variants and sizes.
      */
     async processPurchaseInvoice(invoiceItems) {
       this.isLoading = true;
       this.error = null;
       try {
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
-        
-        // Handle both single item and array of items for backward compatibility
-        const items = Array.isArray(invoiceItems) ? invoiceItems : [invoiceItems];
-        
+        await new Promise(resolve => setTimeout(resolve, 1500));
         let totalAmount = 0;
 
-        // First, update product details for each item
-        items.forEach(item => {
-          const { productId, purchasePrice, quantityToAdd } = item;
+        invoiceItems.forEach(item => {
+          const { productId, purchasePrice, quantityToAdd, color, size } = item;
           const product = this.products.find(p => p.id === productId);
           
           if (product) {
-            // Calculate selling price based on stored profit margin
-            const calculatedSellingPrice = purchasePrice * (1 + (product.profitMargin || 0) / 100);
-            
-            // Update the main product record
+            // MODIFIED: Update the main product's prices
             product.purchasePrice = purchasePrice;
-            product.sellingPrice = parseFloat(calculatedSellingPrice.toFixed(2));
-            product.quantity += quantityToAdd;
+            product.sellingPrice = parseFloat((purchasePrice * (1 + (product.profitMargin || 0) / 100)).toFixed(2));
+            
+            // Find the correct color variant
+            let variant = product.variants.find(v => v.colorName === color);
+            if (!variant) {
+                throw new Error(`لم يتم العثور على اللون "${color}" للمنتج "${product.name}"`);
+            }
+            
+            // Find or create the stock entry for the size within that variant
+            let stockItem = variant.stock.find(s => s.size === size);
+            if (stockItem) {
+              stockItem.quantity += quantityToAdd;
+            } else {
+              variant.stock.push({ size, quantity: quantityToAdd });
+            }
 
-            // Add to total amount for the invoice
             totalAmount += purchasePrice * quantityToAdd;
           } else {
             throw new Error(`لم يتم العثور على المنتج بالرقم: ${productId}`);
           }
         });
 
-        // Then, create the new invoice record
         const newInvoice = {
           id: Math.max(...this.purchaseInvoices.map(i => i.id), 0) + 1,
           date: new Date().toISOString().split('T')[0],
-          user: 'مدير النظام', // This should be dynamic in a real app
+          user: 'مدير النظام',
           totalAmount: parseFloat(totalAmount.toFixed(2)),
-          items: items.map(item => ({
+          items: invoiceItems.map(item => ({
             productId: item.productId,
             quantityAdded: item.quantityToAdd,
             purchasePrice: item.purchasePrice,
+            color: item.color,
+            size: item.size,
           })),
         };
 
-        this.purchaseInvoices.unshift(newInvoice); // Add to the beginning of the list
-
+        this.purchaseInvoices.unshift(newInvoice);
         return { success: true, data: newInvoice };
       } catch (e) {
         this.error = e.message || 'فشل في معالجة فاتورة الشراء.';

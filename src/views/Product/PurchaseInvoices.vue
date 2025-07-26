@@ -1,6 +1,5 @@
 <template>
     <div class="container-fluid px-4 py-4">
-        <!-- Header -->
         <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
             <h1 class="h2 fw-bold text-dark mb-0">سجل فواتير الشراء</h1>
             <router-link to="/add-purchase-invoice" class="btn btn-success d-flex align-items-center gap-2 px-3 py-2">
@@ -9,7 +8,6 @@
             </router-link>
         </div>
 
-        <!-- Filters -->
         <div class="row mb-4 g-3">
             <div class="col-lg-6">
                 <div class="search-container">
@@ -20,14 +18,12 @@
             </div>
         </div>
 
-        <!-- Loading & Error States -->
         <div v-if="isLoading" class="text-center py-5">
             <div class="spinner-border text-primary" role="status"></div>
             <p class="mt-2 text-muted">جاري تحميل الفواتير...</p>
         </div>
         <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
-        <!-- Invoices List -->
         <div v-else-if="filteredInvoices.length > 0" class="invoices-container">
             <div class="invoice-header">
                 <div class="header-item">رقم الفاتورة</div>
@@ -49,7 +45,6 @@
             </div>
         </div>
 
-        <!-- Empty State -->
         <div v-else class="text-center py-5">
             <i class="fas fa-file-invoice-dollar fa-4x text-muted mb-3"></i>
             <h4 class="text-muted">لا توجد فواتير تطابق البحث</h4>

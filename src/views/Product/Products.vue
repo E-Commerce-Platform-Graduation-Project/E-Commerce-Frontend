@@ -1,6 +1,5 @@
 <template>
   <div class="container-fluid px-4 py-4">
-    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
       <h1 class="h2 fw-bold text-dark mb-0">المنتجات</h1>
       <router-link to="/products/add" class="btn btn-success d-flex align-items-center gap-2 px-3 py-2">
@@ -9,7 +8,6 @@
       </router-link>
     </div>
 
-    <!-- Filters -->
     <div class="row mb-4 g-3">
         <div class="col-lg-12">
             <div class="search-filter-container">
@@ -43,29 +41,25 @@
         </div>
     </div>
 
-    <!-- Loading & Error States -->
     <div v-if="isLoading" class="text-center py-5">
       <div class="spinner-border text-primary" role="status"></div>
       <p class="mt-2 text-muted">جاري تحميل المنتجات...</p>
     </div>
     <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
-    <!-- NEW: Product List Component -->
     <ProductsList 
-        v-else-if="filteredProducts.length > 0"
-        :products="filteredProducts"
+        v-else-if="productsForDisplay.length > 0"
+        :products="productsForDisplay"
         @view-details="openDetailsModal"
         @edit-product="openEditModal"
     />
     
-    <!-- Empty State -->
     <div v-else class="text-center py-5">
         <i class="fas fa-box-open fa-4x text-muted mb-3"></i>
         <h4 class="text-muted">لا توجد منتجات تطابق الفلتر</h4>
         <p>حاول تغيير كلمات البحث أو الفلاتر المستخدمة.</p>
     </div>
 
-    <!-- Product Details Modal -->
     <ProductDetails
         v-if="isDetailsModalVisible"
         :product="selectedProduct"
@@ -73,7 +67,6 @@
         @edit-product="handleEditFromDetails"
     />
 
-    <!-- Edit Product Modal -->
     <EditProduct 
         v-if="isEditModalVisible" 
         :product="selectedProduct" 
@@ -89,7 +82,7 @@ import { useProductStore } from '@/stores/productStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import EditProduct from '@/components/Product/EditProduct.vue'; 
 import ProductDetails from '@/components/Product/ProductDetails.vue';
-import ProductsList from '@/components/Product/ProductsList.vue'; // Import the new component
+import ProductsList from '@/components/Product/ProductsList.vue'; 
 
 const productStore = useProductStore();
 const categoryStore = useCategoryStore();
@@ -113,7 +106,8 @@ const categoryHierarchy = computed(() => {
         hierarchy.push({ id: main.id, name: main.name, isParent: true });
         const subCategories = categoryStore.getSubcategoriesByParent(main.id);
         subCategories.forEach(sub => {
-            hierarchy.push({ id: sub.id, name: ` ${sub.name}`, isParent: false });
+            // Indent sub-category names for better readability
+            hierarchy.push({ id: sub.id, name: `\u00A0\u00A0\u00A0 ${sub.name}`, isParent: false });
         });
     });
     return hierarchy;
@@ -142,6 +136,22 @@ const filteredProducts = computed(() => {
   });
 });
 
+// NEW: Prepares products for display, adding a 'displayImage' property.
+// This allows child components like ProductsList to easily show a thumbnail.
+const productsForDisplay = computed(() => {
+    return filteredProducts.value.map(product => {
+        // Find the first image from the first color variant to use as the main display image.
+        const firstVariant = product.variants?.[0];
+        const displayImage = firstVariant?.images?.[0] || 'https://placehold.co/300x300/eee/ccc?text=No+Image';
+
+        return {
+            ...product,
+            displayImage // Add the calculated display image to the product object
+        };
+    });
+});
+
+
 // Methods
 onMounted(() => {
   productStore.fetchProducts();
@@ -149,6 +159,7 @@ onMounted(() => {
 });
 
 const openDetailsModal = (product) => {
+    // The product object received from the event already contains all original data
     selectedProduct.value = product;
     isDetailsModalVisible.value = true;
 };
@@ -175,6 +186,7 @@ const handleEditFromDetails = () => {
 };
 
 const handleProductUpdate = () => {
+    // Re-fetch the product from the store to ensure data is fresh
     const updatedProduct = productStore.getProductById(selectedProduct.value.id);
     if (isDetailsModalVisible.value && updatedProduct) {
         selectedProduct.value = updatedProduct;
