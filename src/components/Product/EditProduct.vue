@@ -7,24 +7,44 @@
         </div>
         <div class="modal-body p-4">
           <form @submit.prevent="handleSubmit">
+            <!-- Main Product Info -->
             <div class="row">
-              <div class="col-md-6 mb-3">
-                <label for="editName" class="form-label">اسم المنتج</label>
-                <input type="text" v-model="form.name" class="form-control" id="editName">
+              <div class="col-md-8">
+                <div class="row">
+                  <div class="col-md-8 mb-3">
+                    <label for="editName" class="form-label">اسم المنتج</label>
+                    <input type="text" v-model="form.name" class="form-control" id="editName">
+                  </div>
+                  <div class="col-md-4 mb-3">
+                    <label for="profitMargin" class="form-label">هامش الربح</label>
+                    <div class="input-group">
+                      <input id="profitMargin" v-model.number="form.profitMargin" type="number" class="form-control" placeholder="0" min="0.01" step="0.01" />
+                      <span class="input-group-text">%</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label for="editDesc" class="form-label">الوصف</label>
+                  <textarea v-model="form.description" class="form-control" id="editDesc" rows="4"></textarea>
+                </div>
               </div>
-              <div class="col-md-6 mb-3">
-                <label for="profitMargin" class="form-label">هامش الربح</label>
-                <div class="input-group">
-                  <input id="profitMargin" v-model.number="form.profitMargin" type="number" class="form-control"
-                    placeholder="0" />
-                  <span class="input-group-text">%</span>
+              <!-- Main Image Uploader -->
+              <div class="col-md-4 mb-3">
+                <label class="form-label">الصورة الرئيسية</label>
+                <div class="main-image-uploader">
+                  <input type="file" @change="handleMainImageUpload" accept="image/*" class="file-input" title="انقر لتغيير الصورة الرئيسية" />
+                  <div v-if="mainImagePreview" class="image-preview main-image-preview">
+                    <img :src="mainImagePreview" alt="Main product image preview" />
+                    <button @click.prevent="removeMainImage" class="remove-btn" type="button" title="إزالة الصورة">&times;</button>
+                  </div>
+                  <div v-else class="upload-prompt">
+                    <i class="fas fa-camera"></i>
+                    <p>اختر صورة</p>
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="mb-3">
-              <label for="editDesc" class="form-label">الوصف</label>
-              <textarea v-model="form.description" class="form-control" id="editDesc" rows="3"></textarea>
-            </div>
+
             <div class="row g-3 mb-4">
               <div class="col-md-6">
                 <label for="editCategory" class="form-label">الفئة</label>
@@ -37,16 +57,71 @@
                   </optgroup>
                 </select>
               </div>
-              <div class="col-md-6 d-flex align-items-end">
-                <div class="form-check form-switch p-3 border rounded w-100">
-                  <label class="form-check-label ms-3" for="editStatus">حالة المنتج ({{ form.is_active ? 'ظاهر' : 'مخفي'
-                    }})</label>
-                  <input class="form-check-input status-switch" type="checkbox" role="switch" id="editStatus"
-                    v-model="form.is_active">
+              <div class="col-md-6">
+                <label class="form-label">حالة المنتج</label>
+                <div class="status-container">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input status-switch" type="checkbox" role="switch" id="editStatus" v-model="form.is_active">
+                    <label class="form-check-label" for="editStatus">
+                      {{ form.is_active ? 'ظاهر' : 'مخفي' }}
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
 
+            <!-- Product Properties Section -->
+            <div class="properties-section border rounded p-3 mb-4">
+              <h5 class="mb-3">خواص المنتج</h5>
+              <div class="properties-grid">
+                <div v-for="prop in availableProperties" :key="prop.id" class="property-group">
+                  <div class="property-combo-box">
+                    <button type="button" class="combo-box-button" :class="{ 'active': openComboBox === prop.id }" @click="toggleComboBox(prop.id)">
+                      <span class="combo-box-title">{{ prop.name }}</span>
+                      <span class="selected-count" v-if="getSelectedCountForProperty(prop.name) > 0">
+                        ({{ getSelectedCountForProperty(prop.name) }} محدد)
+                      </span>
+                      <i class="fas fa-chevron-down combo-box-icon" :class="{ 'rotated': openComboBox === prop.id }"></i>
+                    </button>
+                    <div v-show="openComboBox === prop.id" class="combo-box-dropdown">
+                      <div v-if="prop.values && prop.values.length > 0" class="checkbox-section">
+                        <div class="section-header-small">
+                          <span>قيم عامة</span>
+                          <button type="button" class="select-all-btn" @click="toggleSelectAllLegacy(prop.name, prop.values)">
+                            {{ areAllLegacyValuesSelected(prop.name, prop.values) ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
+                          </button>
+                        </div>
+                        <div class="checkbox-container">
+                          <label v-for="value in prop.values" :key="`legacy-${value}`" class="checkbox-label">
+                            <input type="checkbox" :value="value" :checked="isLegacyValueSelected(prop.name, value)" @change="handleLegacyPropertyChange(prop.name, value, $event)">
+                            <span class="checkbox-text">{{ value }}</span>
+                          </label>
+                        </div>
+                      </div>
+                      <div v-for="subtitle in prop.subtitles" :key="subtitle.id" class="checkbox-section">
+                        <div class="section-header-small">
+                          <span>{{ subtitle.name }}</span>
+                          <button type="button" class="select-all-btn" @click="toggleSelectAllSubtitle(prop.name, subtitle.name, subtitle.values)">
+                            {{ areAllSubtitleValuesSelected(prop.name, subtitle.name, subtitle.values) ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
+                          </button>
+                        </div>
+                        <div class="checkbox-container">
+                          <label v-for="value in subtitle.values" :key="`${subtitle.id}-${value}`" class="checkbox-label">
+                            <input type="checkbox" :value="value" :checked="isSubtitleValueSelected(prop.name, subtitle.name, value)" @change="handleSubtitlePropertyChange(prop.name, subtitle.name, value, $event)">
+                            <span class="checkbox-text">{{ value }}</span>
+                          </label>
+                        </div>
+                      </div>
+                      <div v-if="(!prop.values || prop.values.length === 0) && prop.subtitles.length === 0" class="empty-dropdown">
+                        <p>لا توجد قيم متاحة لهذه الخاصية</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Color Variants Section -->
             <div class="variations-section border-top pt-4">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="mb-0">الألوان والصور</h5>
@@ -58,30 +133,73 @@
               <div v-for="(variant, index) in form.variants" :key="index" class="variation-card">
                 <div class="variation-header">
                   <div class="form-group">
-                    <label class="form-label">اسم اللون</label>
-                    <input v-model="variant.colorName" type="text" class="form-control" placeholder="مثال: أزرق سماوي">
-                  </div>
-                  <div class="form-group">
                     <label class="form-label">كود اللون</label>
-                    <div class="color-picker-wrapper">
-                      <input v-model="variant.colorHex" type="color" class="color-picker">
-                      <span>{{ variant.colorHex }}</span>
+                    <div class="color-selection-container">
+                      <div class="color-picker-wrapper" @click="toggleColorPicker(index)">
+                        <div class="selected-color-preview" :style="{ backgroundColor: variant.colorHex }"></div>
+                        <span class="color-hex-text">{{ variant.colorHex }}</span>
+                        <i class="fas fa-chevron-down" :class="{ 'rotated': variant.showColorPicker }"></i>
+                      </div>
+                      
+                      <div v-if="variant.showColorPicker" class="color-dropdown" @click.stop>
+                        <div class="color-dropdown-header">
+                          <span>اختر لوناً</span>
+                          <button type="button" @click="closeColorPicker(index)" class="close-dropdown-btn">×</button>
+                        </div>
+                        
+                        <div v-if="usedColors.length > 0" class="used-colors-section">
+                          <h4 class="color-section-title">الألوان المستخدمة سابقاً ({{ usedColors.length }})</h4>
+                          <div class="color-grid">
+                            <div 
+                              v-for="color in usedColors" 
+                              :key="color"
+                              class="color-option"
+                              :class="{ 'selected': variant.colorHex.toLowerCase() === color }"
+                              @click="selectUsedColor(index, color)"
+                            >
+                              <div class="color-circle" :style="{ backgroundColor: color }"></div>
+                              <span class="color-code">{{ color }}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else class="no-used-colors">
+                          <p class="text-muted">لا توجد ألوان مستخدمة سابقاً</p>
+                        </div>
+                        
+                        <div class="custom-color-section">
+                          <h4 class="color-section-title">أو اختر لون جديد</h4>
+                          <div class="custom-color-picker">
+                            <input 
+                              v-model="variant.colorHex" 
+                              type="color" 
+                              class="color-input"
+                              @change="handleHexColorChange(index, false)"
+                            >
+                            <input 
+                              v-model="variant.colorHex" 
+                              type="text" 
+                              class="color-hex-input" 
+                              placeholder="#000000"
+                              pattern="^#[0-9A-Fa-f]{6}$"
+                              @change="handleHexColorChange(index, true)"
+                            >
+                          </div>
+                        </div>
+                      </div>
                     </div>
+                    <span v-if="variant.error" class="error-message">{{ variant.error }}</span>
                   </div>
-                  <button @click="removeColorVariant(index)" class="btn-remove-variation" type="button"
-                    title="حذف اللون">&times;</button>
+                  <button @click="removeColorVariant(index)" class="btn-remove-variation" type="button" title="حذف اللون">&times;</button>
                 </div>
 
                 <div class="form-group mt-3">
                   <label class="form-label">صور هذا اللون</label>
                   <div class="image-uploader">
-                    <input type="file" multiple @change="e => addImagesToVariant(e, index)" accept="image/*"
-                      class="file-input" />
+                    <input type="file" multiple @change="e => addImagesToVariant(e, index)" accept="image/*" class="file-input" />
                     <div class="image-preview-grid">
                       <div v-for="(image, imgIndex) in variant.images" :key="imgIndex" class="image-preview">
                         <img :src="image" />
-                        <button @click="removeImageFromVariant(index, imgIndex)" class="remove-btn"
-                          type="button">&times;</button>
+                        <button @click="removeImageFromVariant(index, imgIndex)" class="remove-btn" type="button">&times;</button>
                       </div>
                       <div class="upload-prompt"><span>+</span></div>
                     </div>
@@ -104,9 +222,11 @@
 </template>
 
 <script setup>
-import { reactive, computed } from 'vue';
+import { reactive, computed, ref, onMounted } from 'vue';
 import { useProductStore } from '@/stores/productStore';
 import { useCategoryStore } from '@/stores/categoryStore';
+import { usePropStore } from '@/stores/propStore';
+import { storeToRefs } from 'pinia';
 
 const props = defineProps({
   product: { type: Object, required: true },
@@ -115,8 +235,39 @@ const emit = defineEmits(['close', 'product-updated']);
 
 const productStore = useProductStore();
 const categoryStore = useCategoryStore();
+const propStore = usePropStore();
+
+const { properties: availableProperties } = storeToRefs(propStore);
+const { products } = storeToRefs(productStore);
 
 const form = reactive(JSON.parse(JSON.stringify(props.product)));
+const openComboBox = ref(null);
+
+// This holds the temporary blob URL for a newly uploaded main image
+const newMainImageURL = ref(null);
+
+// Computed property to decide which image URL to show
+const mainImagePreview = computed(() => {
+  if (newMainImageURL.value) {
+    return newMainImageURL.value; // Show the new image if it exists
+  }
+  return form.mainImage; // Otherwise, show the original image
+});
+
+// Initialize form data
+form.selectedProperties = form.properties ? JSON.parse(JSON.stringify(form.properties)) : {};
+
+// Add showColorPicker and error properties to existing variants
+if (form.variants) {
+  form.variants.forEach(variant => {
+    if (!variant.hasOwnProperty('showColorPicker')) {
+      variant.showColorPicker = false;
+    }
+    if (!variant.hasOwnProperty('error')) {
+      variant.error = null;
+    }
+  });
+}
 
 const subCategoryGroups = computed(() => {
   const mainCategories = categoryStore.getMainCategories;
@@ -127,14 +278,168 @@ const subCategoryGroups = computed(() => {
   })).filter(group => group.subCategories.length > 0);
 });
 
-// --- FIXED: This function now correctly initializes a new variant ---
+const usedColors = computed(() => {
+  // Get all products and extract unique colors, excluding current product
+  const allProducts = products.value || [];
+  const colorSet = new Set();
+  
+  allProducts.forEach(product => {
+    if (product.id !== form.id && product.variants) {
+      product.variants.forEach(variant => {
+        if (variant.colorHex) {
+          colorSet.add(variant.colorHex.toLowerCase());
+        }
+      });
+    }
+  });
+  
+  return Array.from(colorSet);
+});
+
+onMounted(async () => {
+  // Make sure properties are loaded
+  if (availableProperties.value.length === 0) {
+    await propStore.fetchProperties();
+  }
+  // Make sure products are loaded to get used colors
+  if (!productStore.products || productStore.products.length === 0) {
+    await productStore.fetchProducts();
+  }
+});
+
+// Main image management functions
+const handleMainImageUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // If there's an old blob URL, revoke it to prevent memory leaks
+    if (newMainImageURL.value) {
+        URL.revokeObjectURL(newMainImageURL.value);
+    }
+
+    // Create a new blob URL and store it
+    newMainImageURL.value = URL.createObjectURL(file);
+    // Also store the new URL in the form to be saved
+    form.mainImage = newMainImageURL.value; 
+};
+
+const removeMainImage = () => {
+    if (newMainImageURL.value) {
+        URL.revokeObjectURL(newMainImageURL.value);
+        newMainImageURL.value = null;
+    }
+    form.mainImage = null;
+};
+
+// Properties management functions
+const toggleComboBox = (propId) => {
+  openComboBox.value = openComboBox.value === propId ? null : propId;
+};
+
+const isLegacyValueSelected = (propName, value) => {
+  return form.selectedProperties[propName]?.legacy?.includes(value) || false;
+};
+
+const isSubtitleValueSelected = (propName, subtitleName, value) => {
+  return form.selectedProperties[propName]?.subtitles?.[subtitleName]?.includes(value) || false;
+};
+
+const getSelectedCountForProperty = (propName) => {
+  const propData = form.selectedProperties[propName];
+  if (!propData) return 0;
+  let count = 0;
+  if (propData.legacy) count += propData.legacy.length;
+  if (propData.subtitles) {
+    Object.values(propData.subtitles).forEach(values => { count += values.length; });
+  }
+  return count;
+};
+
+// Enhanced property functions from AddProduct
+const areAllLegacyValuesSelected = (propName, values) => {
+  const selected = form.selectedProperties[propName]?.legacy || [];
+  return values.length > 0 && values.every(v => selected.includes(v));
+};
+
+const areAllSubtitleValuesSelected = (propName, subtitleName, values) => {
+  const selected = form.selectedProperties[propName]?.subtitles?.[subtitleName] || [];
+  return values.length > 0 && values.every(v => selected.includes(v));
+};
+
+const initializeProperty = (propName) => {
+  if (!form.selectedProperties[propName]) {
+    form.selectedProperties[propName] = { legacy: [], subtitles: {} };
+  }
+};
+
+const toggleSelectAllLegacy = (propName, values) => {
+  initializeProperty(propName);
+  const areAllSelected = areAllLegacyValuesSelected(propName, values);
+  form.selectedProperties[propName].legacy = areAllSelected ? [] : [...values];
+  cleanupPropertyData(propName);
+};
+
+const toggleSelectAllSubtitle = (propName, subtitleName, values) => {
+  initializeProperty(propName);
+  if (!form.selectedProperties[propName].subtitles) form.selectedProperties[propName].subtitles = {};
+  const areAllSelected = areAllSubtitleValuesSelected(propName, subtitleName, values);
+  form.selectedProperties[propName].subtitles[subtitleName] = areAllSelected ? [] : [...values];
+  cleanupPropertyData(propName);
+};
+
+const handleLegacyPropertyChange = (propName, value, event) => {
+  if (!form.selectedProperties[propName]) form.selectedProperties[propName] = { legacy: [], subtitles: {} };
+  if (!form.selectedProperties[propName].legacy) form.selectedProperties[propName].legacy = [];
+  
+  if (event.target.checked) {
+    if (!form.selectedProperties[propName].legacy.includes(value)) {
+      form.selectedProperties[propName].legacy.push(value);
+    }
+  } else {
+    const index = form.selectedProperties[propName].legacy.indexOf(value);
+    if (index > -1) form.selectedProperties[propName].legacy.splice(index, 1);
+  }
+  cleanupPropertyData(propName);
+};
+
+const handleSubtitlePropertyChange = (propName, subtitleName, value, event) => {
+  if (!form.selectedProperties[propName]) form.selectedProperties[propName] = { legacy: [], subtitles: {} };
+  if (!form.selectedProperties[propName].subtitles) form.selectedProperties[propName].subtitles = {};
+  if (!form.selectedProperties[propName].subtitles[subtitleName]) form.selectedProperties[propName].subtitles[subtitleName] = [];
+  
+  if (event.target.checked) {
+    if (!form.selectedProperties[propName].subtitles[subtitleName].includes(value)) {
+      form.selectedProperties[propName].subtitles[subtitleName].push(value);
+    }
+  } else {
+    const index = form.selectedProperties[propName].subtitles[subtitleName].indexOf(value);
+    if (index > -1) form.selectedProperties[propName].subtitles[subtitleName].splice(index, 1);
+  }
+  cleanupPropertyData(propName);
+};
+
+const cleanupPropertyData = (propName) => {
+  const prop = form.selectedProperties[propName];
+  if (!prop) return;
+  if (prop.legacy && prop.legacy.length === 0) delete prop.legacy;
+  if (prop.subtitles) {
+    Object.keys(prop.subtitles).forEach(sub => {
+      if (prop.subtitles[sub].length === 0) delete prop.subtitles[sub];
+    });
+    if (Object.keys(prop.subtitles).length === 0) delete prop.subtitles;
+  }
+  if (Object.keys(prop).length === 0) delete form.selectedProperties[propName];
+};
+
+// Enhanced Color variants management functions
 const addColorVariant = () => {
   if (!form.variants) form.variants = [];
   form.variants.push({
-    colorName: '',
     colorHex: '#000000',
     images: [],
-    stock: [] // This line was missing and caused the error
+    stock: [],
+    showColorPicker: false,
+    error: null
   });
 };
 
@@ -142,11 +447,57 @@ const removeColorVariant = (index) => {
   form.variants.splice(index, 1);
 };
 
+// Enhanced color picker functions from AddProduct
+const toggleColorPicker = (index) => {
+  form.variants.forEach((variant, i) => {
+    if (i !== index) {
+      variant.showColorPicker = false;
+    }
+  });
+  form.variants[index].showColorPicker = !form.variants[index].showColorPicker;
+};
+
+const selectUsedColor = (index, colorHex) => {
+  form.variants[index].colorHex = colorHex;
+  handleHexColorChange(index, true); // Validate and close
+};
+
+const closeColorPicker = (index) => {
+  form.variants[index].showColorPicker = false;
+};
+
+const handleHexColorChange = (index, shouldClosePicker) => {
+  const variant = form.variants[index];
+
+  // Sanitize hex code
+  let color = variant.colorHex.toLowerCase();
+  if (!color.startsWith('#')) {
+    color = '#' + color;
+  }
+  variant.colorHex = color;
+
+  // Check for duplicates
+  const isDuplicate = form.variants.some(
+    (v, i) => i !== index && v.colorHex.toLowerCase() === variant.colorHex.toLowerCase()
+  );
+
+  if (isDuplicate) {
+    variant.error = 'هذا اللون تم اختياره بالفعل.';
+  } else {
+    variant.error = null;
+  }
+  
+  if (shouldClosePicker) {
+    variant.showColorPicker = false;
+  }
+};
+
 const addImagesToVariant = (event, variantIndex) => {
   const files = Array.from(event.target.files);
   const variant = form.variants[variantIndex];
   if (variant) {
     files.forEach(file => {
+      // Note: These blob URLs should be managed if the modal is closed without saving
       variant.images.push(URL.createObjectURL(file));
     });
   }
@@ -164,7 +515,13 @@ const removeImageFromVariant = (variantIndex, imageIndex) => {
 };
 
 const handleSubmit = async () => {
-  const result = await productStore.updateProduct(form.id, form);
+  const updateData = {
+    ...form,
+    properties: form.selectedProperties, // Send the updated properties
+  };
+  delete updateData.selectedProperties; // Clean up the form object
+
+  const result = await productStore.updateProduct(form.id, updateData);
   if (result.success) {
     emit('product-updated');
   } else {
@@ -174,24 +531,457 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-/* All previous styles remain the same */
+/* Modal and layout fixes */
 .modal-xl {
-  max-width: 900px;
+  max-width: 1000px;
+}
+
+/* Status switch improvements */
+.status-container {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 12px 16px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background-color: #fff;
+}
+
+.form-check.form-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
 }
 
 .status-switch {
   width: 3.5em !important;
   height: 1.75em !important;
   cursor: pointer;
+  margin: 0 !important;
 }
 
-.variations-section {
+.form-check-label {
+  font-weight: 500;
+  color: #374151;
+  margin: 0 !important;
+  cursor: pointer;
+}
+
+/* Main image uploader improvements */
+.main-image-uploader {
+  border: 2px dashed #ced4da;
+  border-radius: 8px;
+  height: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
   background-color: #f8f9fa;
-  margin: -1rem;
-  padding: 1.5rem;
-  border-radius: 0 0 .3rem .3rem;
+  overflow: hidden;
 }
 
+.main-image-uploader .upload-prompt {
+  text-align: center;
+  color: #6c757d;
+}
+
+.main-image-uploader .upload-prompt i {
+  font-size: 2rem;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.main-image-preview {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.main-image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.main-image-preview .remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Properties section styles */
+.properties-section {
+  background-color: #f8f9fa;
+}
+
+.properties-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.property-group, .property-combo-box {
+  position: relative;
+}
+
+.combo-box-button {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  background: white;
+  text-align: right;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.combo-box-button:hover {
+  border-color: #3b82f6;
+}
+
+.combo-box-button.active {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.combo-box-title { 
+  font-weight: 600; 
+  color: #374151;
+}
+
+.selected-count { 
+  color: #3b82f6; 
+  font-size: 12px; 
+  font-weight: 500;
+}
+
+.combo-box-icon { 
+  transition: transform 0.2s ease; 
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.combo-box-icon.rotated { 
+  transform: rotate(180deg); 
+}
+
+.combo-box-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.checkbox-section { 
+  border-bottom: 1px solid #e9ecef; 
+}
+
+.checkbox-section:last-child { 
+  border-bottom: none; 
+}
+
+.section-header-small {
+  background-color: #f8f9fa;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b5563;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.select-all-btn {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.select-all-btn:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.checkbox-container { 
+  padding: 8px; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 4px; 
+}
+
+.checkbox-label { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  padding: 8px 12px; 
+  cursor: pointer; 
+  border-radius: 4px; 
+  transition: background-color 0.15s ease;
+}
+
+.checkbox-label:hover { 
+  background-color: #f8f9fa; 
+}
+
+.checkbox-label input[type="checkbox"] {
+  margin: 0;
+}
+
+.checkbox-text { 
+  font-size: 14px; 
+  color: #374151;
+}
+
+.empty-dropdown { 
+  padding: 20px; 
+  text-align: center; 
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* Enhanced Color Selection Styles */
+.color-selection-container {
+  position: relative;
+}
+
+.color-picker-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.color-picker-wrapper:hover {
+  border-color: #3b82f6;
+}
+
+.selected-color-preview {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.color-hex-text {
+  flex: 1;
+  font-family: monospace;
+  font-size: 14px;
+  color: #374151;
+}
+
+.color-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.color-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: #374151;
+}
+
+.close-dropdown-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #6b7280;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.close-dropdown-btn:hover {
+  background-color: #e5e7eb;
+  color: #374151;
+}
+
+.color-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4b5563;
+  margin: 0 0 8px 0;
+}
+
+.used-colors-section {
+  padding: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.no-used-colors {
+  padding: 16px;
+  text-align: center;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.no-used-colors p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.color-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 2px solid transparent;
+}
+
+.color-option:hover {
+  background-color: #f3f4f6;
+}
+
+.color-option.selected {
+  background-color: #dbeafe;
+  border-color: #3b82f6;
+}
+
+.color-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.color-code {
+  font-size: 10px;
+  font-family: monospace;
+  color: #6b7280;
+  text-align: center;
+}
+
+.no-used-colors {
+  padding: 16px;
+  text-align: center;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.no-used-colors p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+  padding: 16px;
+}
+
+.custom-color-picker {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.color-input {
+  width: 60px;
+  height: 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.color-hex-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.color-hex-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Variations Section Styles */
 .variation-card {
   background: #ffffff;
   border: 1px solid #dee2e6;
@@ -203,34 +993,23 @@ const handleSubmit = async () => {
 
 .variation-header {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   gap: 20px;
-  align-items: flex-end;
+  align-items: flex-start;
+  margin-bottom: 16px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.form-group { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 8px; 
 }
 
-.color-picker-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid #ced4da;
-  border-radius: 6px;
-  padding: 5px 10px;
-  background: #fff;
-}
-
-.color-picker {
-  height: 36px;
-  width: 36px;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  background-color: transparent;
+.form-group .form-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+  margin-bottom: 4px;
 }
 
 .btn-remove-variation {
@@ -246,30 +1025,34 @@ const handleSubmit = async () => {
   position: absolute;
   top: 10px;
   left: 10px;
-}
-
-.image-uploader {
-  position: relative;
-}
-
-.file-input {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.image-preview-grid {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
 }
 
-.image-preview,
-.upload-prompt {
+.btn-remove-variation:hover {
+  background-color: #f5c6cb;
+  transform: scale(1.1);
+}
+
+.image-uploader { 
+  position: relative; 
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  background-color: #f9fafb;
+}
+
+.image-preview-grid { 
+  display: flex; 
+  flex-wrap: wrap; 
+  gap: 10px; 
+  margin-top: 10px;
+}
+
+.image-preview, .upload-prompt {
   position: relative;
   width: 100px;
   height: 100px;
@@ -280,16 +1063,24 @@ const handleSubmit = async () => {
   justify-content: center;
 }
 
-.upload-prompt {
-  border: 2px dashed #ced4da;
-  color: #6c757d;
-  font-size: 24px;
+.upload-prompt { 
+  border: 2px dashed #ced4da; 
+  color: #6c757d; 
+  font-size: 24px; 
+  background-color: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.image-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.upload-prompt:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.image-preview img { 
+  width: 100%; 
+  height: 100%; 
+  object-fit: cover; 
 }
 
 .remove-btn {
@@ -304,5 +1095,38 @@ const handleSubmit = async () => {
   height: 22px;
   font-size: 14px;
   line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.remove-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  transform: scale(1.1);
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .variation-header {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .btn-remove-variation {
+    position: static;
+    width: 100%;
+    border-radius: 6px;
+    margin-top: 12px;
+  }
+  
+  .properties-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .color-grid {
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  }
 }
 </style>

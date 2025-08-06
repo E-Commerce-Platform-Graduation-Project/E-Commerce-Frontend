@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-// This is the new centralized API configuration.
 // It should be used by all Pinia stores.
 
 const api = axios.create({

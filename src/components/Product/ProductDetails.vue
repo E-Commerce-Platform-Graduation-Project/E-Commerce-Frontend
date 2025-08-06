@@ -7,26 +7,24 @@
                 </div>
 
                 <div class="modal-body p-4">
-                    <div class="mb-4">
-                        <div v-if="allVariantImages.length > 0" id="productImageCarousel" class="carousel slide"
-                            data-bs-ride="carousel">
-                            <div class="carousel-inner rounded">
-                                <div v-for="(image, index) in allVariantImages" :key="index" class="carousel-item"
-                                    :class="{ active: index === 0 }">
-                                    <img :src="image" class="d-block w-100 product-image" alt="Product image">
-                                </div>
+                    <div class="image-gallery-container mb-4">
+                        <div class="main-image-wrapper mb-3">
+                            <img v-if="activeImage" :src="activeImage" class="main-product-image" alt="Main product view">
+                            <div v-else class="text-center bg-light p-5 rounded d-flex align-items-center justify-content-center" style="height: 350px;">
+                                <p class="text-muted mb-0">لا توجد صور لعرضها.</p>
                             </div>
-                            <button v-if="allVariantImages.length > 1" class="carousel-control-prev" type="button"
-                                data-bs-target="#productImageCarousel" data-bs-slide="prev">
-                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                            </button>
-                            <button v-if="allVariantImages.length > 1" class="carousel-control-next" type="button"
-                                data-bs-target="#productImageCarousel" data-bs-slide="next">
-                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                            </button>
                         </div>
-                        <div v-else class="text-center bg-light p-5 rounded">
-                            <p class="text-muted">لا توجد صور لهذا المنتج.</p>
+
+                        <div v-if="allImages.length > 1" class="thumbnail-gallery">
+                            <div
+                                v-for="(image, index) in allImages"
+                                :key="index"
+                                class="thumbnail-item"
+                                :class="{ 'active': image === activeImage }"
+                                @click="setActiveImage(image)"
+                            >
+                                <img :src="image" class="thumbnail-image" alt="Product thumbnail">
+                            </div>
                         </div>
                     </div>
 
@@ -93,16 +91,22 @@
                         <div v-if="purchaseHistoryItems.length > 0" class="invoice-list">
                             <div class="invoice-item header">
                                 <div class="invoice-date">التاريخ</div>
-                                <div class="invoice-color">اللون</div>
-                                <div class="invoice-size">المقاس</div>
+                                <div class="invoice-properties">الخواص</div>
                                 <div class="invoice-qty">الكمية</div>
                                 <div class="invoice-price">سعر الشراء</div>
                             </div>
                             <div v-for="item in purchaseHistoryItems"
-                                :key="`${item.invoiceId}-${item.color}-${item.size}`" class="invoice-item">
+                                :key="`${item.invoiceId}-${JSON.stringify(item.properties)}`" class="invoice-item">
                                 <div class="invoice-date">{{ formatDate(item.date) }}</div>
-                                <div class="invoice-color">{{ item.color }}</div>
-                                <div class="invoice-size">{{ item.size }}</div>
+                                <div class="invoice-properties">
+                                    <div class="props-display">
+                                        <span v-for="(value, propName) in item.properties" :key="propName" class="prop-chip">
+                                            <span v-if="propName === 'color'" class="prop-color-dot" :style="{ backgroundColor: value }"></span>
+                                            <strong class="prop-name">{{ propName === 'color' ? 'اللون' : propName }}:</strong>
+                                            {{ value }}
+                                        </span>
+                                    </div>
+                                </div>
                                 <div class="invoice-qty">+{{ item.quantityAdded }}</div>
                                 <div class="invoice-price purchase">{{ item.purchasePrice }} دينار</div>
                             </div>
@@ -111,7 +115,6 @@
                             <p class="mb-0">لا يوجد سجل فواتير شراء لهذا المنتج.</p>
                         </div>
                     </div>
-
                 </div>
 
                 <div class="modal-footer bg-light">
@@ -128,7 +131,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { useProductStore } from '@/stores/productStore';
 
@@ -144,14 +147,35 @@ defineEmits(['close', 'edit-product']);
 const categoryStore = useCategoryStore();
 const productStore = useProductStore();
 
-// NEW: Gathers all images from all variants into a single array for the carousel
-const allVariantImages = computed(() => {
-    if (!props.product || !props.product.variants) return [];
-    return props.product.variants.flatMap(variant => variant.images || []);
+const activeImage = ref('');
+
+const allImages = computed(() => {
+    if (!props.product) return [];
+    const images = [];
+    if (props.product.mainImage) {
+        images.push(props.product.mainImage);
+    }
+    if (props.product.variants) {
+        const variantImages = props.product.variants.flatMap(variant => variant.images || []);
+        images.push(...variantImages);
+    }
+    return images;
 });
 
-// MODIFIED: Flattens all purchased items for this product from all invoices
+watch(allImages, (newImages) => {
+    if (newImages.length > 0) {
+        activeImage.value = newImages[0];
+    } else {
+        activeImage.value = '';
+    }
+}, { immediate: true });
+
+const setActiveImage = (image) => {
+    activeImage.value = image;
+};
+
 const purchaseHistoryItems = computed(() => {
+    // This logic is now correct because invoice items in the store contain the full `properties` object.
     const invoices = productStore.getInvoicesByProductId(props.product.id);
     const allItems = [];
     invoices.forEach(invoice => {
@@ -198,20 +222,65 @@ const formatDate = (dateString) => {
 }
 
 @keyframes slideUp {
-    from {
-        transform: translateY(30px);
-        opacity: 0;
-    }
-
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
 
-.product-image {
-    height: 400px;
-    object-fit: cover;
+/* --- IMAGE GALLERY STYLES --- */
+.main-image-wrapper {
+  text-align: center;
+  background-color: #f8f9fa;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  border: 1px solid #dee2e6;
+  height: 350px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-product-image {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 0.25rem;
+}
+
+.thumbnail-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  padding-top: 0.5rem;
+}
+
+.thumbnail-item {
+  width: 80px;
+  height: 80px;
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  padding: 2px;
+}
+
+.thumbnail-item:hover {
+  border-color: #adb5bd;
+  transform: scale(1.05);
+}
+
+.thumbnail-item.active {
+  border-color: #198754;
+  box-shadow: 0 0 8px rgba(25, 135, 84, 0.5);
+  transform: scale(1.1);
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.35rem;
 }
 
 label.fw-semibold {
@@ -222,7 +291,6 @@ p {
     font-size: 1.05rem;
 }
 
-/* MODIFIED: Invoice List Styling for new columns */
 .invoice-list {
     border: 1px solid #dee2e6;
     border-radius: 8px;
@@ -231,8 +299,8 @@ p {
 
 .invoice-item {
     display: grid;
-    /* Updated grid for 5 columns */
-    grid-template-columns: 1.5fr 1fr 1fr 0.8fr 1fr;
+    /* UPDATED: Changed from 5 to 4 columns */
+    grid-template-columns: 1.5fr 2fr 0.8fr 1.2fr;
     gap: 1rem;
     padding: 0.75rem 1rem;
     border-bottom: 1px solid #e9ecef;
@@ -251,11 +319,6 @@ p {
     font-size: 0.9rem;
 }
 
-.invoice-color,
-.invoice-size {
-    font-weight: 500;
-}
-
 .invoice-qty {
     font-weight: bold;
     color: #198754;
@@ -265,15 +328,39 @@ p {
     color: #6c757d;
 }
 
-.text-primary {
-    color: #0d6efd !important;
+.text-primary { color: #0d6efd !important; }
+.text-warning { color: #ffc107 !important; }
+.text-info { color: #0dcaf0 !important; }
+
+/* --- NEW STYLES FOR PROPERTIES DISPLAY --- */
+.props-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-start;
 }
 
-.text-warning {
-    color: #ffc107 !important;
+.prop-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #eef2ff;
+    color: #4338ca;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 500;
 }
 
-.text-info {
-    color: #0dcaf0 !important;
+.prop-color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.prop-name {
+    color: #64748b;
 }
 </style>

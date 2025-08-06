@@ -12,6 +12,7 @@ import Categories from '@/views/Category/Categories.vue'
 import Products from '@/views/Product/Products.vue'
 import AddCategory from '@/views/Category/AddCategory.vue'
 import AddProduct from '@/views/Product/AddProduct.vue'
+import ProductProp from '@/views/Product/ProductProp.vue'
 import AddPurchaseInvoice from '@/views/Product/AddPurchaseInvoice.vue'
 import PurchaseInvoices from '@/views/Product/PurchaseInvoices.vue'
 import PurchaseInvoiceDetails from '@/views/Product/PurchaseInvoiceDetails.vue'
@@ -79,6 +80,12 @@ const routes = [
     path: '/add-product',
     name: 'AddProduct',
     component: AddProduct,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/product-prop',
+    name: 'ProductProp',
+    component: ProductProp,
     meta: { requiresAuth: true }
   },
   {

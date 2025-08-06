@@ -2,12 +2,12 @@
   <div class="add-product-container">
     <div class="header">
       <h1 class="title">فاتورة شراء جديدة</h1>
-      <p class="subtitle">إضافة كميات وتحديث أسعار المنتجات عبر تحديد اللون والمقاس</p>
+      <p class="subtitle">إضافة كميات وتحديث أسعار المنتجات عبر تحديد خواصها</p>
     </div>
 
     <div class="form-container">
       <div class="selection-section">
-        <h3 class="section-title">إضافة منتج للفاتورة</h3>
+        <h3 class="section-title">الخطوة 1: اختر المنتج</h3>
         <div class="selection-row">
           <div class="form-group">
             <label class="form-label">الفئة الرئيسية</label>
@@ -23,31 +23,55 @@
               <option v-for="cat in subCategories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group product-selector">
             <label class="form-label">المنتج</label>
             <select v-model="selectedProductId" class="form-select" :disabled="!selectedSubCategory">
               <option :value="null" disabled>اختر المنتج...</option>
               <option v-for="prod in availableProducts" :key="prod.id" :value="prod.id">{{ prod.name }}</option>
             </select>
           </div>
-          <div class="form-group">
-            <button @click="addProductToInvoice" type="button" class="btn btn-add" :disabled="!selectedProductId">
-              <span class="btn-icon">+</span>
-              إضافة منتج
-            </button>
+        </div>
+      </div>
+
+      <div v-if="selectedProduct" class="selection-section">
+        <h3 class="section-title">الخطوة 2: حدد الخواص </h3>
+        <div class="properties-grid">
+          <div class="form-group" v-if="availableProperties.colors.length">
+            <label class="form-label">اللون</label>
+            <div class="color-swatch-container">
+              <div v-for="color in availableProperties.colors" :key="color" class="color-swatch"
+                :class="{ 'selected': variantProperties.color === color }" :style="{ backgroundColor: color }"
+                @click="variantProperties.color = color">
+              </div>
+            </div>
           </div>
+
+          <div class="form-group" v-for="prop in availableProperties.otherProps" :key="prop.name">
+            <label class="form-label">{{ prop.name }}</label>
+            <select v-model="variantProperties[prop.name]" class="form-select">
+              <option value="" disabled>اختر {{ prop.name }}...</option>
+              <option v-for="(value, index) in prop.values" :key="`${prop.name}-${index}`" :value="value">
+                {{ value }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="add-item-row">
+          <button @click="addProductToInvoice" type="button" class="btn btn-add" :disabled="!isVariantComplete">
+            <span class="btn-icon">+</span>
+            إضافة للفاتورة
+          </button>
         </div>
       </div>
 
       <div v-if="invoiceItems.length > 0" class="invoice-table-container">
-        <h3 class="section-title">منتجات الفاتورة</h3>
+        <h3 class="section-title">الخطوة 3: مراجعة الفاتورة</h3>
         <div class="table-wrapper">
           <table class="invoice-table">
             <thead>
               <tr>
                 <th class="col-product">المنتج</th>
-                <th class="col-variant">اللون</th>
-                <th class="col-variant">المقاس</th>
+                <th class="col-props">الخواص</th>
                 <th class="col-price">سعر الشراء</th>
                 <th class="col-quantity">الكمية</th>
                 <th class="col-price">سعر البيع المقترح</th>
@@ -56,52 +80,42 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(item, index) in invoiceItems" :key="index" class="invoice-row">
+              <tr v-for="(item, index) in invoiceItems" :key="item.uniqueId" class="invoice-row">
                 <td class="col-product">
                   <div class="product-info">
                     <span class="product-name">{{ item.name }}</span>
                     <small class="product-margin">هامش ربح: {{ getProductById(item.productId)?.profitMargin || 0
-                    }}%</small>
+                      }}%</small>
                   </div>
                 </td>
-                <td class="col-variant">
-                  <select v-model="item.color" class="table-input" :class="{ 'input-error': !item.color && error }">
-                    <option value="" disabled>اختر لون...</option>
-                    <option v-for="variant in getProductById(item.productId)?.variants" :key="variant.colorName"
-                      :value="variant.colorName">
-                      {{ variant.colorName }}
-                    </option>
-                  </select>
-                </td>
-                <td class="col-variant">
-                  <select v-model="item.size" class="table-input" :disabled="!getSizesForProduct(item.productType)"
-                    :class="{ 'input-error': !item.size && error }">
-                    <option value="" disabled>اختر مقاس...</option>
-                    <option v-if="!getSizesForProduct(item.productType)" value="مقاس واحد">مقاس واحد</option>
-                    <option v-for="size in getSizesForProduct(item.productType)" :key="size" :value="size">
-                      {{ size }}
-                    </option>
-                  </select>
+                <td class="col-props">
+                  <div class="props-display">
+                    <span v-for="(value, propName) in item.properties" :key="propName" class="prop-chip">
+                      <span v-if="propName === 'color'" class="prop-color-dot" :style="{ backgroundColor: value }"></span>
+                      <strong class="prop-name">{{ propName === 'color' ? 'اللون' : propName }}:</strong>
+                      {{ value }}
+                    </span>
+                  </div>
                 </td>
                 <td class="col-price">
                   <input v-model.number="item.purchasePrice" type="number" class="table-input" placeholder="0.00"
                     :class="{ 'input-error': (!item.purchasePrice || item.purchasePrice <= 0) && error }"
-                    @change="syncPricesForProduct(item)" />
+                    @input="syncPurchasePrice(item, item.purchasePrice)" />
                 </td>
                 <td class="col-quantity">
                   <input v-model.number="item.quantityToAdd" type="number" class="table-input" placeholder="0" min="1"
                     :class="{ 'input-error': (!item.quantityToAdd || item.quantityToAdd <= 0) && error }" />
                 </td>
                 <td class="col-price">
-                  <span class="calculated-price">{{ formatCurrency(item.sellingPrice, '') }}</span>
+                  <span class="calculated-price">{{ formatCurrency(calculateSellingPrice(item), '') }}</span>
                 </td>
                 <td class="col-total">
                   <span class="total-amount">{{ formatCurrency((item.purchasePrice || 0) * (item.quantityToAdd || 0))
-                  }}</span>
+                    }}</span>
                 </td>
                 <td class="col-actions">
                   <button @click="removeItem(index)" type="button" class="btn-remove" title="حذف المنتج">
-                    <span class="btn-icon">×</span>
+                    <span>×</span>
                   </button>
                 </td>
               </tr>
@@ -119,11 +133,12 @@
 
       <div v-else class="empty-state">
         <div class="empty-icon">📦</div>
-        <h4>لا توجد منتجات في الفاتورة</h4>
-        <p>استخدم القوائم أعلاه لإضافة أول منتج.</p>
+        <h4>الفاتورة فارغة</h4>
+        <p>ابدأ باختيار منتج من القوائم أعلاه.</p>
       </div>
-      <div v-if="error" class="alert alert-error">{{ error }}</div>
+
       <div v-if="successMessage" class="alert alert-success">{{ successMessage }}</div>
+      <div v-if="error" class="alert alert-error">{{ error }}</div>
       <div class="form-actions">
         <button @click="clearInvoice" type="button" class="btn btn-secondary" :disabled="invoiceItems.length === 0">مسح
           الفاتورة</button>
@@ -148,82 +163,128 @@ const productStore = useProductStore();
 
 const { getProductById, getAllProducts } = storeToRefs(productStore);
 
+// State for selection process
 const selectedMainCategory = ref(null);
 const selectedSubCategory = ref(null);
 const selectedProductId = ref(null);
+const selectedProduct = ref(null);
+const variantProperties = ref({});
+
+// State for the invoice itself
 const invoiceItems = reactive([]);
 const error = ref('');
 const successMessage = ref('');
 
-const SIZES_BY_TYPE = {
-  shirt: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'],
-  pants: ['28', '30', '32', '34', '36', '38', '40'],
-  shoes: ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45'],
-  accessory: null,
-};
-
-const getSizesForProduct = (productType) => SIZES_BY_TYPE[productType] || null;
-
+// Computed properties for UI
 const mainCategories = computed(() => categoryStore.getMainCategories);
 const subCategories = computed(() => selectedMainCategory.value ? categoryStore.getSubcategoriesByParent(selectedMainCategory.value) : []);
 const availableProducts = computed(() => {
   if (!selectedSubCategory.value) return [];
   return getAllProducts.value.filter(p => p.categoryId === selectedSubCategory.value);
 });
+
+const availableProperties = computed(() => {
+  if (!selectedProduct.value) return { colors: [], otherProps: [] };
+
+  console.log('Selected Product:', selectedProduct.value); // Debug log
+  console.log('Product Properties:', selectedProduct.value.properties); // Debug log
+
+  // Get colors from variants (using colorHex)
+  const colors = selectedProduct.value.variants ? selectedProduct.value.variants.map(v => v.colorHex) : [];
+  
+  // Get other properties - fixed to handle the nested structure
+  const otherProps = [];
+  
+  if (selectedProduct.value.properties) {
+    Object.entries(selectedProduct.value.properties).forEach(([propName, propData]) => {
+      console.log(`Processing property ${propName}:`, propData); // Debug log
+      
+      // Check if propData has a legacy array (based on your console output)
+      if (propData && typeof propData === 'object' && propData.legacy && Array.isArray(propData.legacy)) {
+        otherProps.push({
+          name: propName,
+          values: propData.legacy
+        });
+      }
+      // Fallback: if it's directly an array
+      else if (Array.isArray(propData)) {
+        otherProps.push({
+          name: propName,
+          values: propData
+        });
+      }
+      // Fallback: if it's a simple value, convert to array
+      else if (propData && typeof propData === 'string') {
+        otherProps.push({
+          name: propName,
+          values: [propData]
+        });
+      }
+    });
+  }
+
+  console.log('Available Properties:', { colors, otherProps }); // Debug log
+  return { colors, otherProps };
+});
+
+const isVariantComplete = computed(() => {
+  if (!selectedProduct.value) return false;
+  const requiredProps = availableProperties.value.otherProps.map(p => p.name);
+  if (availableProperties.value.colors.length > 0) {
+    requiredProps.push('color');
+  }
+
+  return requiredProps.every(propName => variantProperties.value[propName]);
+});
+
 const totalInvoiceAmount = computed(() => {
   return invoiceItems.reduce((total, item) => total + ((item.purchasePrice || 0) * (item.quantityToAdd || 0)), 0);
 });
 
-
-watch(selectedMainCategory, () => { selectedSubCategory.value = null; selectedProductId.value = null; });
-watch(selectedSubCategory, () => { selectedProductId.value = null; });
-watch(invoiceItems, (items) => {
-  items.forEach(item => {
-    const product = getProductById.value(item.productId);
-    if (item.purchasePrice > 0 && product && product.profitMargin >= 0) {
-      const calculatedPrice = item.purchasePrice * (1 + product.profitMargin / 100);
-      item.sellingPrice = parseFloat(calculatedPrice.toFixed(2));
-    } else {
-      item.sellingPrice = 0;
-    }
-  });
-}, { deep: true });
-
-onMounted(() => {
-  categoryStore.fetchCategories();
-  productStore.fetchProducts();
-});
-
-// MODIFIED: This function now populates the last known prices for the product
-const addProductToInvoice = () => {
-  const product = getProductById.value(selectedProductId.value);
-  if (product) {
-    const defaultSize = getSizesForProduct(product.productType) ? '' : 'مقاس واحد';
-    invoiceItems.push({
-      productId: product.id,
-      name: product.name,
-      productType: product.productType,
-      purchasePrice: product.purchasePrice || 0, // Pre-fill with last purchase price
-      sellingPrice: product.sellingPrice || 0,  // Pre-fill with last selling price
-      color: '',
-      size: defaultSize,
-      quantityToAdd: 1,
-    });
-    selectedProductId.value = null;
+const calculateSellingPrice = (item) => {
+  const product = getProductById.value(item.productId);
+  if (item.purchasePrice > 0 && product && product.profitMargin >= 0) {
+    const calculatedPrice = item.purchasePrice * (1 + product.profitMargin / 100);
+    return parseFloat(calculatedPrice.toFixed(2));
   }
+  return 0;
 };
 
-// NEW: This function syncs the purchase price across all rows of the same product
-const syncPricesForProduct = (changedItem) => {
-  const newPrice = changedItem.purchasePrice;
-  const productId = changedItem.productId;
+// Watchers to reset selections
+watch(selectedMainCategory, () => { selectedSubCategory.value = null; });
+watch(selectedSubCategory, () => { selectedProductId.value = null; });
+watch(selectedProductId, (newId) => {
+  selectedProduct.value = newId ? getProductById.value(newId) : null;
+  variantProperties.value = {}; // Reset properties when product changes
+});
 
-  invoiceItems.forEach(item => {
-    // If it's the same product but not the exact same item, update its price
-    if (item.productId === productId && item !== changedItem) {
-      item.purchasePrice = newPrice;
-    }
+onMounted(async () => {
+  await categoryStore.fetchCategories();
+  await productStore.fetchProducts();
+  console.log('All Products loaded:', getAllProducts.value); // Debug log
+});
+
+// Core Logic Functions
+const addProductToInvoice = () => {
+  if (!isVariantComplete.value) return;
+
+  const product = selectedProduct.value;
+  
+  // Check if there's already an item with the same productId to get its price
+  const existingItem = invoiceItems.find(item => item.productId === product.id);
+  const defaultPrice = existingItem ? existingItem.purchasePrice : 0;
+  
+  invoiceItems.push({
+    uniqueId: Date.now(),
+    productId: product.id,
+    name: product.name,
+    properties: { ...variantProperties.value },
+    purchasePrice: defaultPrice,
+    quantityToAdd: 1,
   });
+
+  // Reset for next entry
+  variantProperties.value = {};
 };
 
 const removeItem = (index) => {
@@ -232,9 +293,19 @@ const removeItem = (index) => {
 
 const clearInvoice = () => {
   invoiceItems.length = 0;
+  selectedProductId.value = null;
   selectedMainCategory.value = null;
   error.value = '';
   successMessage.value = '';
+};
+
+// Function to sync purchase prices across same product variants
+const syncPurchasePrice = (changedItem, newPrice) => {
+  invoiceItems.forEach(item => {
+    if (item.productId === changedItem.productId && item.uniqueId !== changedItem.uniqueId) {
+      item.purchasePrice = newPrice;
+    }
+  });
 };
 
 const validateInvoice = () => {
@@ -246,12 +317,6 @@ const validateInvoice = () => {
     if (!item.quantityToAdd || item.quantityToAdd <= 0) {
       error.value = `الكمية للمنتج "${item.name}" يجب أن تكون أكبر من صفر.`; return false;
     }
-    if (!item.color) {
-      error.value = `يجب اختيار لون للمنتج "${item.name}".`; return false;
-    }
-    if (!item.size) {
-      error.value = `يجب اختيار مقاس للمنتج "${item.name}".`; return false;
-    }
   }
   return true;
 };
@@ -260,19 +325,20 @@ const handleSubmit = async () => {
   if (!validateInvoice()) return;
   successMessage.value = '';
 
+  // Adapt the flexible UI data to the store's expected format
   const payload = invoiceItems.map(item => ({
     productId: item.productId,
     purchasePrice: item.purchasePrice,
     quantityToAdd: item.quantityToAdd,
-    color: item.color,
-    size: item.size,
+    properties: item.properties, // Pass the whole properties object
   }));
 
   const result = await productStore.processPurchaseInvoice(payload);
 
   if (result.success) {
-    successMessage.value = `تم حفظ فاتورة الشراء بنجاح!`;
+    successMessage.value = `تم حفظ فاتورة الشراء بنجاح! سيتم تحديث المخزون والأسعار.`;
     clearInvoice();
+    setTimeout(() => { successMessage.value = '' }, 5000);
   } else {
     error.value = result.error;
   }
@@ -283,12 +349,12 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount || 0);
-  return `${formatted}${currencySymbol ? `${currencySymbol}` : ''}`;
+  return `${formatted}${currencySymbol ? ` ${currencySymbol}` : ''}`;
 };
 </script>
 
 <style scoped>
-/* All styles from your previous file are correct and retained */
+/* General Layout */
 .add-product-container {
   padding: 20px;
   direction: rtl;
@@ -334,13 +400,32 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   margin-bottom: 20px;
 }
 
+/* Selection Rows & Grids */
 .selection-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 2fr auto;
+  grid-template-columns: 1fr 1fr 2fr;
   gap: 20px;
   align-items: end;
 }
 
+.product-selector {
+  flex-grow: 2;
+}
+
+.properties-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.add-item-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+/* Form Elements */
 .form-group {
   display: flex;
   flex-direction: column;
@@ -350,11 +435,13 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 .form-label {
   font-weight: 600;
   color: #374151;
+  font-size: 14px;
 }
 
 .form-select {
+  width: 100%;
   padding: 12px 16px;
-  border: 2px solid #e5e7eb;
+  border: 1px solid #d1d5db;
   border-radius: 8px;
   background: white;
 }
@@ -363,12 +450,46 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   background: #10b981;
   color: white;
   border: none;
-  padding: 12px 20px;
+  padding: 12px 24px;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
+.btn-add:disabled {
+  background-color: #a1a1aa;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  font-size: 20px;
+}
+
+/* Color Swatches */
+.color-swatch-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.color-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 3px solid transparent;
+  transition: border-color 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.color-swatch.selected {
+  border-color: #3b82f6;
+}
+
+/* Invoice Table */
 .invoice-table-container {
   margin-bottom: 30px;
 }
@@ -388,12 +509,12 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   background: #1e293b;
   color: white;
   padding: 16px 12px;
-  text-align: center;
+  text-align: right;
 }
 
 .invoice-table td {
   padding: 12px;
-  text-align: center;
+  text-align: right;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
 }
@@ -404,34 +525,31 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 
 .col-product {
   width: 25%;
-  text-align: right;
 }
 
-.col-variant {
+.col-props {
+  width: 25%;
+}
+
+.col-price,
+.col-total {
   width: 13%;
-}
-
-.col-price {
-  width: 12%;
 }
 
 .col-quantity {
   width: 10%;
 }
 
-.col-total {
-  width: 12%;
-}
-
 .col-actions {
-  width: 8%;
+  width: 6%;
+  text-align: center;
 }
 
+/* Corrected to include profit margin */
 .product-info {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  text-align: right;
   gap: 4px;
 }
 
@@ -444,7 +562,7 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   font-size: 12px;
   color: #64748b;
   background-color: #f1f5f9;
-  padding: 2px 6px;
+  padding: 2px 8px;
   border-radius: 4px;
 }
 
@@ -461,68 +579,103 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   border-color: #ef4444;
 }
 
-.calculated-price {
+/* Properties Display in Table */
+.props-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.prop-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #eef2ff;
+  color: #4338ca;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.prop-color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.prop-name {
+  color: #64748b;
+}
+
+.calculated-price,
+.total-amount {
   font-weight: 600;
-  background-color: #f1f5f9;
-  padding: 8px 10px;
-  border-radius: 6px;
-  display: inline-block;
-  min-width: 80px;
 }
 
 .btn-remove {
-  background: #ef4444;
-  color: white;
+  background: transparent;
+  color: #ef4444;
   border: none;
-  border-radius: 6px;
+  border-radius: 50%;
   width: 32px;
   height: 32px;
   cursor: pointer;
+  font-size: 24px;
 }
 
 .total-row {
   background-color: #f8fafc;
+  font-weight: bold;
 }
 
 .total-label {
-  font-weight: 600;
-  text-align: right;
+  text-align: left;
+  padding-left: 20px;
 }
 
 .total-amount-cell {
   font-weight: bold;
   color: #059669;
-  font-size: 16px;
+  font-size: 18px;
+  text-align: right;
 }
 
+/* Empty State & Alerts */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
   color: #64748b;
+  background-color: #f8fafc;
+  border-radius: 12px;
 }
 
 .empty-icon {
   font-size: 64px;
+  margin-bottom: 10px;
 }
 
 .alert {
   padding: 16px;
   border-radius: 8px;
   margin-bottom: 20px;
+  text-align: center;
+  font-weight: 500;
 }
 
 .alert-error {
   background-color: #fef2f2;
   color: #dc2626;
-  border: 1px solid #fecaca;
 }
 
 .alert-success {
   background-color: #f0fdf4;
   color: #16a34a;
-  border: 1px solid #bbf7d0;
 }
 
+/* Form Actions */
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -532,20 +685,28 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 }
 
 .btn-secondary {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
+  background: #6b7280;
+  color: white;
+  border: none;
   padding: 12px 24px;
   border-radius: 8px;
   font-weight: 600;
+  cursor: pointer;
 }
 
 .btn-primary {
   background: #3b82f6;
   color: white;
+  border: none;
   padding: 12px 24px;
   border-radius: 8px;
   font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary:disabled {
+  background-color: #a1a1aa;
+  cursor: not-allowed;
 }
 
 .loading-spinner {
@@ -556,6 +717,12 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   border-radius: 50%;
   animation: spin 1s linear infinite;
   display: inline-block;
-  margin-left: 8px;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

@@ -27,9 +27,8 @@
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th scope="col" style="width: 35%;">المنتج</th>
-                                    <th scope="col" class="text-center">اللون</th>
-                                    <th scope="col" class="text-center">المقاس</th>
+                                    <th scope="col" style="width: 40%;">المنتج</th>
+                                    <th scope="col" style="width: 25%;">الخواص</th>
                                     <th scope="col" class="text-center">الكمية</th>
                                     <th scope="col" class="text-center">سعر الشراء للوحدة</th>
                                     <th scope="col" class="text-end">الإجمالي الفرعي</th>
@@ -39,7 +38,7 @@
                                 <tr v-for="(item, index) in invoice.items" :key="index">
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <img :src="getVariantImage(item.productId, item.color)"
+                                            <img :src="getVariantImage(item.productId, item.properties.color)"
                                                 class="product-img me-3" :alt="getProductInfo(item.productId).name">
                                             <div>
                                                 <div class="fw-bold">{{ getProductInfo(item.productId).name }}</div>
@@ -47,8 +46,17 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="text-center fw-medium">{{ item.color }}</td>
-                                    <td class="text-center fw-medium">{{ item.size }}</td>
+                                    <td>
+                                        <div class="props-display">
+                                            <span v-for="(value, propName) in item.properties"
+                                                :key="propName" class="prop-chip">
+                                                <span v-if="propName === 'color'" class="prop-color-dot"
+                                                    :style="{ backgroundColor: value }"></span>
+                                                <strong class="prop-name">{{ propName === 'color' ? 'اللون' : propName }}:</strong>
+                                                {{ value }}
+                                            </span>
+                                        </div>
+                                    </td>
                                     <td class="text-center">{{ item.quantityAdded }}</td>
                                     <td class="text-center">{{ formatCurrency(item.purchasePrice) }}</td>
                                     <td class="text-end fw-bold">{{ formatCurrency(item.purchasePrice *
@@ -57,7 +65,7 @@
                             </tbody>
                             <tfoot>
                                 <tr class="table-light">
-                                    <td colspan="5" class="text-start fw-bold h5">الإجمالي الكلي للفاتورة</td>
+                                    <td colspan="4" class="text-start fw-bold h5">الإجمالي الكلي للفاتورة</td>
                                     <td class="text-end fw-bold h5 text-primary">{{ formatCurrency(invoice.totalAmount)
                                         }}</td>
                                 </tr>
@@ -88,24 +96,20 @@ onMounted(async () => {
     isLoading.value = false;
 });
 
-// Renamed for clarity
 const getProductInfo = (productId) => {
     return productStore.getProductById(productId) || { name: 'منتج غير معروف' };
 };
 
-// NEW: Helper function to get the correct image based on the product's color variant
-const getVariantImage = (productId, colorName) => {
+const getVariantImage = (productId, colorHex) => {
     const product = productStore.getProductById(productId);
     if (!product || !product.variants) {
-        return 'https://placehold.co/60x60/eee/ccc?text=?'; // Placeholder
+        return 'https://placehold.co/60x60/eee/ccc?text=?';
     }
-
-    const variant = product.variants.find(v => v.colorName === colorName);
+    const variant = product.variants.find(v => v.colorHex === colorHex);
     if (variant && variant.images && variant.images.length > 0) {
-        return variant.images[0]; // Return the first image of the correct color
+        return variant.images[0];
     }
-
-    return 'https://placehold.co/60x60/eee/ccc?text=N/A'; // Placeholder if color variant has no image
+    return 'https://placehold.co/60x60/eee/ccc?text=N/A';
 };
 
 const formatDate = (dateString) => {
@@ -119,7 +123,6 @@ const formatCurrency = (amount) => {
 </script>
 
 <style scoped>
-/* Styles from your provided file are correct and retained */
 .card {
     border-radius: 0.75rem;
 }
@@ -142,5 +145,35 @@ const formatCurrency = (amount) => {
 
 .fw-medium {
     font-weight: 500;
+}
+
+.props-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.prop-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #eef2ff;
+    color: #4338ca;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.prop-color-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.prop-name {
+    color: #64748b;
 }
 </style>

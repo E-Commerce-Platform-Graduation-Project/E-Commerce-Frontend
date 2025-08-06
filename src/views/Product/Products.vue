@@ -12,10 +12,10 @@
         <div class="col-lg-12">
             <div class="search-filter-container">
                 <div class="search-container">
-                    <input 
-                    v-model="searchQuery" 
-                    type="text" 
-                    placeholder="البحث باسم المنتج..."
+                    <input
+                    v-model="searchQuery"
+                    type="text"
+                    placeholder="البحث بالاسم أو رقم المعرف..."
                     class="form-control search-input"
                     />
                     <i class="fas fa-search search-icon"></i>
@@ -34,6 +34,9 @@
                         <option value="all">كل الحالات</option>
                         <option value="active">المنتجات الظاهرة</option>
                         <option value="inactive">المنتجات المخفية</option>
+                        <option value="in_stock">المنتجات المتوفرة</option>
+                        <option value="low_stock">المنتجات منخفضة المخزون</option>
+                        <option value="out_of_stock">المنتجات منتهية المخزون</option>
                     </select>
                     <i class="fas fa-chevron-down filter-icon"></i>
                 </div>
@@ -47,13 +50,13 @@
     </div>
     <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
-    <ProductsList 
+    <ProductsList
         v-else-if="productsForDisplay.length > 0"
         :products="productsForDisplay"
         @view-details="openDetailsModal"
         @edit-product="openEditModal"
     />
-    
+
     <div v-else class="text-center py-5">
         <i class="fas fa-box-open fa-4x text-muted mb-3"></i>
         <h4 class="text-muted">لا توجد منتجات تطابق الفلتر</h4>
@@ -67,9 +70,9 @@
         @edit-product="handleEditFromDetails"
     />
 
-    <EditProduct 
-        v-if="isEditModalVisible" 
-        :product="selectedProduct" 
+    <EditProduct
+        v-if="isEditModalVisible"
+        :product="selectedProduct"
         @close="closeEditModal"
         @product-updated="handleProductUpdate"
     />
@@ -80,9 +83,9 @@
 import { ref, computed, onMounted } from 'vue';
 import { useProductStore } from '@/stores/productStore';
 import { useCategoryStore } from '@/stores/categoryStore';
-import EditProduct from '@/components/Product/EditProduct.vue'; 
+import EditProduct from '@/components/Product/EditProduct.vue';
 import ProductDetails from '@/components/Product/ProductDetails.vue';
-import ProductsList from '@/components/Product/ProductsList.vue'; 
+import ProductsList from '@/components/Product/ProductsList.vue';
 
 const productStore = useProductStore();
 const categoryStore = useCategoryStore();
@@ -106,7 +109,6 @@ const categoryHierarchy = computed(() => {
         hierarchy.push({ id: main.id, name: main.name, isParent: true });
         const subCategories = categoryStore.getSubcategoriesByParent(main.id);
         subCategories.forEach(sub => {
-            // Indent sub-category names for better readability
             hierarchy.push({ id: sub.id, name: `\u00A0\u00A0\u00A0 ${sub.name}`, isParent: false });
         });
     });
@@ -115,13 +117,19 @@ const categoryHierarchy = computed(() => {
 
 const filteredProducts = computed(() => {
   return productStore.getAllProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.value.toLowerCase());
-    
+    const query = searchQuery.value.toLowerCase().trim();
+
+    // Updated search to include name and ID
+    const matchesSearch = query === '' ||
+                          product.name.toLowerCase().includes(query) ||
+                          String(product.id).includes(query);
+
+    // Category filter logic (unchanged)
     let matchesCategory = true;
     if (categoryFilter.value !== 'all') {
         const selectedCatId = parseInt(categoryFilter.value);
         const isParent = categoryStore.getMainCategories.some(cat => cat.id === selectedCatId);
-        
+
         if (isParent) {
             const childIds = categoryStore.getSubcategoriesByParent(selectedCatId).map(sub => sub.id);
             matchesCategory = childIds.includes(product.categoryId);
@@ -129,28 +137,37 @@ const filteredProducts = computed(() => {
             matchesCategory = product.categoryId === selectedCatId;
         }
     }
-    
-    const matchesStatus = statusFilter.value === 'all' || (statusFilter.value === 'active' ? product.is_active : !product.is_active);
-    
+
+    // Updated status filter to include stock levels
+    let matchesStatus = true;
+    const status = statusFilter.value;
+    if (status === 'active') {
+        matchesStatus = product.is_active;
+    } else if (status === 'inactive') {
+        matchesStatus = !product.is_active;
+    } else if (status !== 'all') {
+        const quantity = productStore.getProductTotalQuantity(product.id);
+        if (status === 'out_of_stock') {
+            matchesStatus = quantity <= 0;
+        } else if (status === 'low_stock') {
+            matchesStatus = quantity > 0 && quantity <= 15;
+        } else if (status === 'in_stock') {
+            matchesStatus = quantity > 15;
+        }
+    }
+
     return matchesSearch && matchesCategory && matchesStatus;
   });
 });
 
-// NEW: Prepares products for display, adding a 'displayImage' property.
-// This allows child components like ProductsList to easily show a thumbnail.
 const productsForDisplay = computed(() => {
     return filteredProducts.value.map(product => {
-        // Find the first image from the first color variant to use as the main display image.
-        const firstVariant = product.variants?.[0];
-        const displayImage = firstVariant?.images?.[0] || 'https://placehold.co/300x300/eee/ccc?text=No+Image';
-
-        return {
-            ...product,
-            displayImage // Add the calculated display image to the product object
-        };
+        const displayImage = product.mainImage ||
+                            product.variants?.[0]?.images?.[0] ||
+                            'https://placehold.co/300x300/eee/ccc?text=No+Image';
+        return { ...product, displayImage };
     });
 });
-
 
 // Methods
 onMounted(() => {
@@ -159,7 +176,6 @@ onMounted(() => {
 });
 
 const openDetailsModal = (product) => {
-    // The product object received from the event already contains all original data
     selectedProduct.value = product;
     isDetailsModalVisible.value = true;
 };
@@ -186,7 +202,6 @@ const handleEditFromDetails = () => {
 };
 
 const handleProductUpdate = () => {
-    // Re-fetch the product from the store to ensure data is fresh
     const updatedProduct = productStore.getProductById(selectedProduct.value.id);
     if (isDetailsModalVisible.value && updatedProduct) {
         selectedProduct.value = updatedProduct;
@@ -232,7 +247,7 @@ const handleProductUpdate = () => {
 }
 .filter-container {
   position: relative;
-  min-width: 200px;
+  min-width: 220px; /* Increased width to accommodate longer text */
 }
 .status-filter {
   appearance: none;
