@@ -1,17 +1,13 @@
 <template>
     <div class="container-fluid px-4 py-4">
-        <!-- Loading State -->
         <div v-if="isLoading" class="text-center py-5">
             <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
             <p class="mt-3 text-muted">جاري تحميل بيانات العميل...</p>
         </div>
 
-        <!-- Error State -->
         <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
-        <!-- Main Content -->
         <div v-else-if="customer" class="customer-details-page">
-            <!-- Header -->
             <div class="details-header mb-4">
                 <div class="d-flex align-items-center">
                     <div class="customer-avatar me-3">
@@ -30,7 +26,6 @@
                 </router-link>
             </div>
 
-            <!-- Customer Info Card -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>معلومات العميل</h5>
@@ -53,9 +48,7 @@
                 </div>
             </div>
 
-            <!-- Orders and Ratings -->
             <div class="row">
-                <!-- Orders History Section -->
                 <div class="col-lg-7">
                     <div class="card shadow-sm">
                         <div class="card-header">
@@ -63,14 +56,11 @@
                         </div>
                         <div class="card-body p-0">
                             <div v-if="customerOrders.length > 0" class="orders-container">
-                                <!-- Fixed Header -->
                                 <div class="order-item header sticky-header">
                                     <div class="order-info">الطلب</div>
                                     <div class="order-total">المجموع</div>
                                     <div class="order-status">الحالة</div>
                                 </div>
-                                
-                                <!-- Scrollable Orders List -->
                                 <div class="scrollable-orders-body">
                                     <div class="orders-list">
                                         <div v-for="order in customerOrders" :key="order.id" class="order-item clickable"
@@ -94,7 +84,6 @@
                     </div>
                 </div>
 
-                <!-- Ratings Section -->
                 <div class="col-lg-5">
                     <div class="card shadow-sm">
                         <div class="card-header">
@@ -102,11 +91,24 @@
                         </div>
                         <div class="card-body scrollable-card-body">
                             <div v-if="customerRatings.length > 0" class="ratings-list">
-                                <div v-for="rating in customerRatings" :key="rating.productId" class="rating-item">
-                                    <span class="rating-product-name">{{ rating.productName }}</span>
-                                    <div class="rating-stars">
-                                        <i v-for="i in 5" :key="i" class="fas fa-star"
-                                            :class="{ 'filled': i <= rating.rating }"></i>
+                                <div v-for="rating in customerRatings" :key="rating.productId" 
+                                     class="rating-item" 
+                                     :class="{ 'has-comment': rating.comment }"
+                                     @click="rating.comment ? openCommentModal(rating) : null">
+                                    <div class="rating-main-info">
+                                        <span class="rating-product-name">{{ rating.productName }}</span>
+                                        <div class="rating-details">
+                                            <div class="rating-stars">
+                                                <i v-for="i in 5" :key="i" class="fas fa-star"
+                                                    :class="{ 'filled': i <= rating.rating }"></i>
+                                            </div>
+                                            <span v-if="rating.comment" class="comment-status view-comment">
+                                                عرض التعليق
+                                            </span>
+                                            <span v-else class="comment-status no-comment">
+                                                بدون تعليق
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -119,8 +121,19 @@
             </div>
         </div>
 
-        <!-- Order Details Modal -->
         <OrderDetails v-if="isOrderDetailsVisible" :order="selectedOrder" @close="closeOrderDetailsModal" />
+        
+        <div v-if="isCommentModalVisible" class="comment-modal-backdrop" @click="closeCommentModal">
+            <div class="comment-modal-content" @click.stop>
+                <div class="comment-modal-header">
+                    <h5 class="mb-0">تعليق على المنتج: {{ selectedComment.productName }}</h5>
+                    <button type="button" class="btn-close" @click="closeCommentModal"></button>
+                </div>
+                <div class="comment-modal-body">
+                    <textarea class="form-control" :value="selectedComment.comment" readonly rows="8"></textarea>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -129,27 +142,28 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useCustomerStore } from '@/stores/customerStore';
 import { useOrderStore } from '@/stores/orderStore';
-import { useProductStore } from '@/stores/productStore';
 import OrderDetails from '@/components/Order/OrderDetails.vue';
 
 const route = useRoute();
 const customerStore = useCustomerStore();
 const orderStore = useOrderStore();
-const productStore = useProductStore();
 
 const customer = ref(null);
 const isLoading = ref(true);
 const error = ref(null);
-
 const isOrderDetailsVisible = ref(false);
 const selectedOrder = ref(null);
 
+// State for the new comment modal
+const isCommentModalVisible = ref(false);
+const selectedComment = ref(null);
+
 onMounted(async () => {
     const customerId = parseInt(route.params.id);
+    // Fetch all data concurrently
     await Promise.all([
         customerStore.fetchCustomers(),
         orderStore.fetchOrders(),
-        productStore.fetchProducts()
     ]);
     customer.value = customerStore.getCustomerById(customerId);
     if (!customer.value) {
@@ -164,23 +178,21 @@ const customerOrders = computed(() => {
 });
 
 const customerRatings = computed(() => {
-    const ratings = [];
-    customerOrders.value.forEach(order => {
-        order.items.forEach(item => {
-            if (item.rating) {
-                const product = productStore.getProductById(item.productId);
-                if (product) {
-                    ratings.push({
-                        productId: item.productId,
-                        productName: product.name,
-                        rating: item.rating,
-                    });
-                }
-            }
-        });
-    });
-    return ratings;
+    if (!customer.value) return [];
+    return orderStore.getCustomerProductRatings(customer.value.id);
 });
+
+// --- New Modal Functions ---
+const openCommentModal = (rating) => {
+    selectedComment.value = rating;
+    isCommentModalVisible.value = true;
+};
+
+const closeCommentModal = () => {
+    isCommentModalVisible.value = false;
+    selectedComment.value = null;
+};
+// --- End New Modal Functions ---
 
 const openOrderDetailsModal = (order) => {
     selectedOrder.value = order;
@@ -219,7 +231,6 @@ const formatDate = (dateString) => {
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
-
 .customer-avatar {
     width: 70px;
     height: 70px;
@@ -231,17 +242,12 @@ const formatDate = (dateString) => {
     justify-content: center;
     font-size: 30px;
 }
-
-.customer-name {
-    font-weight: bold;
-}
-
+.customer-name { font-weight: bold; }
 .info-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 1.5rem;
 }
-
 .info-item label {
     display: flex;
     align-items: center;
@@ -251,23 +257,16 @@ const formatDate = (dateString) => {
     font-size: 0.9rem;
     margin-bottom: 5px;
 }
-
 .info-item p {
     font-size: 1.1rem;
     color: #212529;
     margin: 0;
 }
-
 .scrollable-card-body {
     max-height: 500px;
     overflow-y: auto;
 }
-
-/* New Orders Container Structure */
-.orders-container {
-    position: relative;
-}
-
+.orders-container { position: relative; }
 .sticky-header {
     position: sticky;
     top: 0;
@@ -275,85 +274,127 @@ const formatDate = (dateString) => {
     border-bottom: 2px solid #dee2e6;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
-
 .scrollable-orders-body {
     max-height: 400px;
     overflow-y: auto;
 }
-
-.orders-list,
+.orders-list {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
 .ratings-list {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    padding: 1rem;
 }
-
 .order-item {
     display: grid;
     grid-template-columns: 2fr 1.5fr 1.5fr;
     align-items: center;
     padding: 1rem;
-    background-color: #f8f9fa;
-    border-radius: 8px;
+    background-color: #fff;
+    border-bottom: 1px solid #e9ecef;
 }
-
 .order-item.header {
-    background-color: #e9ecef;
+    background-color: #f8f9fa;
     font-weight: bold;
-    margin: 0;
-    border-radius: 0;
 }
-
 .order-item.clickable {
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease;
 }
-
 .order-item.clickable:hover {
     background-color: #e3f2fd;
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
-    transform: translateY(-1px);
 }
+.order-info { display: flex; flex-direction: column; }
+.order-id { font-weight: bold; }
+.order-date { font-size: 0.9rem; color: #6c757d; }
+.order-total { font-weight: bold; font-size: 1.1rem; }
 
-.order-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.order-id {
-    font-weight: bold;
-}
-
-.order-date {
-    font-size: 0.9rem;
-    color: #6c757d;
-}
-
-.order-total {
-    font-weight: bold;
-    font-size: 1.1rem;
-}
-
+/* --- Updated Rating Item Styles --- */
 .rating-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     padding: 1rem;
     background-color: #f8f9fa;
     border-radius: 8px;
+    border: 1px solid #e9ecef;
+    transition: box-shadow 0.2s ease;
 }
-
-.rating-product-name {
+.rating-item.has-comment {
+    cursor: pointer;
+}
+.rating-item.has-comment:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border-color: #ced4da;
+}
+.rating-main-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.rating-product-name { font-weight: 500; }
+.rating-details {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.rating-stars { color: #ffc107; }
+.rating-stars .fa-star:not(.filled) { color: #e0e0e0; }
+.comment-status {
+    font-size: 0.8rem;
     font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+.view-comment {
+    background-color: #e7f1ff;
+    color: #0d6efd;
+}
+.no-comment {
+    background-color: #f1f3f4;
+    color: #6c757d;
 }
 
-.rating-stars {
-    color: #ffc107;
+/* --- New Comment Modal Styles --- */
+.comment-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
 }
-
-.rating-stars .fa-star:not(.filled) {
-    color: #e0e0e0;
+.comment-modal-content {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    width: 90%;
+    max-width: 500px;
+    animation: modal-fade-in 0.3s ease-out;
+}
+.comment-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+.comment-modal-body textarea {
+    resize: vertical;
+    font-family: inherit;
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+}
+@keyframes modal-fade-in {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Status Badge Styling */
@@ -361,38 +402,11 @@ const formatDate = (dateString) => {
     border-radius: 8px;
     padding: 8px 16px;
     font-weight: bold;
-    border: none;
     font-size: 0.9rem;
-    display: inline-block;
 }
-
-.status-pending {
-    background-color: #fff8e1;
-    color: #f59e0b;
-}
-
-.status-processing {
-    background-color: #e0f7fa;
-    color: #06b6d4;
-}
-
-.status-shipped {
-    background-color: #f3e5f5;
-    color: #a855f7;
-}
-
-.status-completed {
-    background-color: #e8f5e9;
-    color: #22c55e;
-}
-
-.status-cancelled {
-    background-color: #ffebee;
-    color: #ef4444;
-}
-
-.status-default {
-    background-color: #f1f3f4;
-    color: #495057;
-}
+.status-pending { background-color: #fff8e1; color: #f59e0b; }
+.status-processing { background-color: #e0f7fa; color: #06b6d4; }
+.status-shipped { background-color: #f3e5f5; color: #a855f7; }
+.status-completed { background-color: #e8f5e9; color: #22c55e; }
+.status-cancelled { background-color: #ffebee; color: #ef4444; }
 </style>
