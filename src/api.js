@@ -3,9 +3,8 @@ import axios from 'axios';
 // It should be used by all Pinia stores.
 
 const api = axios.create({
-  // The baseURL is set to '/api/' to match the paths in your YAML file.
-  // This assumes the frontend is served from the same domain as the backend.
-  baseURL: 'http://13.48.136.207/api/',
+  // Use relative URL - Vite proxy will forward to the backend
+  baseURL: '/api/',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

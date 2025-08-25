@@ -72,7 +72,6 @@ const mockProducts = [
   },
 ];
 
-
 const mockInvoices = [];
 
 export const useProductStore = defineStore('product', {
@@ -120,56 +119,240 @@ export const useProductStore = defineStore('product', {
 
   actions: {
     async fetchAllData() {
-      if (this.products.length > 0) return { success: true };
-      this.isLoading = true;
+       this.isLoading = true;
+      this.error = null; // Clear previous errors
       try {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        this.products = mockProducts;
-        this.purchaseInvoices = mockInvoices;
+        const response = await api.get('products/products/');
+        
+        const productList = Array.isArray(response.data) ? response.data : response.data.results;
+
+        if (!Array.isArray(productList)) {
+          console.error('Invalid data structure for products received from API:', response.data);
+          throw new Error('Received data is not in the expected format.');
+        }
+        
+        this.products = productList.map(product => this.convertFromApiFormat(product));
+        
+        // ... (mockInvoices logic is unchanged)
+        
         return { success: true };
-      } catch (e) {
-        this.error = 'فشل في جلب البيانات.';
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        
+        // --- FIX STARTS HERE ---
+        // Use 'error.response' to get details from the failed API call, not 'response'.
+        const errorMessage = error.response?.data?.detail || 
+                             error.response?.data?.error ||
+                             'فشل في جلب البيانات.';
+                             
+        this.error = errorMessage;
+        // --- FIX ENDS HERE ---
+
         return { success: false };
       } finally {
         this.isLoading = false;
       }
     },
-
     async fetchProducts() {
       return this.fetchAllData();
     },
 
     async addProduct(productData) {
       this.isLoading = true;
+      this.error = null;
       try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // First, handle file uploads if needed
+        let mainImageUrl = null;
+        if (productData.mainImage && productData.mainImage.file) {
+          // You'll need to implement file upload logic here
+          // For now, we'll use a placeholder URL
+          mainImageUrl = productData.mainImage.url;
+        }
 
-        const newProduct = {
-          id: Math.max(...this.products.map(p => p.id), 0) + 1,
-          name: productData.name,
-          description: productData.description,
-          mainImage: productData.mainImage ? productData.mainImage.url : null,
-          categoryId: productData.categoryId,
-          profitMargin: productData.profitMargin,
-          properties: productData.selectedProperties || {},
-          purchasePrice: 0,
-          sellingPrice: 0,
-          is_active: true,
-          variants: productData.colorVariations.map(variation => ({
-            colorHex: variation.colorHex,
-            images: variation.images.map(img => img.url),
-            stock: [],
-          })),
+        // Handle variant image uploads
+        const processedColorVariations = [];
+        if (productData.colorVariations) {
+          for (const variation of productData.colorVariations) {
+            const processedImages = [];
+            for (const image of variation.images) {
+              if (image.file) {
+                // You'll need to implement file upload logic here
+                // For now, we'll use the URL as is
+                processedImages.push(image.url);
+              }
+            }
+            processedColorVariations.push({
+              ...variation,
+              images: processedImages.map(url => ({ url }))
+            });
+          }
+        }
+
+        // Create processed product data
+        const processedProductData = {
+          ...productData,
+          mainImage: mainImageUrl ? { url: mainImageUrl } : null,
+          colorVariations: processedColorVariations
         };
 
+        // Convert the frontend data structure to match the API
+        const apiPayload = this.convertToApiFormat(processedProductData);
+        
+        console.log('Sending product data to API:', apiPayload);
+        
+        const response = await api.post('products/products/', apiPayload);
+        
+        // Convert API response back to frontend format
+        const newProduct = this.convertFromApiFormat(response.data);
+        
         this.products.push(newProduct);
         return { success: true, data: newProduct };
-      } catch (e) {
-        this.error = 'فشل في إضافة المنتج.';
+      } catch (error) {
+        console.error('Error adding product:', error);
+        const errorMessage = error.response?.data?.non_field_errors?.[0] ||
+          error.response?.data?.name?.[0] ||
+          error.response?.data?.error ||
+          error.response?.data?.message ||
+          error.response?.data?.detail ||
+          'فشل في إضافة المنتج.';
+        
+        this.error = errorMessage;
         return { success: false, error: this.error };
       } finally {
         this.isLoading = false;
       }
+    },
+
+    // Helper method to convert frontend data to API format
+    convertToApiFormat(productData) {
+      const attributes = [];
+      const variant_images = [];
+
+      // Convert selectedProperties to attributes format
+      if (productData.selectedProperties && Object.keys(productData.selectedProperties).length > 0) {
+        Object.entries(productData.selectedProperties).forEach(([attrName, attrData]) => {
+          const values = [];
+          
+          // Add legacy values
+          if (attrData.legacy && Array.isArray(attrData.legacy) && attrData.legacy.length > 0) {
+            values.push(...attrData.legacy);
+          }
+          
+          // Add subtitle values
+          if (attrData.subtitles && typeof attrData.subtitles === 'object') {
+            Object.values(attrData.subtitles).forEach(subtitleValues => {
+              if (Array.isArray(subtitleValues)) {
+                values.push(...subtitleValues);
+              }
+            });
+          }
+          
+          if (values.length > 0) {
+            attributes.push({
+              attribute: attrName.toString(),
+              values: [...new Set(values.map(v => v.toString()))] // Remove duplicates and ensure strings
+            });
+          }
+        });
+      }
+
+      // Convert colorVariations to variant_images format
+      if (productData.colorVariations && Array.isArray(productData.colorVariations) && productData.colorVariations.length > 0) {
+        let displayOrder = 1;
+        
+        productData.colorVariations.forEach(variation => {
+          if (variation.images && Array.isArray(variation.images)) {
+            variation.images.forEach(image => {
+              variant_images.push({
+                image_url: image.url || '/placeholder-image.jpg', // Provide fallback
+                display_order: displayOrder++,
+                values: {
+                  'اللون': variation.colorHex.toString()
+                }
+              });
+            });
+          }
+        });
+      }
+
+      // Ensure we have at least color attribute if we have colorVariations
+      if (productData.colorVariations && productData.colorVariations.length > 0) {
+        const colorValues = productData.colorVariations.map(v => v.colorHex.toString());
+        const existingColorAttr = attributes.find(attr => attr.attribute === 'اللون');
+        
+        if (!existingColorAttr) {
+          attributes.push({
+            attribute: 'اللون',
+            values: [...new Set(colorValues)]
+          });
+        } else {
+          // Merge with existing color attribute
+          const mergedValues = [...new Set([...existingColorAttr.values, ...colorValues])];
+          existingColorAttr.values = mergedValues;
+        }
+      }
+
+      const payload = {
+        name: productData.name.toString(),
+        description: productData.description ? productData.description.toString() : '',
+        main_image_url: productData.mainImage ? productData.mainImage.url : 'http://example.com/placeholder.jpg',
+        category: parseInt(productData.categoryId), // This should be the subcategory ID
+        profit_margin: parseFloat(productData.profitMargin),
+        is_active: true,
+        attributes: attributes,
+        variant_images: variant_images
+      };
+
+      console.log('Final API payload:', JSON.stringify(payload, null, 2));
+      return payload;
+    },
+
+    // Helper method to convert API response to frontend format
+    convertFromApiFormat(apiData) {
+      const properties = {};
+      const variants = [];
+      
+      // Convert attributes back to frontend format
+      if (apiData.attributes) {
+        apiData.attributes.forEach(attr => {
+          properties[attr.attribute] = {
+            legacy: attr.values || []
+          };
+        });
+      }
+
+      // Group variant_images by color to create variants
+      if (apiData.variant_images) {
+        const colorGroups = {};
+        
+        apiData.variant_images.forEach(img => {
+          const color = img.values['اللون'];
+          if (!colorGroups[color]) {
+            colorGroups[color] = {
+              colorHex: color,
+              images: [],
+              stock: []
+            };
+          }
+          colorGroups[color].images.push(img.image_url);
+        });
+
+        variants.push(...Object.values(colorGroups));
+      }
+
+      return {
+        id: apiData.id,
+        name: apiData.name,
+        description: apiData.description,
+        mainImage: apiData.main_image_url,
+        categoryId: apiData.category,
+        profitMargin: apiData.profit_margin,
+        properties: properties,
+        purchasePrice: 0, // These will be set later when processing invoices
+        sellingPrice: 0,
+        is_active: apiData.is_active,
+        variants: variants
+      };
     },
 
     async processPurchaseInvoice(invoiceItems) {

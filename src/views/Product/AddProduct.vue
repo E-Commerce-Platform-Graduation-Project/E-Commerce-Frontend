@@ -61,9 +61,13 @@
 
         <div class="properties-section">
           <h3 class="section-title">خواص المنتج</h3>
-          <div class="properties-grid">
+          <div v-if="propertiesLoading" class="loading">جاري تحميل الخواص...</div>
+          <div v-else-if="availableProperties.length === 0" class="no-properties">
+            <p>لا توجد خواص متاحة. يرجى إضافة خواص من صفحة إدارة الخواص أولاً.</p>
+          </div>
+          <div v-else class="properties-grid">
             <div v-for="prop in availableProperties" :key="prop.id" class="property-group">
-              <div class="property-combo-box">
+            <div class="property-combo-box">
                 <button type="button" class="combo-box-button" :class="{ 'active': openComboBox === prop.id }"
                   @click="toggleComboBox(prop.id)">
                   <span class="combo-box-title">{{ prop.name }}</span>
@@ -78,40 +82,22 @@
                     <div class="section-header-small">
                       <span>قيم عامة</span>
                       <button type="button" class="select-all-btn"
-                        @click="toggleSelectAllLegacy(prop.name, prop.values)">
-                        {{ areAllLegacyValuesSelected(prop.name, prop.values) ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
+                        @click="toggleSelectAllLegacy(prop.name, prop.values.map(v => v.value || v))">
+                        {{ areAllLegacyValuesSelected(prop.name, prop.values.map(v => v.value || v)) ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
                       </button>
                     </div>
                     <div class="checkbox-container">
-                      <label v-for="value in prop.values" :key="`legacy-${value}`" class="checkbox-label">
-                        <input type="checkbox" :value="value" :checked="isLegacyValueSelected(prop.name, value)"
-                          @change="handleLegacyPropertyChange(prop.name, value, $event)">
-                        <span class="checkbox-text">{{ value }}</span>
+                      <label v-for="value in prop.values" :key="`legacy-${value.id || value}`" class="checkbox-label">
+                        <input type="checkbox" 
+                          :value="value.value || value" 
+                          :checked="isLegacyValueSelected(prop.name, value.value || value)"
+                          @change="handleLegacyPropertyChange(prop.name, value.value || value, $event)">
+                        <span class="checkbox-text">{{ value.value || value }}</span>
                       </label>
                     </div>
                   </div>
 
-                  <div v-for="subtitle in prop.subtitles" :key="subtitle.id" class="checkbox-section">
-                    <div class="section-header-small">
-                      <span>{{ subtitle.name }}</span>
-                      <button type="button" class="select-all-btn"
-                        @click="toggleSelectAllSubtitle(prop.name, subtitle.name, subtitle.values)">
-                        {{ areAllSubtitleValuesSelected(prop.name, subtitle.name, subtitle.values) ? 'إلغاء تحديد الكل'
-                        : 'تحديد الكل' }}
-                      </button>
-                    </div>
-                    <div class="checkbox-container">
-                      <label v-for="value in subtitle.values" :key="`${subtitle.id}-${value}`" class="checkbox-label">
-                        <input type="checkbox" :value="value"
-                          :checked="isSubtitleValueSelected(prop.name, subtitle.name, value)"
-                          @change="handleSubtitlePropertyChange(prop.name, subtitle.name, value, $event)">
-                        <span class="checkbox-text">{{ value }}</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div v-if="(!prop.values || prop.values.length === 0) && prop.subtitles.length === 0"
-                    class="empty-dropdown">
+                  <div v-if="(!prop.values || prop.values.length === 0)" class="empty-dropdown">
                     <p>لا توجد قيم متاحة لهذه الخاصية</p>
                   </div>
                 </div>
@@ -158,11 +144,11 @@
                       <button type="button" @click="closeColorPicker(index)" class="close-dropdown-btn">×</button>
                     </div>
                     
-                    <div v-if="usedColors.length > 0" class="used-colors-section">
-                      <h4 class="color-section-title">الألوان المستخدمة سابقاً</h4>
+                    <div v-if="availableColors.length > 0" class="used-colors-section">
+                      <h4 class="color-section-title">الألوان المتاحة</h4>
                       <div class="color-grid">
                         <div 
-                          v-for="color in usedColors" 
+                          v-for="color in availableColors" 
                           :key="color"
                           class="color-option"
                           :class="{ 'selected': variation.colorHex === color }"
@@ -173,7 +159,6 @@
                         </div>
                       </div>
                     </div>
-                    
                     <div class="custom-color-section">
                       <h4 class="color-section-title">أو اختر لون جديد</h4>
                       <div class="custom-color-picker">
@@ -265,26 +250,49 @@ const errors = reactive({});
 const successMessage = ref('');
 const selectedMainCategory = ref(null);
 const openComboBox = ref(null);
+const propertiesLoading = ref(false);
 
 const mainCategories = computed(() => categoryStore.getMainCategories);
 const subCategories = computed(() => selectedMainCategory.value ? categoryStore.getSubcategoriesByParent(selectedMainCategory.value) : []);
-const { properties: availableProperties } = storeToRefs(propStore);
 
-const usedColors = computed(() => productStore.getUsedColors);
+// --- CHANGE START: Logic to filter properties and get available colors ---
+const { properties: allProperties } = storeToRefs(propStore);
+
+// Filter out the 'Color' attribute from the list of selectable properties
+const availableProperties = computed(() => {
+  return allProperties.value.filter(p => p.name !== 'اللون');
+});
+
+// Get the list of predefined colors from the 'Color' attribute
+const availableColors = computed(() => {
+    const colorProp = allProperties.value.find(p => p.name === 'اللون');
+    return colorProp && Array.isArray(colorProp.values) 
+      ? colorProp.values.map(v => v.value) 
+      : [];
+});
+// --- CHANGE END ---
 
 watch(selectedMainCategory, () => { productData.categoryId = ''; });
-onMounted(() => { 
+
+onMounted(async () => { 
   categoryStore.fetchCategories();
-  productStore.fetchProducts();
+  
+  propertiesLoading.value = true;
+  try {
+    await propStore.fetchAttributes();
+  } catch (error) {
+    console.error('Error loading properties:', error);
+  } finally {
+    propertiesLoading.value = false;
+  }
 });
 
 const toggleComboBox = (propId) => {
   openComboBox.value = openComboBox.value === propId ? null : propId;
 };
 
-// --- Property selection functions (unchanged) ---
 const isLegacyValueSelected = (propName, value) => productData.selectedProperties[propName]?.legacy?.includes(value) || false;
-const isSubtitleValueSelected = (propName, subtitleName, value) => productData.selectedProperties[propName]?.subtitles?.[subtitleName]?.includes(value) || false;
+
 const getSelectedCountForProperty = (propName) => {
   const propData = productData.selectedProperties[propName];
   if (!propData) return 0;
@@ -293,32 +301,25 @@ const getSelectedCountForProperty = (propName) => {
   if (propData.subtitles) { Object.values(propData.subtitles).forEach(values => { count += values.length; }); }
   return count;
 };
+
 const areAllLegacyValuesSelected = (propName, values) => {
   const selected = productData.selectedProperties[propName]?.legacy || [];
   return values.length > 0 && values.every(v => selected.includes(v));
 };
-const areAllSubtitleValuesSelected = (propName, subtitleName, values) => {
-  const selected = productData.selectedProperties[propName]?.subtitles?.[subtitleName] || [];
-  return values.length > 0 && values.every(v => selected.includes(v));
-};
+
 const initializeProperty = (propName) => {
   if (!productData.selectedProperties[propName]) {
     productData.selectedProperties[propName] = { legacy: [], subtitles: {} };
   }
 };
+
 const toggleSelectAllLegacy = (propName, values) => {
   initializeProperty(propName);
   const areAllSelected = areAllLegacyValuesSelected(propName, values);
   productData.selectedProperties[propName].legacy = areAllSelected ? [] : [...values];
   cleanupPropertyData(propName);
 };
-const toggleSelectAllSubtitle = (propName, subtitleName, values) => {
-  initializeProperty(propName);
-  if (!productData.selectedProperties[propName].subtitles) productData.selectedProperties[propName].subtitles = {};
-  const areAllSelected = areAllSubtitleValuesSelected(propName, subtitleName, values);
-  productData.selectedProperties[propName].subtitles[subtitleName] = areAllSelected ? [] : [...values];
-  cleanupPropertyData(propName);
-};
+
 const handleLegacyPropertyChange = (propName, value, event) => {
   initializeProperty(propName);
   const legacyValues = productData.selectedProperties[propName].legacy;
@@ -330,19 +331,7 @@ const handleLegacyPropertyChange = (propName, value, event) => {
   }
   cleanupPropertyData(propName);
 };
-const handleSubtitlePropertyChange = (propName, subtitleName, value, event) => {
-  initializeProperty(propName);
-  if (!productData.selectedProperties[propName].subtitles) productData.selectedProperties[propName].subtitles = {};
-  if (!productData.selectedProperties[propName].subtitles[subtitleName]) productData.selectedProperties[propName].subtitles[subtitleName] = [];
-  const subtitleValues = productData.selectedProperties[propName].subtitles[subtitleName];
-  if (event.target.checked) {
-    if (!subtitleValues.includes(value)) subtitleValues.push(value);
-  } else {
-    const index = subtitleValues.indexOf(value);
-    if (index > -1) subtitleValues.splice(index, 1);
-  }
-  cleanupPropertyData(propName);
-};
+
 const cleanupPropertyData = (propName) => {
   const prop = productData.selectedProperties[propName];
   if (!prop) return;
@@ -356,7 +345,6 @@ const cleanupPropertyData = (propName) => {
   if (Object.keys(prop).length === 0) delete productData.selectedProperties[propName];
 };
 
-// --- Main Image Functions ---
 const handleMainImageUpload = (event) => {
   const file = event.target.files[0];
   if (file) {
@@ -373,21 +361,20 @@ const removeMainImage = () => {
   }
 };
 
-// --- Enhanced Color & Image Functions ---
 const addColorVariation = () => {
   productData.colorVariations.push({
     id: Date.now(),
     colorHex: '#000000',
     images: [],
     showColorPicker: false,
-    error: null, // Add error field for validation
+    error: null,
   });
 };
 
 const removeColorVariation = (index) => {
   productData.colorVariations[index].images.forEach(img => URL.revokeObjectURL(img.url));
   productData.colorVariations.splice(index, 1);
-  validateForm(); // Re-validate to clear any global duplicate color errors
+  validateForm();
 };
 
 const toggleColorPicker = (index) => {
@@ -401,25 +388,22 @@ const toggleColorPicker = (index) => {
 
 const selectUsedColor = (index, colorHex) => {
   productData.colorVariations[index].colorHex = colorHex;
-  handleHexColorChange(index, true); // Validate and close
+  handleHexColorChange(index, true);
 };
 
 const closeColorPicker = (index) => {
   productData.colorVariations[index].showColorPicker = false;
 };
 
-// **NEW**: Handles color changes from both text and color inputs
 const handleHexColorChange = (index, shouldClosePicker) => {
   const variation = productData.colorVariations[index];
 
-  // Sanitize hex code
   let color = variation.colorHex.toLowerCase();
   if (!color.startsWith('#')) {
     color = '#' + color;
   }
   variation.colorHex = color;
 
-  // Check for duplicates
   const isDuplicate = productData.colorVariations.some(
     (v, i) => i !== index && v.colorHex.toLowerCase() === variation.colorHex.toLowerCase()
   );
@@ -481,22 +465,19 @@ const validateForm = () => {
     errors.colorVariations = 'يجب إضافة لون واحد على الأقل للمنتج.';
     isValid = false;
   } else {
-    // **UPDATED**: Check for duplicate colors and image requirements
     const colorSet = new Set();
     let hasDuplicateColor = false;
     productData.colorVariations.forEach((v, i) => {
-      // Check for duplicates
       const lowerCaseColor = v.colorHex.toLowerCase();
       if (colorSet.has(lowerCaseColor)) {
         v.error = 'هذا اللون تم اختياره بالفعل.';
         hasDuplicateColor = true;
         isValid = false;
       } else {
-        v.error = null; // Clear previous errors
+        v.error = null;
         colorSet.add(lowerCaseColor);
       }
       
-      // Check for images
       if (v.images.length === 0) {
         errors[`color_${i}_images`] = `يجب إضافة صورة واحدة على الأقل للون ${v.colorHex}.`;
         isValid = false;
@@ -530,11 +511,9 @@ const handleCancel = () => { router.push('/products'); };
 </script>
 
 <style scoped>
-/* Enhanced Color Selection Styles */
 .color-selection-container {
   position: relative;
 }
-
 .color-picker-wrapper {
   display: flex;
   align-items: center;
@@ -546,11 +525,9 @@ const handleCancel = () => { router.push('/products'); };
   cursor: pointer;
   transition: all 0.2s ease;
 }
-
 .color-picker-wrapper:hover {
   border-color: #3b82f6;
 }
-
 .selected-color-preview {
   width: 24px;
   height: 24px;
@@ -558,14 +535,12 @@ const handleCancel = () => { router.push('/products'); };
   border: 2px solid #e5e7eb;
   flex-shrink: 0;
 }
-
 .color-hex-text {
   flex: 1;
   font-family: monospace;
   font-size: 14px;
   color: #374151;
 }
-
 .color-dropdown {
   position: absolute;
   top: 100%;
@@ -579,7 +554,6 @@ const handleCancel = () => { router.push('/products'); };
   max-height: 400px;
   overflow-y: auto;
 }
-
 .color-dropdown-header {
   display: flex;
   justify-content: space-between;
@@ -590,7 +564,6 @@ const handleCancel = () => { router.push('/products'); };
   font-weight: 600;
   color: #374151;
 }
-
 .close-dropdown-btn {
   background: none;
   border: none;
@@ -605,31 +578,26 @@ const handleCancel = () => { router.push('/products'); };
   border-radius: 4px;
   transition: all 0.15s ease;
 }
-
 .close-dropdown-btn:hover {
   background-color: #e5e7eb;
   color: #374151;
 }
-
 .color-section-title {
   font-size: 14px;
   font-weight: 600;
   color: #4b5563;
   margin: 0 0 8px 0;
 }
-
 .used-colors-section {
   padding: 16px;
   border-bottom: 1px solid #e5e7eb;
 }
-
 .color-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
   gap: 8px;
   margin-top: 8px;
 }
-
 .color-option {
   display: flex;
   flex-direction: column;
@@ -641,16 +609,13 @@ const handleCancel = () => { router.push('/products'); };
   transition: all 0.15s ease;
   border: 2px solid transparent;
 }
-
 .color-option:hover {
   background-color: #f3f4f6;
 }
-
 .color-option.selected {
   background-color: #dbeafe;
   border-color: #3b82f6;
 }
-
 .color-circle {
   width: 32px;
   height: 32px;
@@ -658,25 +623,21 @@ const handleCancel = () => { router.push('/products'); };
   border: 2px solid #e5e7eb;
   flex-shrink: 0;
 }
-
 .color-code {
   font-size: 10px;
   font-family: monospace;
   color: #6b7280;
   text-align: center;
 }
-
 .custom-color-section {
   padding: 16px;
 }
-
 .custom-color-picker {
   display: flex;
   gap: 12px;
   align-items: center;
   margin-top: 8px;
 }
-
 .color-input {
   width: 60px;
   height: 40px;
@@ -685,7 +646,6 @@ const handleCancel = () => { router.push('/products'); };
   cursor: pointer;
   padding: 0;
 }
-
 .color-hex-input {
   flex: 1;
   padding: 8px 12px;
@@ -694,14 +654,11 @@ const handleCancel = () => { router.push('/products'); };
   font-family: monospace;
   font-size: 14px;
 }
-
 .color-hex-input:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
-
-/* Previous styles maintained */
 .main-image-uploader {
   border: 2px dashed #d1d5db;
   border-radius: 8px;
@@ -715,28 +672,24 @@ const handleCancel = () => { router.push('/products'); };
   justify-content: center;
   align-items: center;
 }
-
 .main-image-preview {
   width: 120px;
   height: 120px;
 }
-
 .image-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 8px;
 }
-
 .variation-header {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 20px;
-  align-items: flex-start; /* Changed to flex-start for error message alignment */
+  align-items: flex-start;
   margin-bottom: 16px;
   position: relative;
 }
-
 .image-uploader {
   border: 2px dashed #d1d5db;
   border-radius: 8px;
@@ -744,7 +697,6 @@ const handleCancel = () => { router.push('/products'); };
   text-align: center;
   position: relative;
 }
-
 .file-input {
   position: absolute;
   top: 0;
@@ -754,22 +706,18 @@ const handleCancel = () => { router.push('/products'); };
   opacity: 0;
   cursor: pointer;
 }
-
 .upload-prompt {
   color: #6b7280;
 }
-
 .image-preview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 10px;
   margin-top: 10px;
 }
-
 .image-preview {
   position: relative;
 }
-
 .remove-btn {
   position: absolute;
   top: 5px;
@@ -785,31 +733,26 @@ const handleCancel = () => { router.push('/products'); };
   align-items: center;
   justify-content: center;
 }
-
 .form-actions {
   display: flex;
   gap: 12px;
   justify-content: flex-end;
   margin-top: 20px;
 }
-
 .btn {
   padding: 12px 24px;
   border-radius: 8px;
   border: none;
   cursor: pointer;
 }
-
 .btn-primary {
   background-color: #3b82f6;
   color: white;
 }
-
 .btn-secondary {
   background-color: #6b7280;
   color: white;
 }
-
 .loading-spinner {
   width: 16px;
   height: 16px;
@@ -818,31 +761,26 @@ const handleCancel = () => { router.push('/products'); };
   animation: spin 1s linear infinite;
   display: inline-block;
 }
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
-
 .alert {
   padding: 12px 16px;
   border-radius: 8px;
   margin-bottom: 16px;
 }
-
 .alert-error {
   background-color: #fee2e2;
   color: #ef4444;
   border: 1px solid #fecaca;
 }
-
 .alert-success {
   background-color: #d1fae5;
   color: #065f46;
   border: 1px solid #a7f3d0;
 }
-
 .btn-remove-variation {
   position: absolute;
   top: -10px;
@@ -858,34 +796,27 @@ const handleCancel = () => { router.push('/products'); };
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1; /* Ensure it's above the card */
+  z-index: 1;
 }
-
 .error-border {
   border-color: #ef4444;
 }
-
-/* Base styles for the form */
 .add-product-container {
   direction: rtl;
   padding: 40px 20px;
   background-color: #f5f7fa;
 }
-
 .header {
   text-align: center;
   margin-bottom: 30px;
 }
-
 .title {
   font-size: 28px;
   font-weight: bold;
 }
-
 .subtitle {
   color: #6b7280;
 }
-
 .form-container {
   background: white;
   max-width: 800px;
@@ -894,31 +825,26 @@ const handleCancel = () => { router.push('/products'); };
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   padding: 30px 40px;
 }
-
 .product-form {
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
-
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
 }
-
 .form-label {
   font-weight: 600;
   color: #374151;
   font-size: 14px;
 }
-
 .form-input,
 .form-textarea,
 .form-select {
@@ -926,36 +852,30 @@ const handleCancel = () => { router.push('/products'); };
   border: 1px solid #e5e7eb;
   border-radius: 8px;
 }
-
 .error-message {
   color: #ef4444;
   font-size: 12px;
-  margin-top: 4px; /* Add some space for error messages */
+  margin-top: 4px;
 }
-
 .properties-section {
   border-top: 1px solid #e5e7eb;
   padding-top: 24px;
 }
-
 .section-title {
   font-size: 18px;
   font-weight: 600;
   color: #1f2937;
   margin-bottom: 16px;
 }
-
 .properties-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
-
 .property-group,
 .property-combo-box {
   position: relative;
 }
-
 .combo-box-button {
   width: 100%;
   padding: 12px 16px;
@@ -970,37 +890,30 @@ const handleCancel = () => { router.push('/products'); };
   font-size: 14px;
   transition: all 0.2s ease;
 }
-
 .combo-box-button:hover {
   border-color: #3b82f6;
 }
-
 .combo-box-button.active {
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
-
 .combo-box-title {
   color: #374151;
   font-weight: 600;
 }
-
 .selected-count {
   color: #3b82f6;
   font-size: 12px;
   font-weight: 500;
 }
-
 .combo-box-icon {
   color: #6b7280;
   font-size: 12px;
   transition: transform 0.2s ease;
 }
-
 .combo-box-icon.rotated {
   transform: rotate(180deg);
 }
-
 .combo-box-dropdown {
   position: absolute;
   top: 100%;
@@ -1014,15 +927,12 @@ const handleCancel = () => { router.push('/products'); };
   max-height: 300px;
   overflow-y: auto;
 }
-
 .checkbox-section {
   border-bottom: 1px solid #f3f4f6;
 }
-
 .checkbox-section:last-child {
   border-bottom: none;
 }
-
 .section-header-small {
   background-color: #f8fafc;
   padding: 8px 12px;
@@ -1034,7 +944,6 @@ const handleCancel = () => { router.push('/products'); };
   justify-content: space-between;
   align-items: center;
 }
-
 .select-all-btn {
   background: none;
   border: none;
@@ -1046,18 +955,15 @@ const handleCancel = () => { router.push('/products'); };
   border-radius: 4px;
   transition: background-color 0.15s ease;
 }
-
 .select-all-btn:hover {
   background-color: rgba(59, 130, 246, 0.1);
 }
-
 .checkbox-container {
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-
 .checkbox-label {
   display: flex;
   align-items: center;
@@ -1067,39 +973,32 @@ const handleCancel = () => { router.push('/products'); };
   border-radius: 6px;
   transition: background-color 0.15s ease;
 }
-
 .checkbox-label:hover {
   background-color: #f3f4f6;
 }
-
 .checkbox-label input[type="checkbox"] {
   margin: 0;
 }
-
 .checkbox-text {
   font-size: 14px;
   color: #374151;
 }
-
 .empty-dropdown {
   padding: 20px;
   text-align: center;
   color: #6b7280;
   font-size: 14px;
 }
-
 .variations-section {
   border-top: 1px solid #e5e7eb;
   padding-top: 24px;
 }
-
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
-
 .btn-add-color {
   background-color: #3b82f6;
   color: white;
@@ -1112,7 +1011,6 @@ const handleCancel = () => { router.push('/products'); };
   align-items: center;
   gap: 8px;
 }
-
 .empty-variations {
   text-align: center;
   padding: 20px;
@@ -1120,7 +1018,6 @@ const handleCancel = () => { router.push('/products'); };
   border-radius: 8px;
   color: #6b7280;
 }
-
 .variation-card {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
