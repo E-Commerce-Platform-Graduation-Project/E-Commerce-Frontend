@@ -7,7 +7,6 @@
         </div>
         <div class="modal-body p-4">
           <form @submit.prevent="handleSubmit">
-            <!-- Main Product Info -->
             <div class="row">
               <div class="col-md-8">
                 <div class="row">
@@ -28,7 +27,6 @@
                   <textarea v-model="form.description" class="form-control" id="editDesc" rows="4"></textarea>
                 </div>
               </div>
-              <!-- Main Image Uploader -->
               <div class="col-md-4 mb-3">
                 <label class="form-label">الصورة الرئيسية</label>
                 <div class="main-image-uploader">
@@ -70,7 +68,6 @@
               </div>
             </div>
 
-            <!-- Product Properties Section -->
             <div class="properties-section border rounded p-3 mb-4">
               <h5 class="mb-3">خواص المنتج</h5>
               <div class="properties-grid">
@@ -84,31 +81,38 @@
                       <i class="fas fa-chevron-down combo-box-icon" :class="{ 'rotated': openComboBox === prop.id }"></i>
                     </button>
                     <div v-show="openComboBox === prop.id" class="combo-box-dropdown">
+                      
                       <div v-if="prop.values && prop.values.length > 0" class="checkbox-section">
                         <div class="section-header-small">
                           <span>قيم عامة</span>
-                          <button type="button" class="select-all-btn" @click="toggleSelectAllLegacy(prop.name, prop.values)">
-                            {{ areAllLegacyValuesSelected(prop.name, prop.values) ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
+                          <button type="button" class="select-all-btn" @click="toggleSelectAllLegacy(prop.name, prop.values.map(v => v.value))">
+                            {{ areAllLegacyValuesSelected(prop.name, prop.values.map(v => v.value)) ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
                           </button>
                         </div>
                         <div class="checkbox-container">
-                          <label v-for="value in prop.values" :key="`legacy-${value}`" class="checkbox-label">
-                            <input type="checkbox" :value="value" :checked="isLegacyValueSelected(prop.name, value)" @change="handleLegacyPropertyChange(prop.name, value, $event)">
-                            <span class="checkbox-text">{{ value }}</span>
+                          <label v-for="value in prop.values" :key="`legacy-${value.id}`" class="checkbox-label">
+                            <input type="checkbox" 
+                              :value="value.value" 
+                              :checked="isLegacyValueSelected(prop.name, value.value)" 
+                              @change="handleLegacyPropertyChange(prop.name, value.value, $event)">
+                            <span class="checkbox-text">{{ value.value }}</span>
                           </label>
                         </div>
                       </div>
                       <div v-for="subtitle in prop.subtitles" :key="subtitle.id" class="checkbox-section">
                         <div class="section-header-small">
                           <span>{{ subtitle.name }}</span>
-                          <button type="button" class="select-all-btn" @click="toggleSelectAllSubtitle(prop.name, subtitle.name, subtitle.values)">
-                            {{ areAllSubtitleValuesSelected(prop.name, subtitle.name, subtitle.values) ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
+                           <button type="button" class="select-all-btn" @click="toggleSelectAllSubtitle(prop.name, subtitle.name, subtitle.values.map(v => v.value))">
+                            {{ areAllSubtitleValuesSelected(prop.name, subtitle.name, subtitle.values.map(v => v.value)) ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
                           </button>
                         </div>
                         <div class="checkbox-container">
-                          <label v-for="value in subtitle.values" :key="`${subtitle.id}-${value}`" class="checkbox-label">
-                            <input type="checkbox" :value="value" :checked="isSubtitleValueSelected(prop.name, subtitle.name, value)" @change="handleSubtitlePropertyChange(prop.name, subtitle.name, value, $event)">
-                            <span class="checkbox-text">{{ value }}</span>
+                          <label v-for="value in subtitle.values" :key="`${subtitle.id}-${value.id}`" class="checkbox-label">
+                            <input type="checkbox" 
+                              :value="value.value" 
+                              :checked="isSubtitleValueSelected(prop.name, subtitle.name, value.value)" 
+                              @change="handleSubtitlePropertyChange(prop.name, subtitle.name, value.value, $event)">
+                            <span class="checkbox-text">{{ value.value }}</span>
                           </label>
                         </div>
                       </div>
@@ -121,7 +125,6 @@
               </div>
             </div>
 
-            <!-- Color Variants Section -->
             <div class="variations-section border-top pt-4">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="mb-0">الألوان والصور</h5>
@@ -147,14 +150,14 @@
                           <button type="button" @click="closeColorPicker(index)" class="close-dropdown-btn">×</button>
                         </div>
                         
-                        <div v-if="usedColors.length > 0" class="used-colors-section">
-                          <h4 class="color-section-title">الألوان المستخدمة سابقاً ({{ usedColors.length }})</h4>
+                        <div v-if="availableColors.length > 0" class="used-colors-section">
+                          <h4 class="color-section-title">الألوان المتاحة</h4>
                           <div class="color-grid">
                             <div 
-                              v-for="color in usedColors" 
+                              v-for="color in availableColors" 
                               :key="color"
                               class="color-option"
-                              :class="{ 'selected': variant.colorHex.toLowerCase() === color }"
+                              :class="{ 'selected': variant.colorHex.toLowerCase() === color.toLowerCase() }"
                               @click="selectUsedColor(index, color)"
                             >
                               <div class="color-circle" :style="{ backgroundColor: color }"></div>
@@ -163,7 +166,7 @@
                           </div>
                         </div>
                         <div v-else class="no-used-colors">
-                          <p class="text-muted">لا توجد ألوان مستخدمة سابقاً</p>
+                          <p class="text-muted">لا توجد ألوان متاحة</p>
                         </div>
                         
                         <div class="custom-color-section">
@@ -197,9 +200,13 @@
                   <div class="image-uploader">
                     <input type="file" multiple @change="e => addImagesToVariant(e, index)" accept="image/*" class="file-input" />
                     <div class="image-preview-grid">
-                      <div v-for="(image, imgIndex) in variant.images" :key="imgIndex" class="image-preview">
+                      <div v-for="(image, imgIndex) in (variant.images || [])" :key="`existing-${imgIndex}`" class="image-preview">
                         <img :src="image" />
-                        <button @click="removeImageFromVariant(index, imgIndex)" class="remove-btn" type="button">&times;</button>
+                        <button @click="removeImageFromVariant(index, imgIndex, false)" class="remove-btn" type="button">&times;</button>
+                      </div>
+                      <div v-for="(newImg, newImgIndex) in getNewImagesForVariant(index)" :key="`new-${newImgIndex}`" class="image-preview">
+                        <img :src="newImg.url" />
+                        <button @click="removeImageFromVariant(index, newImgIndex, true)" class="remove-btn" type="button">&times;</button>
                       </div>
                       <div class="upload-prompt"><span>+</span></div>
                     </div>
@@ -221,6 +228,8 @@
   </div>
 </template>
 
+// Replace the script section in EditProduct.vue with this:
+
 <script setup>
 import { reactive, computed, ref, onMounted } from 'vue';
 import { useProductStore } from '@/stores/productStore';
@@ -237,37 +246,60 @@ const productStore = useProductStore();
 const categoryStore = useCategoryStore();
 const propStore = usePropStore();
 
-const { properties: availableProperties } = storeToRefs(propStore);
-const { products } = storeToRefs(productStore);
+// --- CHANGE START ---
+const { properties: allProperties } = storeToRefs(propStore);
 
-const form = reactive(JSON.parse(JSON.stringify(props.product)));
-const openComboBox = ref(null);
-
-// This holds the temporary blob URL for a newly uploaded main image
-const newMainImageURL = ref(null);
-
-// Computed property to decide which image URL to show
-const mainImagePreview = computed(() => {
-  if (newMainImageURL.value) {
-    return newMainImageURL.value; // Show the new image if it exists
-  }
-  return form.mainImage; // Otherwise, show the original image
+// Filter out the 'Color' attribute from the list of selectable properties
+const availableProperties = computed(() => {
+  return allProperties.value.filter(p => p.name !== 'Ø§Ù„Ù„ÙˆÙ†');
 });
 
-// Initialize form data
-form.selectedProperties = form.properties ? JSON.parse(JSON.stringify(form.properties)) : {};
+// Get the list of predefined colors from the 'Color' attribute, like in AddProduct.vue
+const availableColors = computed(() => {
+    const colorProp = allProperties.value.find(p => p.name === 'Ø§Ù„Ù„ÙˆÙ†');
+    return colorProp && Array.isArray(colorProp.values) 
+      ? colorProp.values.map(v => v.value) 
+      : [];
+});
+// --- CHANGE END ---
 
-// Add showColorPicker and error properties to existing variants
-if (form.variants) {
-  form.variants.forEach(variant => {
-    if (!variant.hasOwnProperty('showColorPicker')) {
-      variant.showColorPicker = false;
-    }
-    if (!variant.hasOwnProperty('error')) {
-      variant.error = null;
-    }
-  });
-}
+
+const form = reactive(JSON.parse(JSON.stringify(props.product)));
+form.selectedProperties = {};
+const openComboBox = ref(null);
+
+// State for managing new file uploads
+const newMainImageFile = ref(null);
+const newMainImageURL = ref(null);
+const newVariantImages = ref([]);
+
+// Computed property for main image preview
+const mainImagePreview = computed(() => {
+  if (newMainImageURL.value) {
+    return newMainImageURL.value;
+  }
+  return form.mainImage;
+});
+
+// Initialize form data and sync with product properties
+const initializeFormProperties = () => {
+  if (form.properties && typeof form.properties === 'object') {
+    Object.keys(form.properties).forEach(propName => {
+      const propData = form.properties[propName];
+      form.selectedProperties[propName] = {
+        legacy: propData.legacy ? [...propData.legacy] : [],
+        subtitles: propData.subtitles ? JSON.parse(JSON.stringify(propData.subtitles)) : {}
+      };
+    });
+  }
+
+  if (form.variants) {
+    form.variants.forEach(variant => {
+      variant.showColorPicker = variant.showColorPicker || false;
+      variant.error = variant.error || null;
+    });
+  }
+};
 
 const subCategoryGroups = computed(() => {
   const mainCategories = categoryStore.getMainCategories;
@@ -278,57 +310,39 @@ const subCategoryGroups = computed(() => {
   })).filter(group => group.subCategories.length > 0);
 });
 
-const usedColors = computed(() => {
-  // Get all products and extract unique colors, excluding current product
-  const allProducts = products.value || [];
-  const colorSet = new Set();
-  
-  allProducts.forEach(product => {
-    if (product.id !== form.id && product.variants) {
-      product.variants.forEach(variant => {
-        if (variant.colorHex) {
-          colorSet.add(variant.colorHex.toLowerCase());
-        }
-      });
-    }
-  });
-  
-  return Array.from(colorSet);
-});
-
 onMounted(async () => {
-  // Make sure properties are loaded
-  if (availableProperties.value.length === 0) {
-    await propStore.fetchProperties();
+  if (propStore.properties.length === 0) {
+    await propStore.fetchAttributes();
   }
-  // Make sure products are loaded to get used colors
-  if (!productStore.products || productStore.products.length === 0) {
+  
+  // This fetch is kept in case other parts of the component rely on the full product list
+  if (productStore.products.length === 0) {
     await productStore.fetchProducts();
   }
+  
+  initializeFormProperties();
 });
 
-// Main image management functions
+// Main image management
 const handleMainImageUpload = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+  const file = event.target.files[0];
+  if (!file) return;
 
-    // If there's an old blob URL, revoke it to prevent memory leaks
-    if (newMainImageURL.value) {
-        URL.revokeObjectURL(newMainImageURL.value);
-    }
-
-    // Create a new blob URL and store it
-    newMainImageURL.value = URL.createObjectURL(file);
-    // Also store the new URL in the form to be saved
-    form.mainImage = newMainImageURL.value; 
+  if (newMainImageURL.value) {
+    URL.revokeObjectURL(newMainImageURL.value);
+  }
+  
+  newMainImageFile.value = file;
+  newMainImageURL.value = URL.createObjectURL(file);
 };
 
 const removeMainImage = () => {
-    if (newMainImageURL.value) {
-        URL.revokeObjectURL(newMainImageURL.value);
-        newMainImageURL.value = null;
-    }
-    form.mainImage = null;
+  if (newMainImageURL.value) {
+    URL.revokeObjectURL(newMainImageURL.value);
+    newMainImageURL.value = null;
+    newMainImageFile.value = null;
+  }
+  form.mainImage = null;
 };
 
 // Properties management functions
@@ -350,12 +364,13 @@ const getSelectedCountForProperty = (propName) => {
   let count = 0;
   if (propData.legacy) count += propData.legacy.length;
   if (propData.subtitles) {
-    Object.values(propData.subtitles).forEach(values => { count += values.length; });
+    Object.values(propData.subtitles).forEach(values => { 
+      if (Array.isArray(values)) count += values.length; 
+    });
   }
   return count;
 };
 
-// Enhanced property functions from AddProduct
 const areAllLegacyValuesSelected = (propName, values) => {
   const selected = form.selectedProperties[propName]?.legacy || [];
   return values.length > 0 && values.every(v => selected.includes(v));
@@ -381,15 +396,21 @@ const toggleSelectAllLegacy = (propName, values) => {
 
 const toggleSelectAllSubtitle = (propName, subtitleName, values) => {
   initializeProperty(propName);
-  if (!form.selectedProperties[propName].subtitles) form.selectedProperties[propName].subtitles = {};
+  if (!form.selectedProperties[propName].subtitles) {
+    form.selectedProperties[propName].subtitles = {};
+  }
   const areAllSelected = areAllSubtitleValuesSelected(propName, subtitleName, values);
   form.selectedProperties[propName].subtitles[subtitleName] = areAllSelected ? [] : [...values];
   cleanupPropertyData(propName);
 };
 
 const handleLegacyPropertyChange = (propName, value, event) => {
-  if (!form.selectedProperties[propName]) form.selectedProperties[propName] = { legacy: [], subtitles: {} };
-  if (!form.selectedProperties[propName].legacy) form.selectedProperties[propName].legacy = [];
+  if (!form.selectedProperties[propName]) {
+    form.selectedProperties[propName] = { legacy: [], subtitles: {} };
+  }
+  if (!form.selectedProperties[propName].legacy) {
+    form.selectedProperties[propName].legacy = [];
+  }
   
   if (event.target.checked) {
     if (!form.selectedProperties[propName].legacy.includes(value)) {
@@ -397,15 +418,23 @@ const handleLegacyPropertyChange = (propName, value, event) => {
     }
   } else {
     const index = form.selectedProperties[propName].legacy.indexOf(value);
-    if (index > -1) form.selectedProperties[propName].legacy.splice(index, 1);
+    if (index > -1) {
+      form.selectedProperties[propName].legacy.splice(index, 1);
+    }
   }
   cleanupPropertyData(propName);
 };
 
 const handleSubtitlePropertyChange = (propName, subtitleName, value, event) => {
-  if (!form.selectedProperties[propName]) form.selectedProperties[propName] = { legacy: [], subtitles: {} };
-  if (!form.selectedProperties[propName].subtitles) form.selectedProperties[propName].subtitles = {};
-  if (!form.selectedProperties[propName].subtitles[subtitleName]) form.selectedProperties[propName].subtitles[subtitleName] = [];
+  if (!form.selectedProperties[propName]) {
+    form.selectedProperties[propName] = { legacy: [], subtitles: {} };
+  }
+  if (!form.selectedProperties[propName].subtitles) {
+    form.selectedProperties[propName].subtitles = {};
+  }
+  if (!form.selectedProperties[propName].subtitles[subtitleName]) {
+    form.selectedProperties[propName].subtitles[subtitleName] = [];
+  }
   
   if (event.target.checked) {
     if (!form.selectedProperties[propName].subtitles[subtitleName].includes(value)) {
@@ -413,7 +442,9 @@ const handleSubtitlePropertyChange = (propName, subtitleName, value, event) => {
     }
   } else {
     const index = form.selectedProperties[propName].subtitles[subtitleName].indexOf(value);
-    if (index > -1) form.selectedProperties[propName].subtitles[subtitleName].splice(index, 1);
+    if (index > -1) {
+      form.selectedProperties[propName].subtitles[subtitleName].splice(index, 1);
+    }
   }
   cleanupPropertyData(propName);
 };
@@ -421,25 +452,36 @@ const handleSubtitlePropertyChange = (propName, subtitleName, value, event) => {
 const cleanupPropertyData = (propName) => {
   const prop = form.selectedProperties[propName];
   if (!prop) return;
-  if (prop.legacy && prop.legacy.length === 0) delete prop.legacy;
+  
+  if (prop.legacy && prop.legacy.length === 0) {
+    delete prop.legacy;
+  }
+  
   if (prop.subtitles) {
     Object.keys(prop.subtitles).forEach(sub => {
-      if (prop.subtitles[sub].length === 0) delete prop.subtitles[sub];
+      if (!prop.subtitles[sub] || prop.subtitles[sub].length === 0) {
+        delete prop.subtitles[sub];
+      }
     });
-    if (Object.keys(prop.subtitles).length === 0) delete prop.subtitles;
+    if (Object.keys(prop.subtitles).length === 0) {
+      delete prop.subtitles;
+    }
   }
-  if (Object.keys(prop).length === 0) delete form.selectedProperties[propName];
+  
+  if (Object.keys(prop).length === 0) {
+    delete form.selectedProperties[propName];
+  }
 };
 
-// Enhanced Color variants management functions
+// Color variants management
 const addColorVariant = () => {
   if (!form.variants) form.variants = [];
-  form.variants.push({
-    colorHex: '#000000',
-    images: [],
-    stock: [],
-    showColorPicker: false,
-    error: null
+  form.variants.push({ 
+    colorHex: '#000000', 
+    images: [], 
+    stock: [], 
+    showColorPicker: false, 
+    error: null 
   });
 };
 
@@ -447,19 +489,16 @@ const removeColorVariant = (index) => {
   form.variants.splice(index, 1);
 };
 
-// Enhanced color picker functions from AddProduct
 const toggleColorPicker = (index) => {
-  form.variants.forEach((variant, i) => {
-    if (i !== index) {
-      variant.showColorPicker = false;
-    }
+  form.variants.forEach((v, i) => { 
+    if (i !== index) v.showColorPicker = false; 
   });
   form.variants[index].showColorPicker = !form.variants[index].showColorPicker;
 };
 
 const selectUsedColor = (index, colorHex) => {
   form.variants[index].colorHex = colorHex;
-  handleHexColorChange(index, true); // Validate and close
+  handleHexColorChange(index, true);
 };
 
 const closeColorPicker = (index) => {
@@ -468,69 +507,84 @@ const closeColorPicker = (index) => {
 
 const handleHexColorChange = (index, shouldClosePicker) => {
   const variant = form.variants[index];
-
-  // Sanitize hex code
   let color = variant.colorHex.toLowerCase();
-  if (!color.startsWith('#')) {
-    color = '#' + color;
-  }
+  if (!color.startsWith('#')) color = '#' + color;
   variant.colorHex = color;
-
-  // Check for duplicates
-  const isDuplicate = form.variants.some(
-    (v, i) => i !== index && v.colorHex.toLowerCase() === variant.colorHex.toLowerCase()
-  );
-
-  if (isDuplicate) {
-    variant.error = 'هذا اللون تم اختياره بالفعل.';
-  } else {
-    variant.error = null;
-  }
   
-  if (shouldClosePicker) {
-    variant.showColorPicker = false;
-  }
+  const isDuplicate = form.variants.some((v, i) => 
+    i !== index && v.colorHex.toLowerCase() === variant.colorHex.toLowerCase()
+  );
+  variant.error = isDuplicate ? 'Ù‡Ø°Ø§ Ø§Ù„Ù„ÙˆÙ† ØªÙ… Ø§Ø®ØªÙŠØ§Ø±Ù‡ Ø¨Ø§Ù„ÙØ¹Ù„.' : null;
+  
+  if (shouldClosePicker) variant.showColorPicker = false;
+};
+
+// Variant image management
+const getNewImagesForVariant = (variantIndex) => {
+  return newVariantImages.value.filter(img => img.variantIndex === variantIndex);
 };
 
 const addImagesToVariant = (event, variantIndex) => {
   const files = Array.from(event.target.files);
-  const variant = form.variants[variantIndex];
-  if (variant) {
-    files.forEach(file => {
-      // Note: These blob URLs should be managed if the modal is closed without saving
-      variant.images.push(URL.createObjectURL(file));
+  files.forEach(file => {
+    newVariantImages.value.push({
+      variantIndex,
+      file,
+      url: URL.createObjectURL(file)
     });
-  }
+  });
 };
 
-const removeImageFromVariant = (variantIndex, imageIndex) => {
-  const variant = form.variants[variantIndex];
-  if (variant) {
-    const imageUrl = variant.images[imageIndex];
-    if (imageUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(imageUrl);
+const removeImageFromVariant = (variantIndex, imageIndex, isNew) => {
+  if (isNew) {
+    const newImagesForVariant = getNewImagesForVariant(variantIndex);
+    const targetImage = newImagesForVariant[imageIndex];
+    const overallIndex = newVariantImages.value.findIndex(img => img === targetImage);
+    
+    if (overallIndex > -1) {
+      URL.revokeObjectURL(newVariantImages.value[overallIndex].url);
+      newVariantImages.value.splice(overallIndex, 1);
     }
-    variant.images.splice(imageIndex, 1);
+  } else {
+    const variant = form.variants[variantIndex];
+    if (variant && variant.images) {
+      variant.images.splice(imageIndex, 1);
+    }
   }
 };
 
+// Form submission
 const handleSubmit = async () => {
   const updateData = {
     ...form,
-    properties: form.selectedProperties, // Send the updated properties
+    properties: form.selectedProperties,
   };
-  delete updateData.selectedProperties; // Clean up the form object
+  delete updateData.selectedProperties;
 
-  const result = await productStore.updateProduct(form.id, updateData);
+  const variantFiles = newVariantImages.value.map(img => ({
+    variantIndex: img.variantIndex,
+    file: img.file
+  }));
+
+  const result = await productStore.updateProduct(
+    form.id, 
+    updateData, 
+    newMainImageFile.value,
+    variantFiles
+  );
+
   if (result.success) {
+    if (newMainImageURL.value) URL.revokeObjectURL(newMainImageURL.value);
+    newVariantImages.value.forEach(img => URL.revokeObjectURL(img.url));
+    
     emit('product-updated');
   } else {
     console.error("Failed to update product:", result.error);
   }
 };
 </script>
-
 <style scoped>
+/* All styles are unchanged */
 /* Modal and layout fixes */
 .modal-xl {
   max-width: 1000px;
@@ -931,16 +985,7 @@ const handleSubmit = async () => {
   text-align: center;
 }
 
-.no-used-colors {
-  padding: 16px;
-  text-align: center;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.no-used-colors p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 14px;
+.custom-color-section {
   padding: 16px;
 }
 

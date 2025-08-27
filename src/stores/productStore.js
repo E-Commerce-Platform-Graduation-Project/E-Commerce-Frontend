@@ -1,78 +1,32 @@
+// productStore.js
+
 import { defineStore } from 'pinia';
-import api from '@/api'; // Assuming you have a centralized api instance
+import api from '@/api';
+// ADDED: Import the image compression library
+import imageCompression from 'browser-image-compression';
 
-const mockProducts = [
-  {
-    id: 1,
-    name: 'قبعة بيسبول رياضية',
-    description: 'قبعة رياضية كلاسيكية بشعار مطرز، مثالية للحماية من الشمس.',
-    mainImage: '/images-for-test/baseball-cap.jpg',
-    purchasePrice: 20,
-    sellingPrice: 35,
-    profitMargin: 75,
-    // Properties are now a simple key-value object.
-    properties: {
-      'المقاس': { legacy: ['مقاس واحد'] },
-      'الخامة': { legacy: ['قطن'] }
-    },
-    // detailedProperties has been removed.
-    categoryId: 10,
-    is_active: true,
-    variants: [
-      {
-        colorHex: '#dc2626',
-        images: ['/images-for-test/baseball-cap-red.jpg'],
-        stock: [{ size: 'مقاس واحد', quantity: 30 }]
-      },
-      {
-        colorHex: '#2563eb',
-        images: ['/images-for-test/baseball-cap-blue.jpg'],
-        stock: [{ size: 'مقاس واحد', quantity: 50 }]
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: 'حذاء رياضي متعدد الاستخدامات',
-    description: 'حذاء رياضي مريح للجري والتمارين اليومية.',
-    mainImage: '/images-for-test/runnig-shoose.jpg',
-    purchasePrice: 80,
-    sellingPrice: 140,
-    profitMargin: 75,
-    // Subtitle prefixes like 'أحذية:' are removed.
-    properties: {
-      'المقاس': { legacy: ['40', '41', '42', '43'] },
-      'الخامة': { legacy: ['جلد طبيعي'] }
-    },
-    categoryId: 13,
-    is_active: true,
-    variants: [
-      {
-        colorHex: '#000000',
-        images: ['/images-for-test/shoe-black.jpg'],
-        // Sizes are now simple values.
-        stock: [
-          { size: '40', quantity: 10 },
-          { size: '41', quantity: 15 },
-          { size: '42', quantity: 20 },
-          { size: '43', quantity: 12 }
-        ]
-      },
-      {
-        colorHex: '#ffffff',
-        images: ['/images-for-test/shoe-white.jpg'],
-        stock: [
-          { size: '40', quantity: 8 },
-          { size: '41', quantity: 12 },
-          { size: '42', quantity: 18 },
-          { size: '43', quantity: 10 }
-        ]
-      },
-    ],
-  },
-];
+// ADDED: A helper function to compress an image file
+async function compressImage(file) {
+  // Compression options. You can adjust these values.
+  const options = {
+    maxSizeMB: 1,          // Target file size in MB (e.g., 1MB)
+    maxWidthOrHeight: 1920, // Resize images to a max width or height of 1920px
+    useWebWorker: true,    // Use a web worker for better performance
+  };
 
-const mockInvoices = [];
+  try {
+    console.log(`Original image size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+    const compressedFile = await imageCompression(file, options);
+    console.log(`Compressed image size: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+    // Return the compressed file (which is a Blob), so we convert it back to a File
+    return new File([compressedFile], file.name, { type: compressedFile.type });
+  } catch (error) {
+    console.error("Image compression failed:", error);
+    // If compression fails, return the original file
+    return file;
+  }
+}
+
 
 export const useProductStore = defineStore('product', {
   state: () => ({
@@ -83,6 +37,7 @@ export const useProductStore = defineStore('product', {
   }),
 
   getters: {
+    // ... your getters remain unchanged
     getProductTotalQuantity: (state) => (productId) => {
       const product = state.products.find(p => p.id === productId);
       if (!product || !product.variants) return 0;
@@ -119,239 +74,334 @@ export const useProductStore = defineStore('product', {
 
   actions: {
     async fetchAllData() {
-       this.isLoading = true;
-      this.error = null; // Clear previous errors
+      this.isLoading = true;
+      this.error = null;
       try {
         const response = await api.get('products/products/');
-        
         const productList = Array.isArray(response.data) ? response.data : response.data.results;
 
         if (!Array.isArray(productList)) {
           console.error('Invalid data structure for products received from API:', response.data);
           throw new Error('Received data is not in the expected format.');
         }
-        
+
         this.products = productList.map(product => this.convertFromApiFormat(product));
-        
-        // ... (mockInvoices logic is unchanged)
-        
+
         return { success: true };
       } catch (error) {
         console.error('Error fetching products:', error);
-        
-        // --- FIX STARTS HERE ---
-        // Use 'error.response' to get details from the failed API call, not 'response'.
-        const errorMessage = error.response?.data?.detail || 
-                             error.response?.data?.error ||
-                             'فشل في جلب البيانات.';
-                             
+        const errorMessage = error.response?.data?.detail ||
+          error.response?.data?.error ||
+          'فشل في جلب البيانات.';
         this.error = errorMessage;
-        // --- FIX ENDS HERE ---
-
         return { success: false };
       } finally {
         this.isLoading = false;
       }
     },
+
+    async fetchProductDetails(productId) {
+      this.isLoading = true;
+      this.error = null;
+      try {
+        const response = await api.get(`products/products/${productId}/`);
+        const detailedProduct = this.convertFromApiFormat(response.data);
+
+        // Update the product in the main list for data consistency
+        const index = this.products.findIndex(p => p.id === productId);
+        if (index !== -1) {
+          this.products[index] = detailedProduct;
+        } else {
+          this.products.push(detailedProduct);
+        }
+
+        return { success: true, data: detailedProduct };
+      } catch (error) {
+        console.error(`Error fetching product details for ID ${productId}:`, error);
+        const errorMessage = error.response?.data?.detail || 'فشل في جلب تفاصيل المنتج.';
+        this.error = errorMessage;
+        return { success: false, error: errorMessage };
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
     async fetchProducts() {
       return this.fetchAllData();
     },
 
+    // --- MODIFIED addProduct ACTION ---
     async addProduct(productData) {
       this.isLoading = true;
       this.error = null;
       try {
-        // First, handle file uploads if needed
-        let mainImageUrl = null;
-        if (productData.mainImage && productData.mainImage.file) {
-          // You'll need to implement file upload logic here
-          // For now, we'll use a placeholder URL
-          mainImageUrl = productData.mainImage.url;
-        }
+        const hasMainImage = productData.mainImage && productData.mainImage.file;
+        const hasVariantImages = productData.colorVariations &&
+          productData.colorVariations.some(variation => variation.images && variation.images.length > 0);
 
-        // Handle variant image uploads
-        const processedColorVariations = [];
-        if (productData.colorVariations) {
-          for (const variation of productData.colorVariations) {
-            const processedImages = [];
-            for (const image of variation.images) {
-              if (image.file) {
-                // You'll need to implement file upload logic here
-                // For now, we'll use the URL as is
-                processedImages.push(image.url);
+        if (hasMainImage || hasVariantImages) {
+          const formData = new FormData();
+          formData.append('name', productData.name.toString());
+          formData.append('description', productData.description ? productData.description.toString() : '');
+          formData.append('category', parseInt(productData.categoryId));
+          formData.append('profit_margin', parseFloat(productData.profitMargin));
+          formData.append('is_active', productData.is_active !== undefined ? productData.is_active : true);
+
+          // MODIFIED: Compress main image before appending
+          if (hasMainImage) {
+            const compressedMainImage = await compressImage(productData.mainImage.file);
+            formData.append('main_image', compressedMainImage, compressedMainImage.name);
+          }
+          
+          const attributes = [];
+          if (productData.selectedProperties && Object.keys(productData.selectedProperties).length > 0) {
+            Object.entries(productData.selectedProperties).forEach(([attrName, attrData]) => {
+              const values = [];
+              if (attrData.legacy && Array.isArray(attrData.legacy)) {
+                values.push(...attrData.legacy);
               }
-            }
-            processedColorVariations.push({
-              ...variation,
-              images: processedImages.map(url => ({ url }))
+              if (attrData.subtitles && typeof attrData.subtitles === 'object') {
+                Object.values(attrData.subtitles).forEach(subtitleValues => {
+                  if (Array.isArray(subtitleValues)) values.push(...subtitleValues);
+                });
+              }
+              if (values.length > 0) {
+                attributes.push({
+                  attribute: attrName.toString(),
+                  values: [...new Set(values.map(v => v.toString()))]
+                });
+              }
             });
           }
+
+          if (productData.colorVariations && productData.colorVariations.length > 0) {
+            const colorValues = productData.colorVariations.map(v => v.colorHex.toString());
+            const colorAttr = attributes.find(attr => attr.attribute === 'اللون');
+            if (!colorAttr) {
+              attributes.push({ attribute: 'اللون', values: [...new Set(colorValues)] });
+            } else {
+              colorAttr.values = [...new Set([...colorAttr.values, ...colorValues])];
+            }
+          }
+
+          formData.append('attributes', JSON.stringify(attributes));
+          
+          const variantImagesMetadata = [];
+          let fileCounter = 0;
+          // MODIFIED: Use a for...of loop to handle async compression of variant images
+          for (const variation of productData.colorVariations) {
+            if (variation.images && Array.isArray(variation.images)) {
+              for (const [imageIndex, image] of variation.images.entries()) {
+                if (image.file) {
+                  const compressedFile = await compressImage(image.file);
+                  formData.append('variant_images', compressedFile, compressedFile.name);
+                  variantImagesMetadata.push({
+                    image_file_index: fileCounter,
+                    display_order: imageIndex + 1,
+                    values: { "اللون": variation.colorHex }
+                  });
+                  fileCounter++;
+                }
+              }
+            }
+          }
+
+          if (variantImagesMetadata.length > 0) {
+            formData.append('variant_images_data', JSON.stringify(variantImagesMetadata));
+          }
+
+          const response = await api.post('products/products/', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+
+          const newProduct = this.convertFromApiFormat(response.data);
+          this.products.push(newProduct);
+          return { success: true, data: newProduct };
+        } else {
+          // Fallback for no files
+          const apiPayload = this.convertToApiFormat(productData);
+          const response = await api.post('products/products/', apiPayload);
+          const newProduct = this.convertFromApiFormat(response.data);
+          this.products.push(newProduct);
+          return { success: true, data: newProduct };
         }
-
-        // Create processed product data
-        const processedProductData = {
-          ...productData,
-          mainImage: mainImageUrl ? { url: mainImageUrl } : null,
-          colorVariations: processedColorVariations
-        };
-
-        // Convert the frontend data structure to match the API
-        const apiPayload = this.convertToApiFormat(processedProductData);
-        
-        console.log('Sending product data to API:', apiPayload);
-        
-        const response = await api.post('products/products/', apiPayload);
-        
-        // Convert API response back to frontend format
-        const newProduct = this.convertFromApiFormat(response.data);
-        
-        this.products.push(newProduct);
-        return { success: true, data: newProduct };
       } catch (error) {
         console.error('Error adding product:', error);
         const errorMessage = error.response?.data?.non_field_errors?.[0] ||
           error.response?.data?.name?.[0] ||
-          error.response?.data?.error ||
-          error.response?.data?.message ||
           error.response?.data?.detail ||
           'فشل في إضافة المنتج.';
-        
         this.error = errorMessage;
         return { success: false, error: this.error };
       } finally {
         this.isLoading = false;
       }
     },
-
-    // Helper method to convert frontend data to API format
-    convertToApiFormat(productData) {
-      const attributes = [];
-      const variant_images = [];
-
-      // Convert selectedProperties to attributes format
-      if (productData.selectedProperties && Object.keys(productData.selectedProperties).length > 0) {
-        Object.entries(productData.selectedProperties).forEach(([attrName, attrData]) => {
-          const values = [];
-          
-          // Add legacy values
-          if (attrData.legacy && Array.isArray(attrData.legacy) && attrData.legacy.length > 0) {
-            values.push(...attrData.legacy);
-          }
-          
-          // Add subtitle values
-          if (attrData.subtitles && typeof attrData.subtitles === 'object') {
-            Object.values(attrData.subtitles).forEach(subtitleValues => {
-              if (Array.isArray(subtitleValues)) {
-                values.push(...subtitleValues);
-              }
-            });
-          }
-          
-          if (values.length > 0) {
-            attributes.push({
-              attribute: attrName.toString(),
-              values: [...new Set(values.map(v => v.toString()))] // Remove duplicates and ensure strings
-            });
-          }
-        });
-      }
-
-      // Convert colorVariations to variant_images format
-      if (productData.colorVariations && Array.isArray(productData.colorVariations) && productData.colorVariations.length > 0) {
-        let displayOrder = 1;
-        
-        productData.colorVariations.forEach(variation => {
-          if (variation.images && Array.isArray(variation.images)) {
-            variation.images.forEach(image => {
-              variant_images.push({
-                image_url: image.url || '/placeholder-image.jpg', // Provide fallback
-                display_order: displayOrder++,
-                values: {
-                  'اللون': variation.colorHex.toString()
-                }
-              });
-            });
-          }
-        });
-      }
-
-      // Ensure we have at least color attribute if we have colorVariations
-      if (productData.colorVariations && productData.colorVariations.length > 0) {
-        const colorValues = productData.colorVariations.map(v => v.colorHex.toString());
-        const existingColorAttr = attributes.find(attr => attr.attribute === 'اللون');
-        
-        if (!existingColorAttr) {
-          attributes.push({
-            attribute: 'اللون',
-            values: [...new Set(colorValues)]
-          });
-        } else {
-          // Merge with existing color attribute
-          const mergedValues = [...new Set([...existingColorAttr.values, ...colorValues])];
-          existingColorAttr.values = mergedValues;
-        }
-      }
-
-      const payload = {
-        name: productData.name.toString(),
-        description: productData.description ? productData.description.toString() : '',
-        main_image_url: productData.mainImage ? productData.mainImage.url : 'http://example.com/placeholder.jpg',
-        category: parseInt(productData.categoryId), // This should be the subcategory ID
-        profit_margin: parseFloat(productData.profitMargin),
-        is_active: true,
-        attributes: attributes,
-        variant_images: variant_images
-      };
-
-      console.log('Final API payload:', JSON.stringify(payload, null, 2));
-      return payload;
-    },
-
-    // Helper method to convert API response to frontend format
+    
+    // ... your other methods like convertFromApiFormat and processPurchaseInvoice remain unchanged
     convertFromApiFormat(apiData) {
       const properties = {};
       const variants = [];
-      
-      // Convert attributes back to frontend format
-      if (apiData.attributes) {
-        apiData.attributes.forEach(attr => {
-          properties[attr.attribute] = {
-            legacy: attr.values || []
-          };
-        });
-      }
 
-      // Group variant_images by color to create variants
-      if (apiData.variant_images) {
+      // Handle variants from the new API structure
+      if (apiData.variants && Array.isArray(apiData.variants)) {
+        // Group variants by color to create our color variants
         const colorGroups = {};
-        
-        apiData.variant_images.forEach(img => {
-          const color = img.values['اللون'];
+
+        apiData.variants.forEach(variant => {
+          let color = '#000000'; // default color
+          let size = null;
+
+          // Extract color and size from attribute_values
+          if (variant.attribute_values && Array.isArray(variant.attribute_values)) {
+            variant.attribute_values.forEach(attr => {
+              if (attr.attribute_name === 'اللون') {
+                color = attr.value;
+              } else if (attr.attribute_name === 'المقاس') {
+                size = attr.value;
+
+                // Add size to properties
+                if (!properties['المقاس']) {
+                  properties['المقاس'] = { legacy: [], subtitles: {} };
+                }
+                if (!properties['المقاس'].legacy.includes(size)) {
+                  properties['المقاس'].legacy.push(size);
+                }
+              } else {
+                // Handle other attributes
+                const attrName = attr.attribute_name;
+                const attrValue = attr.value;
+
+                if (!properties[attrName]) {
+                  properties[attrName] = { legacy: [], subtitles: {} };
+                }
+                if (!properties[attrName].legacy.includes(attrValue)) {
+                  properties[attrName].legacy.push(attrValue);
+                }
+              }
+            });
+          }
+
+          // Create or update color group
           if (!colorGroups[color]) {
             colorGroups[color] = {
               colorHex: color,
               images: [],
-              stock: []
+              stock: [],
+              showColorPicker: false,
+              error: null
             };
+
+            // Add color to properties
+            if (!properties['اللون']) {
+              properties['اللون'] = { legacy: [], subtitles: {} };
+            }
+            if (!properties['اللون'].legacy.includes(color)) {
+              properties['اللون'].legacy.push(color);
+            }
           }
-          colorGroups[color].images.push(img.image_url);
+
+          // Add images from this variant to the color group
+          if (variant.images && Array.isArray(variant.images)) {
+            const sortedImages = [...variant.images].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+            sortedImages.forEach(img => {
+              // FIXED: Check for both image_url and image fields
+              const imageUrl = img.image_url || img.image;
+              if (imageUrl && !colorGroups[color].images.includes(imageUrl)) {
+                colorGroups[color].images.push(imageUrl);
+              }
+            });
+          }
+
+          // Add stock information
+          if (size && variant.quantity_in_stock !== undefined) {
+            const existingStock = colorGroups[color].stock.find(s => s.size === size);
+            if (existingStock) {
+              existingStock.quantity += variant.quantity_in_stock;
+            } else {
+              colorGroups[color].stock.push({
+                size: size,
+                quantity: variant.quantity_in_stock
+              });
+            }
+          }
         });
 
         variants.push(...Object.values(colorGroups));
       }
 
+      // Fallback: Handle old attributes structure if it exists
+      if (apiData.attributes && Array.isArray(apiData.attributes)) {
+        apiData.attributes.forEach(attr => {
+          let attrName, attrValue;
+
+          if (attr.attribute_name) {
+            attrName = attr.attribute_name;
+            attrValue = attr.value;
+          } else if (attr.attribute && typeof attr.attribute === 'object') {
+            attrName = attr.attribute.name;
+            attrValue = attr.value;
+          } else if (attr.attribute && typeof attr.attribute === 'string') {
+            attrName = attr.attribute;
+            if (attr.values && Array.isArray(attr.values)) {
+              attr.values.forEach(value => {
+                if (!properties[attrName]) properties[attrName] = { legacy: [], subtitles: {} };
+                if (!properties[attrName].legacy.includes(value)) properties[attrName].legacy.push(value);
+              });
+              return;
+            } else {
+              attrValue = attr.value;
+            }
+          }
+
+          if (attrName && attrValue) {
+            if (!properties[attrName]) properties[attrName] = { legacy: [], subtitles: {} };
+            if (!properties[attrName].legacy.includes(attrValue)) properties[attrName].legacy.push(attrValue);
+          }
+        });
+      }
+
+      // Fallback: Handle old variant_images structure if it exists
+      if (apiData.variant_images && Array.isArray(apiData.variant_images) && variants.length === 0) {
+        const colorGroups = {};
+        const sortedImages = [...apiData.variant_images].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+
+        sortedImages.forEach(img => {
+          const color = img.values?.['اللون'] || img.color || '#000000';
+          if (!colorGroups[color]) {
+            colorGroups[color] = { colorHex: color, images: [], stock: [], showColorPicker: false, error: null };
+          }
+          // FIXED: Check for both image_url and image fields
+          const imageUrl = img.image_url || img.image;
+          if (imageUrl) {
+            colorGroups[color].images.push(imageUrl);
+          }
+        });
+
+        variants.push(...Object.values(colorGroups));
+      }
+
+      // If we have color properties but no variants, create empty variants for each color
+      const colorProperty = properties['اللون'];
+      if (colorProperty && colorProperty.legacy && variants.length === 0) {
+        colorProperty.legacy.forEach(color => {
+          variants.push({ colorHex: color, images: [], stock: [], showColorPicker: false, error: null });
+        });
+      }
+
       return {
         id: apiData.id,
-        name: apiData.name,
-        description: apiData.description,
-        mainImage: apiData.main_image_url,
-        categoryId: apiData.category,
-        profitMargin: apiData.profit_margin,
+        name: apiData.name || '',
+        description: apiData.description || '',
+        // FIXED: Check for both main_image and main_image_url fields
+        mainImage: apiData.main_image || apiData.main_image_url || null,
+        categoryId: typeof apiData.category === 'object' && apiData.category !== null ? apiData.category.id : apiData.category,
+        profitMargin: apiData.profit_margin || 0,
+        is_active: apiData.is_active !== undefined ? apiData.is_active : true,
         properties: properties,
-        purchasePrice: 0, // These will be set later when processing invoices
-        sellingPrice: 0,
-        is_active: apiData.is_active,
-        variants: variants
+        variants: variants,
+        purchasePrice: parseFloat(apiData.purchase_cost || 0),
+        sellingPrice: parseFloat(apiData.selling_price || 0),
       };
     },
 
@@ -361,114 +411,169 @@ export const useProductStore = defineStore('product', {
       try {
         await new Promise(resolve => setTimeout(resolve, 1500));
         let totalAmount = 0;
-
         invoiceItems.forEach(item => {
-          // Destructure the whole properties object
           const { productId, purchasePrice, quantityToAdd, properties } = item;
           const product = this.products.find(p => p.id === productId);
-
           if (product) {
             product.purchasePrice = purchasePrice;
             product.sellingPrice = parseFloat((purchasePrice * (1 + (product.profitMargin || 0) / 100)).toFixed(2));
-
-            // Use properties for logic, but note that the stock model is based on color and size
             const color = properties.color;
-            const size = properties['المقاس']; // Assuming 'المقاس' is the key for size
-
+            const size = properties['المقاس'];
             let variant = product.variants.find(v => v.colorHex === color);
-            if (!variant) {
-              throw new Error(`لم يتم العثور على اللون بالكود "${color}" للمنتج "${product.name}"`);
-            }
-
+            if (!variant) throw new Error(`لم يتم العثور على اللون بالكود "${color}"`);
             let stockItem = variant.stock.find(s => s.size === size);
             if (stockItem) {
               stockItem.quantity += quantityToAdd;
             } else {
               variant.stock.push({ size, quantity: quantityToAdd });
             }
-
             totalAmount += purchasePrice * quantityToAdd;
-          } else {
-            throw new Error(`لم يتم العثور على المنتج بالرقم: ${productId}`);
           }
         });
-
-        const newInvoice = {
-          id: Math.max(...this.purchaseInvoices.map(i => i.id), 0) + 1,
-          date: new Date().toISOString().split('T')[0],
-          user: 'مدير النظام',
-          totalAmount: parseFloat(totalAmount.toFixed(2)),
-          // Store the entire properties object for each item
-          items: invoiceItems.map(item => ({
-            productId: item.productId,
-            quantityAdded: item.quantityToAdd,
-            purchasePrice: item.purchasePrice,
-            properties: item.properties,
-          })),
-        };
-
+        const newInvoice = { id: Math.random(), date: new Date().toISOString(), totalAmount, items: invoiceItems };
         this.purchaseInvoices.unshift(newInvoice);
         return { success: true, data: newInvoice };
       } catch (e) {
-        this.error = e.message || 'فشل في معالجة فاتورة الشراء.';
+        this.error = e.message;
         return { success: false, error: this.error };
       } finally {
         this.isLoading = false;
       }
     },
-
-    async updateProduct(productId, dataToUpdate) {
+    
+    // --- MODIFIED updateProduct ACTION ---
+    async updateProduct(productId, dataToUpdate, newMainImageFile = null, newVariantFiles = []) {
       this.isLoading = true;
       this.error = null;
       try {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        const hasMainImageFile = newMainImageFile !== null;
+        const hasVariantImageFiles = newVariantFiles && newVariantFiles.length > 0;
+        const hasFiles = hasMainImageFile || hasVariantImageFiles;
 
+        if (hasFiles) {
+          const formData = new FormData();
+          formData.append('name', dataToUpdate.name.toString());
+          formData.append('description', dataToUpdate.description ? dataToUpdate.description.toString() : '');
+          formData.append('category', parseInt(dataToUpdate.categoryId));
+          formData.append('profit_margin', parseFloat(dataToUpdate.profitMargin));
+          formData.append('is_active', dataToUpdate.is_active !== undefined ? dataToUpdate.is_active : true);
+          
+          // MODIFIED: Compress new main image before appending
+          if (hasMainImageFile) {
+            const compressedMainImage = await compressImage(newMainImageFile);
+            formData.append('main_image', compressedMainImage, compressedMainImage.name);
+          } else if (dataToUpdate.mainImage) {
+            formData.append('main_image_url', dataToUpdate.mainImage);
+          }
+
+          const attributes = [];
+          if (dataToUpdate.properties && Object.keys(dataToUpdate.properties).length > 0) {
+            Object.entries(dataToUpdate.properties).forEach(([attrName, attrData]) => {
+              const values = [];
+              if (attrData.legacy && Array.isArray(attrData.legacy)) {
+                values.push(...attrData.legacy);
+              }
+              if (attrData.subtitles && typeof attrData.subtitles === 'object') {
+                Object.values(attrData.subtitles).forEach(subtitleValues => {
+                  if (Array.isArray(subtitleValues)) values.push(...subtitleValues);
+                });
+              }
+              if (values.length > 0) {
+                attributes.push({
+                  attribute: attrName.toString(),
+                  values: [...new Set(values.map(v => v.toString()))]
+                });
+              }
+            });
+          }
+
+          if (dataToUpdate.variants && dataToUpdate.variants.length > 0) {
+            const colorValues = dataToUpdate.variants.map(v => v.colorHex.toString());
+            const colorAttr = attributes.find(attr => attr.attribute === 'اللون');
+            if (!colorAttr) {
+              attributes.push({ attribute: 'اللون', values: [...new Set(colorValues)] });
+            } else {
+              colorAttr.values = [...new Set([...colorAttr.values, ...colorValues])];
+            }
+          }
+
+          formData.append('attributes', JSON.stringify(attributes));
+          
+          const variantImagesMetadata = [];
+          // MODIFIED: Compress new variant images in parallel
+          if (hasVariantImageFiles) {
+            const compressedVariantFiles = await Promise.all(
+              newVariantFiles.map(imgData => compressImage(imgData.file))
+            );
+            
+            compressedVariantFiles.forEach((file, index) => {
+              const originalImgData = newVariantFiles[index];
+              formData.append('variant_images', file, file.name);
+              variantImagesMetadata.push({
+                image_file_index: index,
+                display_order: index + 1,
+                values: { "اللون": originalImgData.colorHex || '#000000' }
+              });
+            });
+          }
+
+          if (variantImagesMetadata.length > 0) {
+            formData.append('variant_images_data', JSON.stringify(variantImagesMetadata));
+          }
+
+          await api.patch(`products/products/${productId}/`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+        } else {
+          // Fallback for no file updates
+          const apiPayload = this.convertToApiFormat({
+            ...dataToUpdate,
+            selectedProperties: dataToUpdate.properties,
+          });
+          await api.patch(`products/products/${productId}/`, apiPayload);
+        }
+
+        const freshDataResponse = await api.get(`products/products/${productId}/`);
+        const updatedProductInState = this.convertFromApiFormat(freshDataResponse.data);
         const index = this.products.findIndex(p => p.id === productId);
+
         if (index !== -1) {
-          const originalProduct = this.products[index];
-          const updatedData = { ...dataToUpdate };
-
-          if (updatedData.selectedProperties) {
-            updatedData.properties = updatedData.selectedProperties;
-            delete updatedData.selectedProperties;
-          }
-
-          if (updatedData.profitMargin !== undefined && originalProduct.purchasePrice > 0) {
-            const newSellingPrice = originalProduct.purchasePrice * (1 + updatedData.profitMargin / 100);
-            updatedData.sellingPrice = parseFloat(newSellingPrice.toFixed(2));
-          }
-
-          this.products[index] = { ...originalProduct, ...updatedData };
-
-          return { success: true, data: this.products[index] };
-        } else {
-          throw new Error('لم يتم العثور على المنتج');
+          this.products[index] = updatedProductInState;
         }
+        return { success: true, data: this.products[index] };
       } catch (e) {
-        this.error = e.message || 'فشل في تحديث المنتج.';
+        console.error("Failed to update product:", e.response?.data || e.message);
+        const errorData = e.response?.data;
+        this.error = errorData?.attributes?.[0] ||
+          errorData?.variant_images?.[0] ||
+          errorData?.detail ||
+          errorData?.non_field_errors?.[0] ||
+          'فشل في تحديث المنتج.';
         return { success: false, error: this.error };
       } finally {
         this.isLoading = false;
       }
     },
-
+    
     async toggleProductStatus(productId) {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        const product = this.products.find(p => p.id === productId);
-        if (product) {
-          product.is_active = !product.is_active;
-          return { success: true, data: product };
-        } else {
-          throw new Error('لم يتم العثور على المنتج');
-        }
-      } catch (e) {
-        this.error = e.message || 'فشل في تغيير حالة المنتج.';
+      const product = this.products.find(p => p.id === productId);
+      if (!product) {
+        this.error = 'لم يتم العثور على المنتج';
         return { success: false, error: this.error };
-      } finally {
-        this.isLoading = false;
+      }
+
+      const originalStatus = product.is_active;
+      const newStatus = !originalStatus;
+      product.is_active = newStatus;
+
+      try {
+        await api.patch(`products/products/${productId}/`, { is_active: newStatus });
+        return { success: true, data: product };
+      } catch (e) {
+        product.is_active = originalStatus;
+        this.error = e.response?.data?.detail || 'فشل في تغيير حالة المنتج.';
+        console.error("Failed to toggle status:", e.response?.data);
+        return { success: false, error: this.error };
       }
     },
 
@@ -477,7 +582,6 @@ export const useProductStore = defineStore('product', {
       if (!product) return [];
       return product.properties?.['المقاس'] || [];
     },
-
     getAvailableColorsForProduct(productId) {
       const product = this.products.find(p => p.id === productId);
       if (!product || !product.variants) return [];
@@ -485,7 +589,6 @@ export const useProductStore = defineStore('product', {
         hex: variant.colorHex
       }));
     },
-
     clearError() {
       this.error = null;
     },

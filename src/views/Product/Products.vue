@@ -2,7 +2,7 @@
   <div class="container-fluid px-4 py-4">
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
       <h1 class="h2 fw-bold text-dark mb-0">المنتجات</h1>
-      <router-link to="/products/add" class="btn btn-success d-flex align-items-center gap-2 px-3 py-2">
+      <router-link to="/add-product" class="btn btn-success d-flex align-items-center gap-2 px-3 py-2">
         <i class="fas fa-plus"></i>
         إضافة منتج جديد
       </router-link>
@@ -175,9 +175,15 @@ onMounted(() => {
   categoryStore.fetchCategories();
 });
 
-const openDetailsModal = (product) => {
-    selectedProduct.value = product;
-    isDetailsModalVisible.value = true;
+const openDetailsModal = async (product) => {
+    const result = await productStore.fetchProductDetails(product.id);
+    if (result.success) {
+        selectedProduct.value = result.data;
+        isDetailsModalVisible.value = true;
+    } else {
+        // Handle error, e.g., show a toast notification
+        console.error("Failed to fetch product details:", result.error);
+    }
 };
 
 const closeDetailsModal = () => {
@@ -185,9 +191,15 @@ const closeDetailsModal = () => {
     selectedProduct.value = null;
 };
 
-const openEditModal = (product) => {
-    selectedProduct.value = { ...product };
-    isEditModalVisible.value = true;
+const openEditModal = async (product) => {
+    const result = await productStore.fetchProductDetails(product.id);
+    if (result.success) {
+        selectedProduct.value = { ...result.data }; // Create a copy for editing
+        isEditModalVisible.value = true;
+    } else {
+        // Handle error
+        console.error("Failed to fetch product details for editing:", result.error);
+    }
 };
 
 const closeEditModal = () => {
