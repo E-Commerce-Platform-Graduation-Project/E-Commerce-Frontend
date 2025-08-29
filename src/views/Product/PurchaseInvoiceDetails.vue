@@ -92,10 +92,13 @@ const invoice = computed(() => productStore.getInvoiceById(invoiceId.value));
 
 onMounted(async () => {
     isLoading.value = true;
-    await productStore.fetchAllData();
+    // Fetch both all product data and the specific invoice details concurrently
+    await Promise.all([
+        productStore.fetchAllData(), // For getProductInfo and getVariantImage to work
+        productStore.fetchPurchaseInvoiceDetails(invoiceId.value) // For invoice items
+    ]);
     isLoading.value = false;
 });
-
 const getProductInfo = (productId) => {
     return productStore.getProductById(productId) || { name: 'منتج غير معروف' };
 };

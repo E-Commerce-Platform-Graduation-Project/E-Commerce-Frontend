@@ -255,7 +255,7 @@ const propertiesLoading = ref(false);
 const mainCategories = computed(() => categoryStore.getMainCategories);
 const subCategories = computed(() => selectedMainCategory.value ? categoryStore.getSubcategoriesByParent(selectedMainCategory.value) : []);
 
-// --- CHANGE START: Logic to filter properties and get available colors ---
+// --- Logic to filter properties and get available colors ---
 const { properties: allProperties } = storeToRefs(propStore);
 
 // Filter out the 'Color' attribute from the list of selectable properties
@@ -263,14 +263,13 @@ const availableProperties = computed(() => {
   return allProperties.value.filter(p => p.name !== 'اللون');
 });
 
-// Get the list of predefined colors from the 'Color' attribute
+// **FIXED**: Get the list of predefined colors from the 'Color' attribute property
 const availableColors = computed(() => {
     const colorProp = allProperties.value.find(p => p.name === 'اللون');
     return colorProp && Array.isArray(colorProp.values) 
       ? colorProp.values.map(v => v.value) 
       : [];
 });
-// --- CHANGE END ---
 
 watch(selectedMainCategory, () => { productData.categoryId = ''; });
 

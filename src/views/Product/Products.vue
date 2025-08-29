@@ -1,5 +1,6 @@
 <template>
   <div class="container-fluid px-4 py-4">
+    <!-- Header remains the same -->
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
       <h1 class="h2 fw-bold text-dark mb-0">المنتجات</h1>
       <router-link to="/add-product" class="btn btn-success d-flex align-items-center gap-2 px-3 py-2">
@@ -8,8 +9,10 @@
       </router-link>
     </div>
 
+    <!-- Search and Filter Section -->
     <div class="row mb-4 g-3">
         <div class="col-lg-12">
+            <!-- This container now uses the new styles -->
             <div class="search-filter-container">
                 <div class="search-container">
                     <input
@@ -43,26 +46,76 @@
             </div>
         </div>
     </div>
+    
+    <!-- NEW: Pagination Info Display -->
+    <div class="row mb-3">
+      <div class="col-12">
+        <div class="pagination-info">
+          <span class="info-text">
+            عرض {{ totalProducts > 0 ? startIndex + 1 : 0 }} - {{ endIndex }} من {{ totalProducts }} منتج
+          </span>
+        </div>
+      </div>
+    </div>
+    <!-- END NEW -->
 
+    <!-- Loading and Error States -->
     <div v-if="isLoading" class="text-center py-5">
       <div class="spinner-border text-primary" role="status"></div>
       <p class="mt-2 text-muted">جاري تحميل المنتجات...</p>
     </div>
     <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
+    <!-- Products List -->
     <ProductsList
         v-else-if="productsForDisplay.length > 0"
         :products="productsForDisplay"
         @view-details="openDetailsModal"
         @edit-product="openEditModal"
     />
-
+    
+    <!-- Empty State -->
     <div v-else class="text-center py-5">
         <i class="fas fa-box-open fa-4x text-muted mb-3"></i>
-        <h4 class="text-muted">لا توجد منتجات تطابق الفلتر</h4>
+        <h4 class="text-muted">لا توجد منتجات تطابق البحث أو الفلاتر</h4>
         <p>حاول تغيير كلمات البحث أو الفلاتر المستخدمة.</p>
     </div>
 
+    <!-- NEW: Pagination Controls -->
+    <div v-if="!isLoading && !error && totalProducts > 0"
+      class="pagination-container">
+      <div class="pagination-wrapper">
+        <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="pagination-btn prev-btn">
+          <i class="fas fa-chevron-right"></i>
+          السابق
+        </button>
+
+        <div class="page-numbers">
+          <button v-for="page in visiblePages" :key="page" @click="goToPage(page)"
+            :class="['page-number', { 'active': page === currentPage, 'disabled': typeof page !== 'number' }]"
+            :disabled="typeof page !== 'number'">
+            {{ page }}
+          </button>
+        </div>
+
+        <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages"
+          class="pagination-btn next-btn">
+          التالي
+          <i class="fas fa-chevron-left"></i>
+        </button>
+      </div>
+
+      <div class="page-size-selector">
+        <label for="pageSize">عدد المنتجات في الصفحة:</label>
+        <select id="pageSize" v-model="itemsPerPage" class="page-size-select" disabled>
+          <option value="10">10</option>
+        </select>
+      </div>
+    </div>
+    <!-- END NEW -->
+
+
+    <!-- Modals remain the same -->
     <ProductDetails
         v-if="isDetailsModalVisible"
         :product="selectedProduct"
@@ -80,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useProductStore } from '@/stores/productStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import EditProduct from '@/components/Product/EditProduct.vue';
@@ -97,6 +150,11 @@ const statusFilter = ref('all');
 const isEditModalVisible = ref(false);
 const isDetailsModalVisible = ref(false);
 const selectedProduct = ref(null);
+
+// --- NEW: State for pagination ---
+const currentPage = ref(1);
+const itemsPerPage = ref(10); // API default is 10
+// --- END NEW ---
 
 // Computed properties
 const isLoading = computed(() => productStore.isLoading || categoryStore.isLoading);
@@ -115,73 +173,125 @@ const categoryHierarchy = computed(() => {
     return hierarchy;
 });
 
-const filteredProducts = computed(() => {
-  return productStore.getAllProducts.filter(product => {
-    const query = searchQuery.value.toLowerCase().trim();
+// --- NEW: Pagination computed properties (adapted from Customers.vue) ---
+const totalProducts = computed(() => productStore.getProductsCount);
 
-    // Updated search to include name and ID
-    const matchesSearch = query === '' ||
-                          product.name.toLowerCase().includes(query) ||
-                          String(product.id).includes(query);
+const totalPages = computed(() => {
+  if (totalProducts.value === 0) return 1;
+  return Math.ceil(totalProducts.value / itemsPerPage.value);
+});
 
-    // Category filter logic (unchanged)
-    let matchesCategory = true;
-    if (categoryFilter.value !== 'all') {
+const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value);
+
+const endIndex = computed(() => {
+  const end = startIndex.value + itemsPerPage.value;
+  return Math.min(end, totalProducts.value);
+});
+
+const visiblePages = computed(() => {
+  const pages = [];
+  const total = totalPages.value;
+  const current = currentPage.value;
+
+  if (total <= 1) return [];
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (current > 4) pages.push('...');
+    const start = Math.max(2, current - 2);
+    const end = Math.min(total - 1, current + 2);
+    for (let i = start; i <= end; i++) {
+      if (i > 1 && !pages.includes(i)) pages.push(i);
+    }
+    if (current < total - 3) pages.push('...');
+    if (!pages.includes(total)) pages.push(total);
+  }
+  return pages;
+});
+// --- END NEW ---
+
+
+// --- MODIFIED: This computed now applies client-side filters to the paginated data from the store ---
+const productsForDisplay = computed(() => {
+  // Start with the products for the current page from the store
+  let products = productStore.getAllProducts;
+
+  // Apply client-side category filter
+  if (categoryFilter.value !== 'all') {
+    products = products.filter(product => {
         const selectedCatId = parseInt(categoryFilter.value);
         const isParent = categoryStore.getMainCategories.some(cat => cat.id === selectedCatId);
-
         if (isParent) {
             const childIds = categoryStore.getSubcategoriesByParent(selectedCatId).map(sub => sub.id);
-            matchesCategory = childIds.includes(product.categoryId);
+            return childIds.includes(product.categoryId);
         } else {
-            matchesCategory = product.categoryId === selectedCatId;
+            return product.categoryId === selectedCatId;
         }
-    }
+    });
+  }
 
-    // Updated status filter to include stock levels
-    let matchesStatus = true;
-    const status = statusFilter.value;
-    if (status === 'active') {
-        matchesStatus = product.is_active;
-    } else if (status === 'inactive') {
-        matchesStatus = !product.is_active;
-    } else if (status !== 'all') {
+  // Apply client-side status filter
+  if (statusFilter.value !== 'all') {
+    products = products.filter(product => {
+        const status = statusFilter.value;
+        if (status === 'active') return product.is_active;
+        if (status === 'inactive') return !product.is_active;
+        
         const quantity = productStore.getProductTotalQuantity(product.id);
-        if (status === 'out_of_stock') {
-            matchesStatus = quantity <= 0;
-        } else if (status === 'low_stock') {
-            matchesStatus = quantity > 0 && quantity <= 15;
-        } else if (status === 'in_stock') {
-            matchesStatus = quantity > 15;
-        }
-    }
+        if (status === 'out_of_stock') return quantity <= 0;
+        if (status === 'low_stock') return quantity > 0 && quantity <= 15;
+        if (status === 'in_stock') return quantity > 15;
+        return true;
+    });
+  }
 
-    return matchesSearch && matchesCategory && matchesStatus;
+  // Map to add displayImage property
+  return products.map(product => {
+      const displayImage = product.mainImage ||
+                          product.variants?.[0]?.images?.[0] ||
+                          'https://placehold.co/300x300/eee/ccc?text=No+Image';
+      return { ...product, displayImage };
   });
 });
+// --- END MODIFICATION ---
 
-const productsForDisplay = computed(() => {
-    return filteredProducts.value.map(product => {
-        const displayImage = product.mainImage ||
-                            product.variants?.[0]?.images?.[0] ||
-                            'https://placehold.co/300x300/eee/ccc?text=No+Image';
-        return { ...product, displayImage };
-    });
+
+// --- NEW: Watcher for search query with debounce ---
+let debounceTimer = null;
+watch(searchQuery, (newQuery) => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    currentPage.value = 1; // Reset to first page on new search
+    productStore.fetchProducts({ page: 1, search: newQuery });
+  }, 500); // 500ms delay
 });
+// --- END NEW ---
+
 
 // Methods
 onMounted(() => {
-  productStore.fetchProducts();
+  productStore.fetchProducts(); // Fetch initial data for page 1
   categoryStore.fetchCategories();
 });
 
+// --- NEW: Method to change pages ---
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value && typeof page === 'number') {
+    currentPage.value = page;
+    productStore.fetchProducts({ page: page, search: searchQuery.value });
+  }
+};
+// --- END NEW ---
+
+// Modal handling methods remain the same
 const openDetailsModal = async (product) => {
     const result = await productStore.fetchProductDetails(product.id);
     if (result.success) {
         selectedProduct.value = result.data;
         isDetailsModalVisible.value = true;
     } else {
-        // Handle error, e.g., show a toast notification
         console.error("Failed to fetch product details:", result.error);
     }
 };
@@ -194,10 +304,9 @@ const closeDetailsModal = () => {
 const openEditModal = async (product) => {
     const result = await productStore.fetchProductDetails(product.id);
     if (result.success) {
-        selectedProduct.value = { ...result.data }; // Create a copy for editing
+        selectedProduct.value = { ...result.data };
         isEditModalVisible.value = true;
     } else {
-        // Handle error
         console.error("Failed to fetch product details for editing:", result.error);
     }
 };
@@ -223,7 +332,7 @@ const handleProductUpdate = () => {
 </script>
 
 <style scoped>
-/* Search and Filter Styling */
+/* --- NEW: Styles copied from Customers.vue for consistency --- */
 .search-filter-container {
   display: flex;
   gap: 20px;
@@ -234,12 +343,12 @@ const handleProductUpdate = () => {
   flex: 1;
 }
 .search-input, .status-filter {
-  padding: 12px 45px 12px 20px;
+  padding: 18px 50px 18px 20px;
   border: 2px solid #e9ecef;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 18px;
   background-color: white;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   text-align: right;
   direction: rtl;
@@ -248,18 +357,19 @@ const handleProductUpdate = () => {
 .search-input:focus, .status-filter:focus {
   outline: none;
   border-color: #007bff;
-  box-shadow: 0 2px 10px rgba(0, 123, 255, 0.15);
+  box-shadow: 0 4px 20px rgba(0, 123, 255, 0.2);
 }
 .search-icon {
   position: absolute;
-  right: 18px;
+  right: 20px;
   top: 50%;
   transform: translateY(-50%);
   color: #6c757d;
+  font-size: 18px;
 }
 .filter-container {
   position: relative;
-  min-width: 220px; /* Increased width to accommodate longer text */
+  min-width: 220px;
 }
 .status-filter {
   appearance: none;
@@ -278,4 +388,129 @@ const handleProductUpdate = () => {
     font-weight: bold;
     color: #000;
 }
+
+.pagination-info {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.info-text {
+  color: #6c757d;
+  font-size: 14px;
+  background-color: #f8f9fa;
+  padding: 8px 16px;
+  border-radius: 20px;
+  display: inline-block;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 30px;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.pagination-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pagination-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #007bff;
+  color: #007bff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 5px;
+  margin: 0 15px;
+}
+
+.page-number {
+  min-width: 40px;
+  height: 40px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-number:hover:not(.disabled) {
+  border-color: #007bff;
+  color: #007bff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+}
+
+.page-number.active {
+  border-color: #007bff;
+  background: #007bff;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+}
+
+.page-number.disabled {
+  cursor: default;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #495057;
+}
+
+.page-size-select {
+  padding: 8px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-size-select:focus {
+  outline: none;
+  border-color: #007bff;
+}
+/* --- END NEW STYLES --- */
 </style>

@@ -116,7 +116,7 @@
                           </label>
                         </div>
                       </div>
-                      <div v-if="(!prop.values || prop.values.length === 0) && prop.subtitles.length === 0" class="empty-dropdown">
+                      <div v-if="(!prop.values || prop.values.length === 0) && (!prop.subtitles || prop.subtitles.length === 0)" class="empty-dropdown">
                         <p>لا توجد قيم متاحة لهذه الخاصية</p>
                       </div>
                     </div>
@@ -204,7 +204,7 @@
                         <img :src="image" />
                         <button @click="removeImageFromVariant(index, imgIndex, false)" class="remove-btn" type="button">&times;</button>
                       </div>
-                      <div v-for="(newImg, newImgIndex) in getNewImagesForVariant(index)" :key="`new-${newImgIndex}`" class="image-preview">
+                      <div v-for="(newImg, newImgIndex) in getNewImagesForVariant(variant.colorHex)" :key="`new-${newImgIndex}`" class="image-preview">
                         <img :src="newImg.url" />
                         <button @click="removeImageFromVariant(index, newImgIndex, true)" class="remove-btn" type="button">&times;</button>
                       </div>
@@ -228,8 +228,6 @@
   </div>
 </template>
 
-// Replace the script section in EditProduct.vue with this:
-
 <script setup>
 import { reactive, computed, ref, onMounted } from 'vue';
 import { useProductStore } from '@/stores/productStore';
@@ -246,23 +244,20 @@ const productStore = useProductStore();
 const categoryStore = useCategoryStore();
 const propStore = usePropStore();
 
-// --- CHANGE START ---
 const { properties: allProperties } = storeToRefs(propStore);
 
-// Filter out the 'Color' attribute from the list of selectable properties
+// **FIXED**: Corrected character encoding issue ('اللون')
 const availableProperties = computed(() => {
-  return allProperties.value.filter(p => p.name !== 'Ø§Ù„Ù„ÙˆÙ†');
+  return allProperties.value.filter(p => p.name !== 'اللون');
 });
 
-// Get the list of predefined colors from the 'Color' attribute, like in AddProduct.vue
+// **FIXED**: Get the list of predefined colors from the 'Color' attribute, like in AddProduct.vue
 const availableColors = computed(() => {
-    const colorProp = allProperties.value.find(p => p.name === 'Ø§Ù„Ù„ÙˆÙ†');
+    const colorProp = allProperties.value.find(p => p.name === 'اللون');
     return colorProp && Array.isArray(colorProp.values) 
       ? colorProp.values.map(v => v.value) 
       : [];
 });
-// --- CHANGE END ---
-
 
 const form = reactive(JSON.parse(JSON.stringify(props.product)));
 form.selectedProperties = {};
@@ -271,27 +266,28 @@ const openComboBox = ref(null);
 // State for managing new file uploads
 const newMainImageFile = ref(null);
 const newMainImageURL = ref(null);
-const newVariantImages = ref([]);
+// **FIXED**: `newVariantImages` now stores colorHex directly for more robust logic
+const newVariantImages = ref([]); // Shape: { colorHex: string, file: File, url: string }
 
-// Computed property for main image preview
 const mainImagePreview = computed(() => {
-  if (newMainImageURL.value) {
-    return newMainImageURL.value;
-  }
-  return form.mainImage;
+  return newMainImageURL.value || form.mainImage;
 });
 
-// Initialize form data and sync with product properties
 const initializeFormProperties = () => {
-  if (form.properties && typeof form.properties === 'object') {
-    Object.keys(form.properties).forEach(propName => {
-      const propData = form.properties[propName];
-      form.selectedProperties[propName] = {
+  const newSelectedProperties = {};
+  const productData = props.product;
+
+  if (productData && productData.properties && typeof productData.properties === 'object') {
+    Object.keys(productData.properties).forEach(propName => {
+      if (propName === 'اللون') return; // Color is handled by variants UI
+      const propData = productData.properties[propName];
+      newSelectedProperties[propName] = {
         legacy: propData.legacy ? [...propData.legacy] : [],
         subtitles: propData.subtitles ? JSON.parse(JSON.stringify(propData.subtitles)) : {}
       };
     });
   }
+  form.selectedProperties = newSelectedProperties;
 
   if (form.variants) {
     form.variants.forEach(variant => {
@@ -311,27 +307,15 @@ const subCategoryGroups = computed(() => {
 });
 
 onMounted(async () => {
-  if (propStore.properties.length === 0) {
-    await propStore.fetchAttributes();
-  }
-  
-  // This fetch is kept in case other parts of the component rely on the full product list
-  if (productStore.products.length === 0) {
-    await productStore.fetchProducts();
-  }
-  
+  if (propStore.properties.length === 0) await propStore.fetchAttributes();
+  if (categoryStore.categories.length === 0) await categoryStore.fetchCategories();
   initializeFormProperties();
 });
 
-// Main image management
 const handleMainImageUpload = (event) => {
   const file = event.target.files[0];
   if (!file) return;
-
-  if (newMainImageURL.value) {
-    URL.revokeObjectURL(newMainImageURL.value);
-  }
-  
+  if (newMainImageURL.value) URL.revokeObjectURL(newMainImageURL.value);
   newMainImageFile.value = file;
   newMainImageURL.value = URL.createObjectURL(file);
 };
@@ -345,55 +329,39 @@ const removeMainImage = () => {
   form.mainImage = null;
 };
 
-// Properties management functions
-const toggleComboBox = (propId) => {
-  openComboBox.value = openComboBox.value === propId ? null : propId;
-};
-
-const isLegacyValueSelected = (propName, value) => {
-  return form.selectedProperties[propName]?.legacy?.includes(value) || false;
-};
-
-const isSubtitleValueSelected = (propName, subtitleName, value) => {
-  return form.selectedProperties[propName]?.subtitles?.[subtitleName]?.includes(value) || false;
-};
-
+// Properties management (unchanged from original)
+const toggleComboBox = (propId) => { openComboBox.value = openComboBox.value === propId ? null : propId; };
+const isLegacyValueSelected = (propName, value) => form.selectedProperties[propName]?.legacy?.includes(value) || false;
+const isSubtitleValueSelected = (propName, subtitleName, value) => form.selectedProperties[propName]?.subtitles?.[subtitleName]?.includes(value) || false;
 const getSelectedCountForProperty = (propName) => {
   const propData = form.selectedProperties[propName];
   if (!propData) return 0;
   let count = 0;
   if (propData.legacy) count += propData.legacy.length;
   if (propData.subtitles) {
-    Object.values(propData.subtitles).forEach(values => { 
-      if (Array.isArray(values)) count += values.length; 
-    });
+    Object.values(propData.subtitles).forEach(values => { if (Array.isArray(values)) count += values.length; });
   }
   return count;
 };
-
 const areAllLegacyValuesSelected = (propName, values) => {
   const selected = form.selectedProperties[propName]?.legacy || [];
   return values.length > 0 && values.every(v => selected.includes(v));
 };
-
 const areAllSubtitleValuesSelected = (propName, subtitleName, values) => {
   const selected = form.selectedProperties[propName]?.subtitles?.[subtitleName] || [];
   return values.length > 0 && values.every(v => selected.includes(v));
 };
-
 const initializeProperty = (propName) => {
   if (!form.selectedProperties[propName]) {
     form.selectedProperties[propName] = { legacy: [], subtitles: {} };
   }
 };
-
 const toggleSelectAllLegacy = (propName, values) => {
   initializeProperty(propName);
   const areAllSelected = areAllLegacyValuesSelected(propName, values);
   form.selectedProperties[propName].legacy = areAllSelected ? [] : [...values];
   cleanupPropertyData(propName);
 };
-
 const toggleSelectAllSubtitle = (propName, subtitleName, values) => {
   initializeProperty(propName);
   if (!form.selectedProperties[propName].subtitles) {
@@ -403,132 +371,78 @@ const toggleSelectAllSubtitle = (propName, subtitleName, values) => {
   form.selectedProperties[propName].subtitles[subtitleName] = areAllSelected ? [] : [...values];
   cleanupPropertyData(propName);
 };
-
 const handleLegacyPropertyChange = (propName, value, event) => {
-  if (!form.selectedProperties[propName]) {
-    form.selectedProperties[propName] = { legacy: [], subtitles: {} };
-  }
-  if (!form.selectedProperties[propName].legacy) {
-    form.selectedProperties[propName].legacy = [];
-  }
-  
+  if (!form.selectedProperties[propName]) form.selectedProperties[propName] = { legacy: [], subtitles: {} };
+  if (!form.selectedProperties[propName].legacy) form.selectedProperties[propName].legacy = [];
   if (event.target.checked) {
-    if (!form.selectedProperties[propName].legacy.includes(value)) {
-      form.selectedProperties[propName].legacy.push(value);
-    }
+    if (!form.selectedProperties[propName].legacy.includes(value)) form.selectedProperties[propName].legacy.push(value);
   } else {
     const index = form.selectedProperties[propName].legacy.indexOf(value);
-    if (index > -1) {
-      form.selectedProperties[propName].legacy.splice(index, 1);
-    }
+    if (index > -1) form.selectedProperties[propName].legacy.splice(index, 1);
   }
   cleanupPropertyData(propName);
 };
-
 const handleSubtitlePropertyChange = (propName, subtitleName, value, event) => {
-  if (!form.selectedProperties[propName]) {
-    form.selectedProperties[propName] = { legacy: [], subtitles: {} };
-  }
-  if (!form.selectedProperties[propName].subtitles) {
-    form.selectedProperties[propName].subtitles = {};
-  }
-  if (!form.selectedProperties[propName].subtitles[subtitleName]) {
-    form.selectedProperties[propName].subtitles[subtitleName] = [];
-  }
-  
+  if (!form.selectedProperties[propName]) form.selectedProperties[propName] = { legacy: [], subtitles: {} };
+  if (!form.selectedProperties[propName].subtitles) form.selectedProperties[propName].subtitles = {};
+  if (!form.selectedProperties[propName].subtitles[subtitleName]) form.selectedProperties[propName].subtitles[subtitleName] = [];
   if (event.target.checked) {
-    if (!form.selectedProperties[propName].subtitles[subtitleName].includes(value)) {
-      form.selectedProperties[propName].subtitles[subtitleName].push(value);
-    }
+    if (!form.selectedProperties[propName].subtitles[subtitleName].includes(value)) form.selectedProperties[propName].subtitles[subtitleName].push(value);
   } else {
     const index = form.selectedProperties[propName].subtitles[subtitleName].indexOf(value);
-    if (index > -1) {
-      form.selectedProperties[propName].subtitles[subtitleName].splice(index, 1);
-    }
+    if (index > -1) form.selectedProperties[propName].subtitles[subtitleName].splice(index, 1);
   }
   cleanupPropertyData(propName);
 };
-
 const cleanupPropertyData = (propName) => {
   const prop = form.selectedProperties[propName];
   if (!prop) return;
-  
-  if (prop.legacy && prop.legacy.length === 0) {
-    delete prop.legacy;
-  }
-  
+  if (prop.legacy && prop.legacy.length === 0) delete prop.legacy;
   if (prop.subtitles) {
-    Object.keys(prop.subtitles).forEach(sub => {
-      if (!prop.subtitles[sub] || prop.subtitles[sub].length === 0) {
-        delete prop.subtitles[sub];
-      }
-    });
-    if (Object.keys(prop.subtitles).length === 0) {
-      delete prop.subtitles;
-    }
+    Object.keys(prop.subtitles).forEach(sub => { if (!prop.subtitles[sub] || prop.subtitles[sub].length === 0) delete prop.subtitles[sub]; });
+    if (Object.keys(prop.subtitles).length === 0) delete prop.subtitles;
   }
-  
-  if (Object.keys(prop).length === 0) {
-    delete form.selectedProperties[propName];
-  }
+  if (Object.keys(prop).length === 0) delete form.selectedProperties[propName];
 };
 
 // Color variants management
 const addColorVariant = () => {
   if (!form.variants) form.variants = [];
-  form.variants.push({ 
-    colorHex: '#000000', 
-    images: [], 
-    stock: [], 
-    showColorPicker: false, 
-    error: null 
-  });
+  form.variants.push({ colorHex: '#000000', images: [], stock: [], showColorPicker: false, error: null });
 };
-
-const removeColorVariant = (index) => {
-  form.variants.splice(index, 1);
-};
-
+const removeColorVariant = (index) => form.variants.splice(index, 1);
 const toggleColorPicker = (index) => {
-  form.variants.forEach((v, i) => { 
-    if (i !== index) v.showColorPicker = false; 
-  });
+  form.variants.forEach((v, i) => { if (i !== index) v.showColorPicker = false; });
   form.variants[index].showColorPicker = !form.variants[index].showColorPicker;
 };
-
 const selectUsedColor = (index, colorHex) => {
   form.variants[index].colorHex = colorHex;
   handleHexColorChange(index, true);
 };
-
-const closeColorPicker = (index) => {
-  form.variants[index].showColorPicker = false;
-};
-
+const closeColorPicker = (index) => { form.variants[index].showColorPicker = false; };
 const handleHexColorChange = (index, shouldClosePicker) => {
   const variant = form.variants[index];
   let color = variant.colorHex.toLowerCase();
   if (!color.startsWith('#')) color = '#' + color;
   variant.colorHex = color;
-  
-  const isDuplicate = form.variants.some((v, i) => 
-    i !== index && v.colorHex.toLowerCase() === variant.colorHex.toLowerCase()
-  );
-  variant.error = isDuplicate ? 'Ù‡Ø°Ø§ Ø§Ù„Ù„ÙˆÙ† ØªÙ… Ø§Ø®ØªÙŠØ§Ø±Ù‡ Ø¨Ø§Ù„ÙØ¹Ù„.' : null;
-  
+  const isDuplicate = form.variants.some((v, i) => i !== index && v.colorHex.toLowerCase() === variant.colorHex.toLowerCase());
+  variant.error = isDuplicate ? 'هذا اللون تم اختياره بالفعل.' : null;
   if (shouldClosePicker) variant.showColorPicker = false;
 };
 
-// Variant image management
-const getNewImagesForVariant = (variantIndex) => {
-  return newVariantImages.value.filter(img => img.variantIndex === variantIndex);
+// **FIXED**: Reworked variant image management for robustness
+const getNewImagesForVariant = (variantColorHex) => {
+  return newVariantImages.value.filter(img => img.colorHex.toLowerCase() === variantColorHex.toLowerCase());
 };
 
 const addImagesToVariant = (event, variantIndex) => {
   const files = Array.from(event.target.files);
+  const variant = form.variants[variantIndex];
+  if (!variant) return;
+
   files.forEach(file => {
     newVariantImages.value.push({
-      variantIndex,
+      colorHex: variant.colorHex,
       file,
       url: URL.createObjectURL(file)
     });
@@ -537,33 +451,29 @@ const addImagesToVariant = (event, variantIndex) => {
 
 const removeImageFromVariant = (variantIndex, imageIndex, isNew) => {
   if (isNew) {
-    const newImagesForVariant = getNewImagesForVariant(variantIndex);
-    const targetImage = newImagesForVariant[imageIndex];
+    const variant = form.variants[variantIndex];
+    if (!variant) return;
+    const newImagesForThisColor = getNewImagesForVariant(variant.colorHex);
+    const targetImage = newImagesForThisColor[imageIndex];
     const overallIndex = newVariantImages.value.findIndex(img => img === targetImage);
-    
     if (overallIndex > -1) {
       URL.revokeObjectURL(newVariantImages.value[overallIndex].url);
       newVariantImages.value.splice(overallIndex, 1);
     }
   } else {
     const variant = form.variants[variantIndex];
-    if (variant && variant.images) {
-      variant.images.splice(imageIndex, 1);
-    }
+    if (variant && variant.images) variant.images.splice(imageIndex, 1);
   }
 };
 
-// Form submission
 const handleSubmit = async () => {
-  const updateData = {
-    ...form,
-    properties: form.selectedProperties,
-  };
+  const updateData = { ...form, properties: form.selectedProperties };
   delete updateData.selectedProperties;
 
+  // **FIXED**: Prepare variant files with color info in a robust way
   const variantFiles = newVariantImages.value.map(img => ({
-    variantIndex: img.variantIndex,
-    file: img.file
+    file: img.file,
+    colorHex: img.colorHex
   }));
 
   const result = await productStore.updateProduct(
@@ -576,21 +486,19 @@ const handleSubmit = async () => {
   if (result.success) {
     if (newMainImageURL.value) URL.revokeObjectURL(newMainImageURL.value);
     newVariantImages.value.forEach(img => URL.revokeObjectURL(img.url));
-    
     emit('product-updated');
   } else {
     console.error("Failed to update product:", result.error);
   }
 };
 </script>
+
+
 <style scoped>
 /* All styles are unchanged */
-/* Modal and layout fixes */
 .modal-xl {
   max-width: 1000px;
 }
-
-/* Status switch improvements */
 .status-container {
   display: flex;
   align-items: center;
@@ -600,7 +508,6 @@ const handleSubmit = async () => {
   border-radius: 6px;
   background-color: #fff;
 }
-
 .form-check.form-switch {
   display: flex;
   align-items: center;
@@ -608,22 +515,18 @@ const handleSubmit = async () => {
   margin: 0;
   padding: 0;
 }
-
 .status-switch {
   width: 3.5em !important;
   height: 1.75em !important;
   cursor: pointer;
   margin: 0 !important;
 }
-
 .form-check-label {
   font-weight: 500;
   color: #374151;
   margin: 0 !important;
   cursor: pointer;
 }
-
-/* Main image uploader improvements */
 .main-image-uploader {
   border: 2px dashed #ced4da;
   border-radius: 8px;
@@ -635,18 +538,15 @@ const handleSubmit = async () => {
   background-color: #f8f9fa;
   overflow: hidden;
 }
-
 .main-image-uploader .upload-prompt {
   text-align: center;
   color: #6c757d;
 }
-
 .main-image-uploader .upload-prompt i {
   font-size: 2rem;
   margin-bottom: 8px;
   display: block;
 }
-
 .main-image-preview {
   width: 100%;
   height: 100%;
@@ -654,14 +554,12 @@ const handleSubmit = async () => {
   top: 0;
   left: 0;
 }
-
 .main-image-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 6px;
 }
-
 .main-image-preview .remove-btn {
   position: absolute;
   top: 8px;
@@ -679,7 +577,6 @@ const handleSubmit = async () => {
   align-items: center;
   justify-content: center;
 }
-
 .file-input {
   position: absolute;
   top: 0;
@@ -689,22 +586,17 @@ const handleSubmit = async () => {
   opacity: 0;
   cursor: pointer;
 }
-
-/* Properties section styles */
 .properties-section {
   background-color: #f8f9fa;
 }
-
 .properties-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 }
-
 .property-group, .property-combo-box {
   position: relative;
 }
-
 .combo-box-button {
   width: 100%;
   padding: 12px 16px;
@@ -719,37 +611,30 @@ const handleSubmit = async () => {
   font-size: 14px;
   transition: all 0.2s ease;
 }
-
 .combo-box-button:hover {
   border-color: #3b82f6;
 }
-
 .combo-box-button.active {
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
-
 .combo-box-title { 
   font-weight: 600; 
   color: #374151;
 }
-
 .selected-count { 
   color: #3b82f6; 
   font-size: 12px; 
   font-weight: 500;
 }
-
 .combo-box-icon { 
   transition: transform 0.2s ease; 
   color: #6b7280;
   font-size: 12px;
 }
-
 .combo-box-icon.rotated { 
   transform: rotate(180deg); 
 }
-
 .combo-box-dropdown {
   position: absolute;
   top: 100%;
@@ -763,15 +648,12 @@ const handleSubmit = async () => {
   max-height: 300px;
   overflow-y: auto;
 }
-
 .checkbox-section { 
   border-bottom: 1px solid #e9ecef; 
 }
-
 .checkbox-section:last-child { 
   border-bottom: none; 
 }
-
 .section-header-small {
   background-color: #f8f9fa;
   padding: 8px 12px;
@@ -783,7 +665,6 @@ const handleSubmit = async () => {
   justify-content: space-between;
   align-items: center;
 }
-
 .select-all-btn {
   background: none;
   border: none;
@@ -795,18 +676,15 @@ const handleSubmit = async () => {
   border-radius: 4px;
   transition: background-color 0.15s ease;
 }
-
 .select-all-btn:hover {
   background-color: rgba(59, 130, 246, 0.1);
 }
-
 .checkbox-container { 
   padding: 8px; 
   display: flex; 
   flex-direction: column; 
   gap: 4px; 
 }
-
 .checkbox-label { 
   display: flex; 
   align-items: center; 
@@ -816,32 +694,25 @@ const handleSubmit = async () => {
   border-radius: 4px; 
   transition: background-color 0.15s ease;
 }
-
 .checkbox-label:hover { 
   background-color: #f8f9fa; 
 }
-
 .checkbox-label input[type="checkbox"] {
   margin: 0;
 }
-
 .checkbox-text { 
   font-size: 14px; 
   color: #374151;
 }
-
 .empty-dropdown { 
   padding: 20px; 
   text-align: center; 
   color: #6b7280;
   font-size: 14px;
 }
-
-/* Enhanced Color Selection Styles */
 .color-selection-container {
   position: relative;
 }
-
 .color-picker-wrapper {
   display: flex;
   align-items: center;
@@ -853,11 +724,9 @@ const handleSubmit = async () => {
   cursor: pointer;
   transition: all 0.2s ease;
 }
-
 .color-picker-wrapper:hover {
   border-color: #3b82f6;
 }
-
 .selected-color-preview {
   width: 24px;
   height: 24px;
@@ -865,14 +734,12 @@ const handleSubmit = async () => {
   border: 2px solid #e5e7eb;
   flex-shrink: 0;
 }
-
 .color-hex-text {
   flex: 1;
   font-family: monospace;
   font-size: 14px;
   color: #374151;
 }
-
 .color-dropdown {
   position: absolute;
   top: 100%;
@@ -886,7 +753,6 @@ const handleSubmit = async () => {
   max-height: 400px;
   overflow-y: auto;
 }
-
 .color-dropdown-header {
   display: flex;
   justify-content: space-between;
@@ -897,7 +763,6 @@ const handleSubmit = async () => {
   font-weight: 600;
   color: #374151;
 }
-
 .close-dropdown-btn {
   background: none;
   border: none;
@@ -912,43 +777,36 @@ const handleSubmit = async () => {
   border-radius: 4px;
   transition: all 0.15s ease;
 }
-
 .close-dropdown-btn:hover {
   background-color: #e5e7eb;
   color: #374151;
 }
-
 .color-section-title {
   font-size: 14px;
   font-weight: 600;
   color: #4b5563;
   margin: 0 0 8px 0;
 }
-
 .used-colors-section {
   padding: 16px;
   border-bottom: 1px solid #e5e7eb;
 }
-
 .no-used-colors {
   padding: 16px;
   text-align: center;
   border-bottom: 1px solid #e5e7eb;
 }
-
 .no-used-colors p {
   margin: 0;
   color: #6b7280;
   font-size: 14px;
 }
-
 .color-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
   gap: 8px;
   margin-top: 8px;
 }
-
 .color-option {
   display: flex;
   flex-direction: column;
@@ -960,16 +818,13 @@ const handleSubmit = async () => {
   transition: all 0.15s ease;
   border: 2px solid transparent;
 }
-
 .color-option:hover {
   background-color: #f3f4f6;
 }
-
 .color-option.selected {
   background-color: #dbeafe;
   border-color: #3b82f6;
 }
-
 .color-circle {
   width: 32px;
   height: 32px;
@@ -977,25 +832,21 @@ const handleSubmit = async () => {
   border: 2px solid #e5e7eb;
   flex-shrink: 0;
 }
-
 .color-code {
   font-size: 10px;
   font-family: monospace;
   color: #6b7280;
   text-align: center;
 }
-
 .custom-color-section {
   padding: 16px;
 }
-
 .custom-color-picker {
   display: flex;
   gap: 12px;
   align-items: center;
   margin-top: 8px;
 }
-
 .color-input {
   width: 60px;
   height: 40px;
@@ -1004,7 +855,6 @@ const handleSubmit = async () => {
   cursor: pointer;
   padding: 0;
 }
-
 .color-hex-input {
   flex: 1;
   padding: 8px 12px;
@@ -1013,20 +863,16 @@ const handleSubmit = async () => {
   font-family: monospace;
   font-size: 14px;
 }
-
 .color-hex-input:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
-
 .error-message {
   color: #ef4444;
   font-size: 12px;
   margin-top: 4px;
 }
-
-/* Variations Section Styles */
 .variation-card {
   background: #ffffff;
   border: 1px solid #dee2e6;
@@ -1035,7 +881,6 @@ const handleSubmit = async () => {
   margin-bottom: 16px;
   position: relative;
 }
-
 .variation-header {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -1043,20 +888,17 @@ const handleSubmit = async () => {
   align-items: flex-start;
   margin-bottom: 16px;
 }
-
 .form-group { 
   display: flex; 
   flex-direction: column; 
   gap: 8px; 
 }
-
 .form-group .form-label {
   font-weight: 600;
   color: #374151;
   font-size: 14px;
   margin-bottom: 4px;
 }
-
 .btn-remove-variation {
   background-color: #f8d7da;
   color: #721c24;
@@ -1075,12 +917,10 @@ const handleSubmit = async () => {
   justify-content: center;
   transition: all 0.15s ease;
 }
-
 .btn-remove-variation:hover {
   background-color: #f5c6cb;
   transform: scale(1.1);
 }
-
 .image-uploader { 
   position: relative; 
   border: 2px dashed #d1d5db;
@@ -1089,14 +929,12 @@ const handleSubmit = async () => {
   text-align: center;
   background-color: #f9fafb;
 }
-
 .image-preview-grid { 
   display: flex; 
   flex-wrap: wrap; 
   gap: 10px; 
   margin-top: 10px;
 }
-
 .image-preview, .upload-prompt {
   position: relative;
   width: 100px;
@@ -1107,7 +945,6 @@ const handleSubmit = async () => {
   align-items: center;
   justify-content: center;
 }
-
 .upload-prompt { 
   border: 2px dashed #ced4da; 
   color: #6c757d; 
@@ -1116,18 +953,15 @@ const handleSubmit = async () => {
   cursor: pointer;
   transition: all 0.15s ease;
 }
-
 .upload-prompt:hover {
   border-color: #3b82f6;
   color: #3b82f6;
 }
-
 .image-preview img { 
   width: 100%; 
   height: 100%; 
   object-fit: cover; 
 }
-
 .remove-btn {
   position: absolute;
   top: 4px;
@@ -1146,30 +980,24 @@ const handleSubmit = async () => {
   justify-content: center;
   transition: all 0.15s ease;
 }
-
 .remove-btn:hover {
   background: rgba(0, 0, 0, 0.9);
   transform: scale(1.1);
 }
-
-/* Responsive improvements */
 @media (max-width: 768px) {
   .variation-header {
     grid-template-columns: 1fr;
     gap: 16px;
   }
-  
   .btn-remove-variation {
     position: static;
     width: 100%;
     border-radius: 6px;
     margin-top: 12px;
   }
-  
   .properties-grid {
     grid-template-columns: 1fr;
   }
-  
   .color-grid {
     grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
   }

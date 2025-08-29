@@ -77,7 +77,7 @@ const filteredInvoices = computed(() => {
 });
 
 onMounted(() => {
-    productStore.fetchAllData();
+    productStore.fetchPurchaseInvoices();
 });
 
 const formatDate = (dateString) => {
