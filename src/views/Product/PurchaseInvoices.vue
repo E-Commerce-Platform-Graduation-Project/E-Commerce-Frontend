@@ -29,6 +29,7 @@
                 <div class="header-item">رقم الفاتورة</div>
                 <div class="header-item">التاريخ</div>
                 <div class="header-item">بواسطة</div>
+                <div class="header-item">عدد الأصناف</div>
                 <div class="header-item">السعر الإجمالي</div>
                 <div class="header-item">الإجراءات</div>
             </div>
@@ -36,6 +37,7 @@
                 <div class="invoice-id">#{{ invoice.id }}</div>
                 <div class="invoice-date">{{ formatDate(invoice.date) }}</div>
                 <div class="invoice-user">{{ invoice.user }}</div>
+                <div class="invoice-items-count">{{ invoice.items.length }} صنف</div>
                 <div class="invoice-total">{{ formatCurrency(invoice.totalAmount) }}</div>
                 <div class="invoice-actions">
                     <router-link :to="`/purchase-invoices/${invoice.id}`" class="btn btn-outline-primary btn-sm">
@@ -81,6 +83,7 @@ onMounted(() => {
 });
 
 const formatDate = (dateString) => {
+    if (!dateString) return '';
     return new Date(dateString).toLocaleDateString('ar-LY', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
@@ -131,8 +134,8 @@ const formatCurrency = (amount) => {
 .invoice-header,
 .invoice-row {
     display: grid;
-    grid-template-columns: 1.5fr 2fr 2fr 1.5fr 1fr;
-    gap: 1.25rem;
+    grid-template-columns: 1.2fr 2fr 2fr 1fr 1.5fr 1fr;
+    gap: 1rem;
     padding: 1rem 1.5rem;
     align-items: center;
     text-align: right;
@@ -165,6 +168,11 @@ const formatCurrency = (amount) => {
 
 .invoice-user {
     font-weight: 500;
+}
+
+.invoice-items-count {
+    color: #6c757d;
+    font-size: 0.9rem;
 }
 
 .invoice-total {

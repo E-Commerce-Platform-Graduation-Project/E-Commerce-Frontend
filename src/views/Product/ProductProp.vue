@@ -19,7 +19,13 @@
 
       <div class="card props-list-card">
         <h2 class="card-title">قائمة الخواص</h2>
-        <div v-if="loading" class="loading">Loading...</div>
+        
+        <!-- Enhanced Loading State -->
+        <div v-if="loading" class="loading-container">
+          <div class="spinner-border" role="status"></div>
+          <p class="loading-text">جاري تحميل الخواص...</p>
+        </div>
+        
         <div v-else-if="store.properties.length === 0" class="empty-state">
           لا توجد خواص مضافة بعد
         </div>
@@ -210,7 +216,37 @@ const deleteValue = async (valueId, propId) => {
 </script>
 
 <style scoped>
-/* CHANGE START: Added styles for the color circle preview */
+/* Loading Container Styles */
+.loading-container {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+.spinner-border {
+  width: 3rem;
+  height: 3rem;
+  border: 0.25em solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-border 0.75s linear infinite;
+  color: #3b82f6;
+  margin-bottom: 16px;
+}
+
+@keyframes spinner-border {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  margin: 0;
+  font-size: 16px;
+  color: #6b7280;
+}
+
+/* Color circle preview styles */
 .color-circle-preview {
   width: 16px;
   height: 16px;
@@ -221,12 +257,11 @@ const deleteValue = async (valueId, propId) => {
 .value-content {
   gap: 8px;
 }
-/* CHANGE END */
 
 .props-container {
   direction: rtl;
   padding: 40px 20px;
-  background-color: #f5f7fa;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 .header {
   text-align: center;
@@ -303,11 +338,6 @@ const deleteValue = async (valueId, propId) => {
 .btn-sm {
   padding: 6px 12px;
   font-size: 14px;
-}
-.loading {
-  text-align: center;
-  padding: 20px;
-  color: #6b7280;
 }
 .empty-state {
   text-align: center;

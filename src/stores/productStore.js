@@ -1,5 +1,3 @@
-// productStore.js - UPDATED VERSION WITH PURCHASE INVOICE API
-
 import { defineStore } from 'pinia';
 import api from '@/api';
 import imageCompression from 'browser-image-compression';
@@ -21,6 +19,7 @@ async function compressImage(file) {
     return file;
   }
 }
+
 
 export const useProductStore = defineStore('product', {
   state: () => ({
@@ -70,27 +69,62 @@ export const useProductStore = defineStore('product', {
   },
 
   actions: {
-    async fetchAllData() {
+    // async fetchAllData() { //تجيب اول 10 منتجات بس
+    //   this.isLoading = true;
+    //   this.error = null;
+    //   try {
+    //     const response = await api.get('products/products/');
+    //     const productList = Array.isArray(response.data) ? response.data : response.data.results;
+
+    //     if (!Array.isArray(productList)) {
+    //       console.error('Invalid data structure for products received from API:', response.data);
+    //       throw new Error('Received data is not in the expected format.');
+    //     }
+
+    //     this.products = productList.map(product => this.convertFromApiFormat(product));
+    //     return { success: true };
+    //   } catch (error) {
+    //     console.error('Error fetching products:', error);
+    //     const errorMessage = error.response?.data?.detail ||
+    //       error.response?.data?.error ||
+    //       'فشل في جلب البيانات.';
+    //     this.error = errorMessage;
+    //     return { success: false };
+    //   } finally {
+    //     this.isLoading = false;
+    //   }
+    // },
+    // Add this new function inside the `actions: { ... }` block in productStore.js
+
+    async fetchAllProducts() { // تبحت بالصفحة
       this.isLoading = true;
       this.error = null;
-      try {
-        const response = await api.get('products/products/');
-        const productList = Array.isArray(response.data) ? response.data : response.data.results;
+      let allProducts = [];
+      let nextUrl = 'products/products/'; // This is the starting API endpoint
 
-        if (!Array.isArray(productList)) {
-          console.error('Invalid data structure for products received from API:', response.data);
-          throw new Error('Received data is not in the expected format.');
+      try {
+        // This loop will continue as long as the API provides a "next" page URL
+        while (nextUrl) {
+          const response = await api.get(nextUrl);
+          const data = response.data;
+
+          // Add the products from the current page to our list
+          const productList = data.results || [];
+          allProducts.push(...productList);
+
+          // Update nextUrl to the URL of the next page, or null if it's the last page
+          nextUrl = data.next;
         }
 
-        this.products = productList.map(product => this.convertFromApiFormat(product));
+        // Once all pages are fetched, update the state with the complete list
+        this.products = allProducts.map(product => this.convertFromApiFormat(product));
+
         return { success: true };
+
       } catch (error) {
-        console.error('Error fetching products:', error);
-        const errorMessage = error.response?.data?.detail ||
-          error.response?.data?.error ||
-          'فشل في جلب البيانات.';
-        this.error = errorMessage;
-        return { success: false };
+        console.error('Error fetching all products:', error);
+        this.error = 'فشل في جلب كل المنتجات.';
+        return { success: false, error: this.error };
       } finally {
         this.isLoading = false;
       }
@@ -198,19 +232,9 @@ export const useProductStore = defineStore('product', {
 
         console.log('Purchase invoice response:', response.data);
 
-        // Store the invoice in local state
-        const newInvoice = {
-          id: response.data.id || Date.now(),
-          date: response.data.created_at || new Date().toISOString(),
-          totalAmount: response.data.total_amount || 0,
-          products: payload.products
-        };
-
-        this.purchaseInvoices.unshift(newInvoice);
-
-        // Optionally refresh products to get updated stock quantities
-        // Uncomment the line below if you want to refresh products after invoice creation
-        // await this.fetchProducts();
+        // Instead of trying to create the local invoice object,
+        // just refresh the invoices from the API to ensure consistency
+        await this.fetchPurchaseInvoices();
 
         return { success: true, data: response.data };
       } catch (error) {
@@ -247,7 +271,10 @@ export const useProductStore = defineStore('product', {
             formData.append('main_image', compressedMainImage, compressedMainImage.name);
           }
 
+          // FIXED: Use the exact same attributes logic as updateProduct
           const attributes = [];
+
+          // Add non-color properties (copied from updateProduct)
           if (productData.selectedProperties && Object.keys(productData.selectedProperties).length > 0) {
             Object.entries(productData.selectedProperties).forEach(([attrName, attrData]) => {
               const values = [];
@@ -268,6 +295,7 @@ export const useProductStore = defineStore('product', {
             });
           }
 
+          // Add color attribute (copied from updateProduct)
           if (productData.colorVariations && productData.colorVariations.length > 0) {
             const colorValues = productData.colorVariations.map(v => v.colorHex.toString());
             const colorAttr = attributes.find(attr => attr.attribute === 'اللون');
@@ -302,8 +330,12 @@ export const useProductStore = defineStore('product', {
             if (variantImagesMetadata.length > 0) {
               formData.append('variant_images_meta', JSON.stringify(variantImagesMetadata));
             }
+          }
 
-            console.log('Sending FormData with variant images metadata:', variantImagesMetadata);
+          console.log('=== DEBUG: Final FormData ===');
+          console.log('Attributes:', formData.get('attributes'));
+          if (formData.get('variant_images_meta')) {
+            console.log('Variant Images Meta:', formData.get('variant_images_meta'));
           }
 
           const response = await api.post('products/products/', formData, {
@@ -314,7 +346,7 @@ export const useProductStore = defineStore('product', {
           this.products.push(newProduct);
           return { success: true, data: newProduct };
         } else {
-          // Fallback for no files
+          // Fallback for no files - use the same convertToApiFormat as before
           const apiPayload = this.convertToApiFormat(productData);
           const response = await api.post('products/products/', apiPayload);
           const newProduct = this.convertFromApiFormat(response.data);
@@ -323,8 +355,15 @@ export const useProductStore = defineStore('product', {
         }
       } catch (error) {
         console.error('Error adding product:', error.response?.data || error);
+
+        // Log the specific error details
+        if (error.response?.data?.non_field_errors) {
+          console.error('Non-field errors:', error.response.data.non_field_errors);
+        }
+
         const errorMessage = error.response?.data?.non_field_errors?.[0] ||
           error.response?.data?.name?.[0] ||
+          error.response?.data?.attributes?.[0] ||
           error.response?.data?.detail ||
           'فشل في إضافة المنتج.';
         this.error = errorMessage;
@@ -334,147 +373,113 @@ export const useProductStore = defineStore('product', {
       }
     },
 
+
     convertFromApiFormat(apiData) {
       const properties = {};
       const variants = [];
 
-      if (apiData.variants && Array.isArray(apiData.variants)) {
-        const colorGroups = {};
+      // Process available_attributes to build properties structure
+      if (apiData.available_attributes && Array.isArray(apiData.available_attributes)) {
+        apiData.available_attributes.forEach(attr => {
+          const attrName = attr.attribute_name;
+          if (attrName !== 'اللون') { // Skip color as it's handled separately
+            properties[attrName] = {
+              legacy: attr.values || [],
+              subtitles: {}
+            };
+          }
+        });
+      }
 
-        apiData.variants.forEach(variant => {
-          let color = '#000000';
-          let size = null;
+      // Build color variants using images_by_attribute
+      if (apiData.images_by_attribute && typeof apiData.images_by_attribute === 'object') {
+        Object.entries(apiData.images_by_attribute).forEach(([colorHex, imageData]) => {
+          // Sort images by display_order
+          const sortedImages = Array.isArray(imageData)
+            ? imageData
+              .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+              .map(img => {
+                // Handle both full URLs and relative paths
+                const imageUrl = img.image;
+                return imageUrl.startsWith('http') ? imageUrl : `http://13.48.136.207${imageUrl}`;
+              })
+            : [];
 
-          if (variant.attribute_values && Array.isArray(variant.attribute_values)) {
-            variant.attribute_values.forEach(attr => {
-              if (attr.attribute_name === 'اللون') {
-                color = attr.value;
-              } else if (attr.attribute_name === 'المقاس') {
-                size = attr.value;
-
-                if (!properties['المقاس']) {
-                  properties['المقاس'] = { legacy: [], subtitles: {} };
+          // Find stock information for this color from variants
+          const stockForColor = [];
+          if (apiData.variants && Array.isArray(apiData.variants)) {
+            apiData.variants
+              .filter(variant => {
+                // Find variants that match this color
+                return variant.attribute_values?.some(attr =>
+                  attr.attribute_name === 'اللون' && attr.value === colorHex
+                );
+              })
+              .forEach(variant => {
+                // Extract size and quantity
+                const sizeAttr = variant.attribute_values?.find(attr => attr.attribute_name === 'المقاس');
+                if (sizeAttr) {
+                  stockForColor.push({
+                    size: sizeAttr.value,
+                    quantity: variant.quantity_in_stock || 0,
+                    sku: variant.sku
+                  });
                 }
-                if (!properties['المقاس'].legacy.includes(size)) {
-                  properties['المقاس'].legacy.push(size);
-                }
-              } else {
-                const attrName = attr.attribute_name;
-                const attrValue = attr.value;
-
-                if (!properties[attrName]) {
-                  properties[attrName] = { legacy: [], subtitles: {} };
-                }
-                if (!properties[attrName].legacy.includes(attrValue)) {
-                  properties[attrName].legacy.push(attrValue);
-                }
-              }
-            });
+              });
           }
 
-          if (!colorGroups[color]) {
-            colorGroups[color] = {
-              colorHex: color,
+          variants.push({
+            colorHex: colorHex,
+            images: sortedImages,
+            stock: stockForColor,
+            showColorPicker: false,
+            error: null
+          });
+        });
+      }
+
+      // If no images_by_attribute but we have color values, create variants without images
+      if (variants.length === 0 && apiData.available_attributes) {
+        const colorAttr = apiData.available_attributes.find(attr => attr.attribute_name === 'اللون');
+        if (colorAttr && colorAttr.values) {
+          colorAttr.values.forEach(colorHex => {
+            // Find stock for this color
+            const stockForColor = [];
+            if (apiData.variants && Array.isArray(apiData.variants)) {
+              apiData.variants
+                .filter(variant => {
+                  return variant.attribute_values?.some(attr =>
+                    attr.attribute_name === 'اللون' && attr.value === colorHex
+                  );
+                })
+                .forEach(variant => {
+                  const sizeAttr = variant.attribute_values?.find(attr => attr.attribute_name === 'المقاس');
+                  if (sizeAttr) {
+                    stockForColor.push({
+                      size: sizeAttr.value,
+                      quantity: variant.quantity_in_stock || 0,
+                      sku: variant.sku
+                    });
+                  }
+                });
+            }
+
+            variants.push({
+              colorHex: colorHex,
               images: [],
-              stock: [],
+              stock: stockForColor,
               showColorPicker: false,
               error: null
-            };
-
-            if (!properties['اللون']) {
-              properties['اللون'] = { legacy: [], subtitles: {} };
-            }
-            if (!properties['اللون'].legacy.includes(color)) {
-              properties['اللون'].legacy.push(color);
-            }
-          }
-
-          if (variant.images && Array.isArray(variant.images)) {
-            const sortedImages = [...variant.images].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-            sortedImages.forEach(img => {
-              const imageUrl = img.image_url || img.image;
-              if (imageUrl && !colorGroups[color].images.includes(imageUrl)) {
-                colorGroups[color].images.push(imageUrl);
-              }
             });
-          }
-
-          if (size && variant.quantity_in_stock !== undefined) {
-            const existingStock = colorGroups[color].stock.find(s => s.size === size);
-            if (existingStock) {
-              existingStock.quantity += variant.quantity_in_stock;
-            } else {
-              colorGroups[color].stock.push({
-                size: size,
-                quantity: variant.quantity_in_stock
-              });
-            }
-          }
-        });
-
-        variants.push(...Object.values(colorGroups));
-      }
-
-      if (apiData.attributes && Array.isArray(apiData.attributes)) {
-        apiData.attributes.forEach(attr => {
-          let attrName, attrValue;
-
-          if (attr.attribute_name) {
-            attrName = attr.attribute_name;
-            attrValue = attr.value;
-          } else if (attr.attribute && typeof attr.attribute === 'object') {
-            attrName = attr.attribute.name;
-            attrValue = attr.value;
-          } else if (attr.attribute && typeof attr.attribute === 'string') {
-            attrName = attr.attribute;
-            if (attr.values && Array.isArray(attr.values)) {
-              attr.values.forEach(value => {
-                if (!properties[attrName]) properties[attrName] = { legacy: [], subtitles: {} };
-                if (!properties[attrName].legacy.includes(value)) properties[attrName].legacy.push(value);
-              });
-              return;
-            } else {
-              attrValue = attr.value;
-            }
-          }
-
-          if (attrName && attrValue) {
-            if (!properties[attrName]) properties[attrName] = { legacy: [], subtitles: {} };
-            if (!properties[attrName].legacy.includes(attrValue)) properties[attrName].legacy.push(attrValue);
-          }
-        });
-      }
-
-      if (apiData.variant_images && Array.isArray(apiData.variant_images) && variants.length === 0) {
-        const colorGroups = {};
-        const sortedImages = [...apiData.variant_images].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-
-        sortedImages.forEach(img => {
-          const color = img.values?.['اللون'] || img.values?.['Color'] || img.color || '#000000';
-          if (!colorGroups[color]) {
-            colorGroups[color] = { colorHex: color, images: [], stock: [], showColorPicker: false, error: null };
-          }
-          const imageUrl = img.image_url || img.image;
-          if (imageUrl) {
-            colorGroups[color].images.push(imageUrl);
-          }
-        });
-
-        variants.push(...Object.values(colorGroups));
-      }
-
-      const colorProperty = properties['اللون'];
-      if (colorProperty && colorProperty.legacy && variants.length === 0) {
-        colorProperty.legacy.forEach(color => {
-          variants.push({ colorHex: color, images: [], stock: [], showColorPicker: false, error: null });
-        });
+          });
+        }
       }
 
       return {
         id: apiData.id,
         name: apiData.name || '',
         description: apiData.description || '',
-        mainImage: apiData.main_image || apiData.main_image_url || null,
+        mainImage: apiData.main_image || null,
         categoryId: typeof apiData.category === 'object' && apiData.category !== null ? apiData.category.id : apiData.category,
         profitMargin: apiData.profit_margin || 0,
         is_active: apiData.is_active !== undefined ? apiData.is_active : true,
@@ -528,13 +533,18 @@ export const useProductStore = defineStore('product', {
       this.error = null;
       try {
         const response = await api.get('products/purchase-invoices/');
-        // Map the API response to the data structure your components expect
+        // Map the API response to match the new format
         this.purchaseInvoices = response.data.map(invoice => ({
-          id: invoice.invoice_id,
+          id: invoice.id,
           user: invoice.user,
           date: invoice.invoice_date,
-          totalAmount: invoice.total_cost,
-          items: [], // Items will be fetched separately for the details view
+          totalAmount: parseFloat(invoice.total_cost),
+          items: invoice.items.map(item => ({
+            productName: item.product_name,
+            variantSku: item.variant_sku,
+            quantity: item.quantity,
+            costPerUnit: parseFloat(item.cost_per_unit)
+          }))
         }));
         return { success: true };
       } catch (error) {
@@ -550,24 +560,24 @@ export const useProductStore = defineStore('product', {
       this.isLoading = true;
       this.error = null;
       try {
-        // NOTE: We are assuming the detail endpoint is `purchase-invoices/${invoiceId}/`
         const response = await api.get(`products/purchase-invoices/${invoiceId}/`);
         const data = response.data;
 
-        // Map the detailed response, including items
+        // Map the detailed response using the new API format
         const detailedInvoice = {
-          id: data.invoice_id,
+          id: data.id,
           user: data.user,
           date: data.invoice_date,
-          totalAmount: data.total_cost,
-          // Assuming the items are in an `invoice_items` array in the response
-          items: (data.invoice_items || []).map(item => ({
-            productId: item.product_id,
-            quantityAdded: item.quantity_added,
-            purchasePrice: item.purchase_price,
-            properties: item.properties || {},
-          })),
+          totalAmount: parseFloat(data.total_cost),
+          items: data.items.map(item => ({
+            productName: item.product_name,
+            variantSku: item.variant_sku,
+            quantity: item.quantity,
+            costPerUnit: parseFloat(item.cost_per_unit)
+          }))
         };
+
+        console.log('Detailed invoice data:', detailedInvoice);
 
         // Update the invoice in the state with its full details
         const index = this.purchaseInvoices.findIndex(inv => inv.id === invoiceId);
@@ -798,6 +808,30 @@ export const useProductStore = defineStore('product', {
 
     clearError() {
       this.error = null;
+    },
+    // Helper method to extract color from variant SKU
+    extractColorFromSku(variantSku) {
+      // SKU format: "SPEDRO0-#21BA40-40" or "CAP0-جلد-#B20101-مقاس عام (STANDARD)"
+      const parts = variantSku.split('-');
+      for (const part of parts) {
+        if (part.startsWith('#') && part.length === 7) {
+          return part;
+        }
+      }
+      return '#000000'; // Default color if not found
+    },
+
+    // Helper method to extract size from variant SKU
+    extractSizeFromSku(variantSku) {
+      // SKU format: "SPEDRO0-#21BA40-40" or "CAP0-جلد-#B20101-مقاس عام (STANDARD)"
+      const parts = variantSku.split('-');
+      // Return the last part as size
+      return parts[parts.length - 1] || '';
+    },
+
+    // Helper method to get product by name (since API now returns product names)
+    getProductByName(productName) {
+      return this.products.find(p => p.name === productName);
     },
   },
 });

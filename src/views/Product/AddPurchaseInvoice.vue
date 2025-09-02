@@ -1,12 +1,12 @@
 <template>
-  <div class="add-product-container">
+  <div class="add-purchase-invoice-container">
     <div class="header">
       <h1 class="title">فاتورة شراء جديدة</h1>
       <p class="subtitle">إضافة كميات وتحديث أسعار المنتجات عبر تحديد المتغيرات</p>
     </div>
 
     <div class="form-container">
-      <div class="selection-section">
+      <div class="selection-section step-1">
         <h3 class="section-title">الخطوة 1: ابحث عن المنتج</h3>
         <div class="search-row">
           <div class="form-group search-group">
@@ -57,7 +57,7 @@
         </div>
       </div>
 
-      <div v-if="selectedProductDetails && !loadingProductDetails" class="selection-section">
+      <div v-if="selectedProductDetails && !loadingProductDetails" class="selection-section step-2">
         <h3 class="section-title">الخطوة 2: اختر المتغير</h3>
         <div class="selected-product-info">
           <h4 class="selected-product-name">{{ selectedProductDetails.name }}</h4>
@@ -79,6 +79,16 @@
               </span>
             </div>
             
+            <!-- Variant Image -->
+            <div v-if="getVariantImage(variant)" class="variant-image-container">
+              <img 
+                :src="getVariantImage(variant)" 
+                :alt="`صورة ${variant.sku}`"
+                class="variant-main-image"
+                @error="handleImageError"
+              />
+            </div>
+            
             <div class="variant-attributes">
               <div 
                 v-for="attr in variant.attribute_values" 
@@ -93,25 +103,11 @@
                 <span v-else class="attribute-value">{{ attr.value }}</span>
               </div>
             </div>
-            
-            <div v-if="variant.images && variant.images.length > 0" class="variant-images">
-              <img 
-                v-for="image in variant.images.slice(0, 3)" 
-                :key="image.image"
-                :src="image.image" 
-                :alt="`صورة ${variant.sku}`"
-                class="variant-image"
-                @error="handleImageError"
-              />
-              <span v-if="variant.images.length > 3" class="more-images">
-                +{{ variant.images.length - 3 }}
-              </span>
-            </div>
           </div>
         </div>
         
         <div class="add-item-row">
-          <button @click="addVariantToInvoice" type="button" class="btn btn-add" :disabled="!selectedVariant">
+          <button id="add-to-invoice-btn" @click="addVariantToInvoice" type="button" class="btn btn-add" :disabled="!selectedVariant">
             <span class="btn-icon">+</span>
             إضافة للفاتورة
           </button>
@@ -135,7 +131,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(item, index) in invoiceItems" :key="item.uniqueId" class="invoice-row">
+              <tr v-for="(item, index) in invoiceItems" :key="item.uniqueId" class="invoice-row" :id="`invoice-row-${item.uniqueId}`">
                 <td class="col-product">
                   <div class="product-info">
                     <span class="product-name">{{ item.productName }}</span>
@@ -161,7 +157,7 @@
                     class="table-input" 
                     placeholder="0.00"
                     step="0.01"
-                    :class="{ 'input-error': (!item.purchasePrice || item.purchasePrice <= 0) && error }"
+                    :class="{ 'input-error': errorItem === item.uniqueId && errorType === 'price' }"
                     @input="syncPurchasePrice(item, item.purchasePrice)"
                   />
                 </td>
@@ -172,7 +168,7 @@
                     class="table-input" 
                     placeholder="0" 
                     min="1"
-                    :class="{ 'input-error': (!item.quantity || item.quantity <= 0) && error }" 
+                    :class="{ 'input-error': errorItem === item.uniqueId && errorType === 'quantity' }" 
                   />
                 </td>
                 <td class="col-price">
@@ -204,8 +200,6 @@
         <p>ابدأ بالبحث عن منتج واختيار متغير من القوائم أعلاه.</p>
       </div>
 
-      <div v-if="successMessage" class="alert alert-success">{{ successMessage }}</div>
-      <div v-if="error" class="alert alert-error">{{ error }}</div>
       <div class="form-actions">
         <button @click="clearInvoice" type="button" class="btn btn-secondary" :disabled="invoiceItems.length === 0">
           مسح الفاتورة
@@ -214,6 +208,30 @@
           <span v-if="productStore.isLoading" class="loading-spinner"></span>
           حفظ الفاتورة
         </button>
+      </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div v-if="showSuccessModal" class="modal-overlay" @click="closeSuccessModal">
+      <div class="modal-dialog success-modal" @click.stop>
+        <div class="modal-icon success-icon">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <h3>تم بنجاح!</h3>
+        <p>تم إنشاء فاتورة الشراء بنجاح!</p>
+        <button @click="closeSuccessModal" class="btn btn-primary">موافق</button>
+      </div>
+    </div>
+    
+    <!-- Error Modal -->
+    <div v-if="showErrorModal" class="modal-overlay" @click="closeErrorModal">
+      <div class="modal-dialog error-modal" @click.stop>
+        <div class="modal-icon error-icon">
+          <i class="fas fa-times-circle"></i>
+        </div>
+        <h3>حدث خطأ!</h3>
+        <p>{{ modalErrorMessage }}</p>
+        <button @click="closeErrorModal" class="btn btn-danger">إغلاق</button>
       </div>
     </div>
   </div>
@@ -245,12 +263,39 @@ const loadingProductDetails = ref(false);
 // State for the invoice itself
 const invoiceItems = reactive([]);
 const error = ref('');
+const errorItem = ref(null);
+const errorType = ref(null);
 const successMessage = ref('');
+
+// Modal state
+const showSuccessModal = ref(false);
+const showErrorModal = ref(false);
+const modalErrorMessage = ref('');
 
 // Computed properties for UI
 const totalInvoiceAmount = computed(() => {
   return invoiceItems.reduce((total, item) => total + ((item.purchasePrice || 0) * (item.quantity || 0)), 0);
 });
+
+// Helper function to get the first image for a variant based on its color
+const getVariantImage = (variant) => {
+  if (!selectedProductDetails.value?.images_by_attribute) return null;
+  
+  // Find the color attribute for this variant
+  const colorAttr = variant.attribute_values?.find(attr => attr.attribute_name === 'اللون');
+  if (!colorAttr) return null;
+  
+  // Get images for this color
+  const colorImages = selectedProductDetails.value.images_by_attribute[colorAttr.value];
+  if (!colorImages || !Array.isArray(colorImages) || colorImages.length === 0) return null;
+  
+  // Return the first image (they're already sorted by display_order)
+  const firstImage = colorImages[0];
+  const imageUrl = firstImage.image;
+  
+  // Handle both full URLs and relative paths
+  return imageUrl.startsWith('http') ? imageUrl : `http://13.48.136.207${imageUrl}`;
+};
 
 // Search functionality
 const handleSearchInput = () => {
@@ -334,13 +379,18 @@ const fetchProductDetails = async (productId) => {
   }
 };
 
-const selectVariant = (variant) => {
+const selectVariant = async (variant) => {
   selectedVariant.value = variant;
+  await nextTick();
+  const addButton = document.getElementById('add-to-invoice-btn');
+  if (addButton) {
+    addButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 };
 
 const getStockBadgeClass = (quantity) => {
   if (quantity === 0) return 'stock-zero';
-  if (quantity < 10) return 'stock-low';
+  if (quantity < 16) return 'stock-low';
   return 'stock-good';
 };
 
@@ -365,11 +415,9 @@ onMounted(async () => {
 const addVariantToInvoice = () => {
   if (!selectedVariant.value || !selectedProductDetails.value) return;
 
-  // Check if variant already exists in invoice
   const existingItemIndex = invoiceItems.findIndex(item => item.variantId === selectedVariant.value.id);
   
   if (existingItemIndex !== -1) {
-    // If variant already exists, just increment quantity
     invoiceItems[existingItemIndex].quantity += 1;
     error.value = '';
     successMessage.value = 'تم زيادة كمية المتغير الموجود';
@@ -377,11 +425,11 @@ const addVariantToInvoice = () => {
     return;
   }
 
-  // Check if there's already an item with the same productId to get its price
   const existingProductItem = invoiceItems.find(item => item.productId === selectedProductDetails.value.id);
-  const defaultPrice = existingProductItem ? existingProductItem.purchasePrice : 0;
-  
-  // Get profit margin from selectedProductDetails (raw API data)
+  const defaultPrice = existingProductItem ? 
+  existingProductItem.purchasePrice : 
+  parseFloat(selectedProductDetails.value.purchase_cost || 0);
+
   const profitMargin = selectedProductDetails.value.profit_margin 
     ? parseFloat(selectedProductDetails.value.profit_margin) 
     : 0;
@@ -399,7 +447,6 @@ const addVariantToInvoice = () => {
     currentStock: selectedVariant.value.quantity_in_stock
   });
 
-  // Reset for next entry
   selectedVariant.value = null;
   
   successMessage.value = 'تم إضافة المتغير للفاتورة بنجاح';
@@ -433,24 +480,47 @@ const syncPurchasePrice = (changedItem, newPrice) => {
 
 const validateInvoice = () => {
   error.value = '';
+  errorItem.value = null;
+  errorType.value = null;
+
   for (const item of invoiceItems) {
     if (!item.purchasePrice || item.purchasePrice <= 0) {
-      error.value = `سعر الشراء للمتغير "${item.variantSku}" غير صالح.`;
-      return false;
+      error.value = `سعر الشراء للمتغير "${item.variantSku}" مطلوب ويجب أن يكون أكبر من صفر.`;
+      errorItem.value = item.uniqueId;
+      errorType.value = 'price';
+      return { isValid: false, errorId: item.uniqueId };
     }
     if (!item.quantity || item.quantity <= 0) {
-      error.value = `الكمية للمتغير "${item.variantSku}" يجب أن تكون أكبر من صفر.`;
-      return false;
+      error.value = `الكمية للمتغير "${item.variantSku}" مطلوبة ويجب أن تكون أكبر من صفر.`;
+      errorItem.value = item.uniqueId;
+      errorType.value = 'quantity';
+      return { isValid: false, errorId: item.uniqueId };
     }
   }
-  return true;
+  return { isValid: true, errorId: null };
+};
+
+const scrollToFirstError = async (errorItemId) => {
+    await nextTick();
+    const errorRow = document.getElementById(`invoice-row-${errorItemId}`);
+    if (errorRow) {
+        errorRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        errorRow.classList.add('error-highlight');
+        setTimeout(() => {
+            errorRow.classList.remove('error-highlight');
+        }, 2500);
+    }
 };
 
 const handleSubmit = async () => {
-  if (!validateInvoice()) return;
+  const validationResult = validateInvoice();
+  if (!validationResult.isValid) {
+    await scrollToFirstError(validationResult.errorId);
+    return;
+  }
   successMessage.value = '';
+  error.value = '';
 
-  // Create the payload in the format expected by the API
   const productsMap = new Map();
   
   invoiceItems.forEach(item => {
@@ -477,20 +547,28 @@ const handleSubmit = async () => {
   console.log('Submitting purchase invoice:', payload);
 
   try {
-    // Call the API endpoint for purchase invoices
     const result = await productStore.submitPurchaseInvoice(payload);
 
     if (result.success) {
-      successMessage.value = 'تم حفظ فاتورة الشراء بنجاح! سيتم تحديث المخزون والأسعار.';
+      showSuccessModal.value = true;
       clearInvoice();
-      setTimeout(() => { successMessage.value = '' }, 5000);
     } else {
-      error.value = result.error || 'فشل في حفظ فاتورة الشراء';
+      modalErrorMessage.value = result.error || 'فشل في حفظ فاتورة الشراء';
+      showErrorModal.value = true;
     }
   } catch (err) {
     console.error('Error submitting invoice:', err);
-    error.value = 'فشل في حفظ فاتورة الشراء';
+    modalErrorMessage.value = 'حدث خطأ غير متوقع أثناء الاتصال بالخادم.';
+    showErrorModal.value = true;
   }
+};
+
+const closeSuccessModal = () => {
+  showSuccessModal.value = false;
+};
+
+const closeErrorModal = () => {
+  showErrorModal.value = false;
 };
 
 const formatCurrency = (amount, currencySymbol = ' د.ل') => {
@@ -504,10 +582,11 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 
 <style scoped>
 /* General Layout */
-.add-product-container {
+.add-purchase-invoice-container {
   padding: 20px;
   direction: rtl;
-  background-color: #f5f7fa;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
 }
 
 .header {
@@ -519,10 +598,12 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   font-size: 32px;
   font-weight: bold;
   color: #1f2937;
+  margin-bottom: 8px;
 }
 
 .subtitle {
   color: #6b7280;
+  font-size: 16px;
 }
 
 .form-container {
@@ -532,6 +613,9 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   border-radius: 16px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   padding: 30px;
+  overflow: visible; /* Keep as visible */
+  position: relative;
+  z-index: 1; /* Low z-index to not interfere */
 }
 
 .selection-section {
@@ -540,6 +624,16 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   padding: 24px;
   margin-bottom: 30px;
   border: 1px solid #e2e8f0;
+  position: relative;
+  z-index: 2; /* Lower than search components */
+}
+
+.selection-section.step-1 {
+  z-index: 10; /* Higher than other sections but lower than search dropdown */
+}
+
+.selection-section.step-2 {
+  z-index: 2; /* Lower z-index */
 }
 
 .section-title {
@@ -559,12 +653,22 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 .search-group {
   flex: 1;
   position: relative;
+  z-index: 100; /* High enough to contain the dropdown but lower than dropdown itself */
+}
+
+.form-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+  margin-bottom: 8px;
+  display: block;
 }
 
 .search-wrapper {
   position: relative;
   display: flex;
   align-items: center;
+  z-index: 101; /* Higher than parent */
 }
 
 .search-input {
@@ -576,6 +680,8 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   background: white;
   font-size: 16px;
   transition: border-color 0.2s ease;
+  position: relative;
+  z-index: 102;
 }
 
 .search-input:focus {
@@ -589,6 +695,7 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
+  z-index: 103;
 }
 
 .search-results {
@@ -599,8 +706,8 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  z-index: 100;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25); /* Enhanced shadow */
+  z-index: 99999; /* Very high z-index to ensure it's always on top */
   max-height: 300px;
   overflow-y: auto;
   margin-top: 4px;
@@ -611,6 +718,8 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   cursor: pointer;
   border-bottom: 1px solid #f1f5f9;
   transition: background-color 0.2s ease;
+  position: relative;
+  z-index: 100000; /* Even higher to ensure items are clickable */
 }
 
 .search-result-item:hover,
@@ -622,228 +731,7 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   border-bottom: none;
 }
 
-.product-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-}
-
-.product-name {
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.product-margin {
-  font-size: 12px;
-  color: #64748b;
-  background-color: #f1f5f9;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.variant-sku {
-  font-family: monospace;
-  font-size: 12px;
-  color: #6b7280;
-  background: #f1f5f9;
-  padding: 4px 6px;
-  border-radius: 4px;
-}
-
-.table-input {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  text-align: center;
-  background-color: white;
-}
-
-.table-input.input-error {
-  border-color: #ef4444;
-}
-
-/* Properties Display in Table */
-.props-display {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: center;
-}
-
-.prop-chip {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background-color: #eef2ff;
-  color: #4338ca;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.prop-color-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.prop-name {
-  color: #64748b;
-}
-
-.calculated-price,
-.total-amount {
-  font-weight: 600;
-}
-
-.btn-remove {
-  background: transparent;
-  color: #ef4444;
-  border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  cursor: pointer;
-  font-size: 24px;
-}
-
-.total-row {
-  background-color: #f8fafc;
-  font-weight: bold;
-}
-
-.total-label {
-  text-align: left;
-  padding-left: 20px;
-}
-
-.total-amount-cell {
-  font-weight: bold;
-  color: #059669;
-  font-size: 18px;
-  text-align: right;
-}
-
-/* Empty State & Alerts */
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #64748b;
-  background-color: #f8fafc;
-  border-radius: 12px;
-}
-
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 10px;
-}
-
-.alert {
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  text-align: center;
-  font-weight: 500;
-}
-
-.alert-error {
-  background-color: #fef2f2;
-  color: #dc2626;
-}
-
-.alert-success {
-  background-color: #f0fdf4;
-  color: #16a34a;
-}
-
-/* Form Actions */
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 16px;
-  padding-top: 20px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.btn-secondary {
-  background: #6b7280;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-primary {
-  background: #3b82f6;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-primary:disabled {
-  background-color: #a1a1aa;
-  cursor: not-allowed;
-}
-
-.loading-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  display: inline-block;
-  margin-right: 8px;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .variants-grid {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  }
-}
-
-@media (max-width: 768px) {
-  .add-product-container {
-    padding: 10px;
-  }
-  
-  .form-container {
-    padding: 20px;
-  }
-  
-  .variants-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .search-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .table-wrapper {
-    overflow-x: auto;
-  }
-  
-  .invoice-table {
-    min-width: 800px;
-  }
-}result {
+.product-result {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -854,23 +742,24 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   height: 40px;
   border-radius: 6px;
   object-fit: cover;
-  border: 1px solid #e5e7eb;
+  flex-shrink: 0;
 }
 
 .product-result-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .product-result-name {
   font-weight: 600;
-  color: #1f2937;
+  color: #1e293b;
+  font-size: 14px;
 }
 
 .product-result-desc {
   font-size: 12px;
-  color: #6b7280;
+  color: #64748b;
 }
 
 .no-results {
@@ -878,27 +767,6 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   text-align: center;
   color: #6b7280;
   font-style: italic;
-}
-
-/* Selected Product Info */
-.selected-product-info {
-  background: white;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 20px;
-  border: 1px solid #e2e8f0;
-}
-
-.selected-product-name {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 8px 0;
-}
-
-.selected-product-desc {
-  color: #6b7280;
-  margin: 0;
 }
 
 /* Loading State */
@@ -911,31 +779,68 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   color: #6b7280;
 }
 
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Product Details Section */
+.selected-product-info {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.selected-product-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.selected-product-desc {
+  color: #64748b;
+  font-size: 14px;
+  margin: 0;
+}
+
 /* Variants Grid */
 .variants-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .variant-card {
+  background: white;
   border: 2px solid #e2e8f0;
   border-radius: 12px;
   padding: 16px;
-  background: white;
   cursor: pointer;
   transition: all 0.2s ease;
+  position: relative;
 }
 
 .variant-card:hover {
   border-color: #3b82f6;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
 }
 
 .variant-card.selected {
   border-color: #3b82f6;
-  background: #eff6ff;
+  background: #f0f9ff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
 }
 
 .variant-header {
@@ -946,40 +851,54 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 }
 
 .variant-sku {
+  font-family: monospace;
   font-size: 14px;
   font-weight: 600;
   color: #1e293b;
   margin: 0;
-  flex: 1;
 }
 
 .stock-badge {
-  font-size: 12px;
   padding: 4px 8px;
-  border-radius: 6px;
-  font-weight: 500;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.stock-badge.stock-zero {
-  background: #fef2f2;
-  color: #dc2626;
+.stock-badge.stock-good {
+  background: #dcfce7;
+  color: #166534;
 }
 
 .stock-badge.stock-low {
   background: #fef3c7;
-  color: #d97706;
+  color: #92400e;
 }
 
-.stock-badge.stock-good {
-  background: #f0fdf4;
-  color: #16a34a;
+.stock-badge.stock-zero {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.variant-image-container {
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.variant-main-image {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
 }
 
 .variant-attributes {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 12px;
 }
 
 .attribute-item {
@@ -990,154 +909,139 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 }
 
 .attribute-label {
+  color: #64748b;
   font-weight: 500;
-  color: #6b7280;
-  min-width: 60px;
+  min-width: fit-content;
 }
 
 .attribute-value {
+  color: #1e293b;
+  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 6px;
-  font-weight: 400;
-  color: #1f2937;
 }
 
 .color-dot {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.variant-images {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 12px;
-}
-
-.variant-image {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  object-fit: cover;
-  border: 1px solid #e5e7eb;
-}
-
-.more-images {
-  font-size: 12px;
-  color: #6b7280;
-  background: #f3f4f6;
-  padding: 2px 6px;
-  border-radius: 4px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 }
 
 .add-item-row {
-  display: flex;
-  justify-content: flex-end;
+  text-align: center;
   margin-top: 20px;
 }
 
-/* Form Elements */
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-label {
-  font-weight: 600;
-  color: #374151;
-  font-size: 14px;
-}
-
-.btn-add {
-  background: #10b981;
-  color: white;
-  border: none;
+.btn {
   padding: 12px 24px;
   border-radius: 8px;
-  font-weight: 600;
+  border: none;
   cursor: pointer;
-  display: flex;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
 }
 
-.btn-add:disabled {
-  background-color: #a1a1aa;
+.btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-add {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  font-size: 16px;
+  padding: 14px 28px;
+}
+
+.btn-add:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
 }
 
 .btn-icon {
-  font-size: 20px;
+  font-size: 18px;
+  font-weight: bold;
 }
 
 /* Invoice Table */
 .invoice-table-container {
-  margin-bottom: 30px;
+  margin-top: 30px;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .table-wrapper {
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
+  overflow-x: auto;
 }
 
 .invoice-table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 14px;
+}
+
+.invoice-table th,
+.invoice-table td {
+  padding: 12px 16px;
+  text-align: right;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .invoice-table th {
-  background: #1e293b;
-  color: white;
-  padding: 16px 12px;
-  text-align: right;
+  background: #f8fafc;
+  font-weight: 600;
+  color: #374151;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.invoice-table td {
-  padding: 12px;
-  text-align: right;
-  border-bottom: 1px solid #f1f5f9;
-  vertical-align: middle;
-}
-
-.invoice-row:hover {
-  background-color: #f8fafc;
+.invoice-table tbody tr:hover {
+  background: #f9fafb;
 }
 
 .col-product {
-  width: 20%;
+  min-width: 200px;
 }
 
 .col-variant {
-  width: 15%;
+  min-width: 120px;
 }
 
 .col-attributes {
-  width: 20%;
+  min-width: 180px;
 }
 
-.col-price,
-.col-total {
-  width: 12%;
+.col-price {
+  min-width: 120px;
 }
 
 .col-quantity {
-  width: 8%;
+  min-width: 100px;
+}
+
+.col-total {
+  min-width: 120px;
 }
 
 .col-actions {
-  width: 6%;
-  text-align: center;
+  width: 80px;
 }
 
 .product-info {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 4px;
 }
 
@@ -1152,31 +1056,9 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   background-color: #f1f5f9;
   padding: 2px 8px;
   border-radius: 4px;
+  width: fit-content;
 }
 
-.variant-sku {
-  font-family: monospace;
-  font-size: 12px;
-  color: #6b7280;
-  background: #f1f5f9;
-  padding: 4px 6px;
-  border-radius: 4px;
-}
-
-.table-input {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  text-align: center;
-  background-color: white;
-}
-
-.table-input.input-error {
-  border-color: #ef4444;
-}
-
-/* Properties Display in Table */
 .props-display {
   display: flex;
   flex-wrap: wrap;
@@ -1190,7 +1072,7 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   gap: 4px;
   background-color: #eef2ff;
   color: #4338ca;
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 12px;
   font-size: 11px;
   font-weight: 500;
@@ -1201,15 +1083,39 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   height: 12px;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 }
 
 .prop-name {
   color: #64748b;
 }
 
+.table-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  text-align: center;
+  background-color: white;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.table-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.table-input.input-error {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+}
+
 .calculated-price,
 .total-amount {
   font-weight: 600;
+  color: #059669;
 }
 
 .btn-remove {
@@ -1220,17 +1126,30 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   width: 32px;
   height: 32px;
   cursor: pointer;
-  font-size: 24px;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-remove:hover {
+  background: #fef2f2;
+  color: #dc2626;
+  transform: scale(1.1);
 }
 
 .total-row {
   background-color: #f8fafc;
   font-weight: bold;
+  border-top: 2px solid #e2e8f0;
 }
 
 .total-label {
   text-align: left;
   padding-left: 20px;
+  color: #374151;
+  font-size: 16px;
 }
 
 .total-amount-cell {
@@ -1240,43 +1159,39 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   text-align: right;
 }
 
-/* Empty State & Alerts */
+/* Empty State */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
   color: #64748b;
   background-color: #f8fafc;
   border-radius: 12px;
+  margin: 30px 0;
 }
 
 .empty-icon {
   font-size: 64px;
-  margin-bottom: 10px;
+  margin-bottom: 16px;
+  opacity: 0.7;
 }
 
-.alert {
-  padding: 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  text-align: center;
-  font-weight: 500;
+.empty-state h4 {
+  font-size: 20px;
+  color: #374151;
+  margin-bottom: 8px;
 }
 
-.alert-error {
-  background-color: #fef2f2;
-  color: #dc2626;
-}
-
-.alert-success {
-  background-color: #f0fdf4;
-  color: #16a34a;
+.empty-state p {
+  color: #6b7280;
+  margin: 0;
 }
 
 /* Form Actions */
 .form-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 16px;
+  justify-content: flex-end;
+  margin-top: 30px;
   padding-top: 20px;
   border-top: 1px solid #e2e8f0;
 }
@@ -1284,42 +1199,307 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 .btn-secondary {
   background: #6b7280;
   color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #4b5563;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
 }
 
 .btn-primary {
-  background: #3b82f6;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
 }
 
-.btn-primary:disabled {
-  background-color: #a1a1aa;
-  cursor: not-allowed;
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
 }
 
-.loading-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  display: inline-block;
-  margin-right: 8px;
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-dialog {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.4s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(-50px) scale(0.9); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
   }
 }
+
+.modal-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 36px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.success-icon {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+}
+
+.error-icon {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.success-modal h3 {
+  font-size: 24px;
+  color: #27ae60;
+  margin: 0 0 10px 0;
+  font-weight: 700;
+}
+
+.error-modal h3 {
+  font-size: 24px;
+  color: #e74c3c;
+  margin: 0 0 10px 0;
+  font-weight: 700;
+}
+
+.modal-dialog p {
+  color: #64748b;
+  margin: 0 0 30px 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.modal-dialog .btn {
+  min-width: 120px;
+  font-weight: 600;
+  font-size: 16px;
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.modal-dialog .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.modal-dialog .btn-primary {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: white;
+}
+
+.modal-dialog .btn-primary:hover {
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+}
+
+.modal-dialog .btn-danger {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: white;
+}
+
+.modal-dialog .btn-danger:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+/* Error highlighting for validation */
+.error-highlight {
+  border-color: #e74c3c !important;
+  background-color: #fef2f2;
+  box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.2);
+  animation: errorPulse 0.6s ease-in-out;
+}
+
+@keyframes errorPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.invoice-row.error-highlight {
+  background-color: #fef2f2 !important;
+}
+
+/* Alert styles */
+.alert {
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin: 16px 0;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alert-success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.alert-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* Currency formatting helper */
+.currency {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-weight: 600;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .variants-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .add-purchase-invoice-container {
+    padding: 10px;
+  }
+  
+  .title {
+    font-size: 24px;
+  }
+  
+  .form-container {
+    padding: 20px;
+  }
+  
+  .search-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .variants-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .table-wrapper {
+    border-radius: 8px;
+  }
+  
+  .invoice-table {
+    font-size: 12px;
+  }
+  
+  .invoice-table th,
+  .invoice-table td {
+    padding: 8px 12px;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .modal-dialog {
+    margin: 20px;
+    width: calc(100% - 40px);
+    padding: 30px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .invoice-table th,
+  .invoice-table td {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+  
+  .col-product,
+  .col-variant,
+  .col-attributes,
+  .col-price,
+  .col-quantity,
+  .col-total {
+    min-width: auto;
+  }
+  
+  .prop-chip {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+}
+
+/* Animation enhancements */
+.selection-section,
+.invoice-table-container,
+.form-actions {
+  animation: slideInUp 0.6s ease-out;
+  animation-fill-mode: both;
+}
+
+.selection-section.step-1 { animation-delay: 0.1s; }
+.selection-section.step-2 { animation-delay: 0.2s; }
+.invoice-table-container { animation-delay: 0.3s; }
+.form-actions { animation-delay: 0.4s; }
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Utility classes */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-left { text-align: left; }
+.font-bold { font-weight: bold; }
+.font-semibold { font-weight: 600; }
+.text-sm { font-size: 14px; }
+.text-xs { font-size: 12px; }
+.mt-2 { margin-top: 8px; }
+.mb-2 { margin-bottom: 8px; }
+.p-2 { padding: 8px; }
 </style>

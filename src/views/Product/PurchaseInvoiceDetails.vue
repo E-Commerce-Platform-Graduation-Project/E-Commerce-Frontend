@@ -27,10 +27,11 @@
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th scope="col" style="width: 40%;">المنتج</th>
-                                    <th scope="col" style="width: 25%;">الخواص</th>
-                                    <th scope="col" class="text-center">الكمية</th>
-                                    <th scope="col" class="text-center">سعر الشراء للوحدة</th>
+                                    <th scope="col" style="width: 35%;">المنتج</th>
+                                    <th scope="col" style="width: 25%;">رقم المتغير (SKU)</th>
+                                    <th scope="col" style="width: 15%;">الخواص</th>
+                                    <th scope="col" class="text-center" style="width: 10%;">الكمية</th>
+                                    <th scope="col" class="text-center" style="width: 15%;">سعر الوحدة</th>
                                     <th scope="col" class="text-end">الإجمالي الفرعي</th>
                                 </tr>
                             </thead>
@@ -38,36 +39,40 @@
                                 <tr v-for="(item, index) in invoice.items" :key="index">
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <img :src="getVariantImage(item.productId, item.properties.color)"
-                                                class="product-img me-3" :alt="getProductInfo(item.productId).name">
+                                            <img :src="getProductImage(item.productName, item.variantSku)"
+                                                class="product-img me-3" :alt="item.productName">
                                             <div>
-                                                <div class="fw-bold">{{ getProductInfo(item.productId).name }}</div>
-                                                <small class="text-muted">#{{ item.productId }}</small>
+                                                <div class="fw-bold">{{ item.productName }}</div>
+                                                <small class="text-muted">{{ getProductByName(item.productName)?.id || 'غير معروف' }}</small>
                                             </div>
                                         </div>
                                     </td>
                                     <td>
+                                        <code class="text-muted">{{ item.variantSku }}</code>
+                                    </td>
+                                    <td>
                                         <div class="props-display">
-                                            <span v-for="(value, propName) in item.properties"
-                                                :key="propName" class="prop-chip">
-                                                <span v-if="propName === 'color'" class="prop-color-dot"
-                                                    :style="{ backgroundColor: value }"></span>
-                                                <strong class="prop-name">{{ propName === 'color' ? 'اللون' : propName }}:</strong>
-                                                {{ value }}
+                                            <span class="prop-chip" v-if="extractColorFromSku(item.variantSku)">
+                                                <span class="prop-color-dot"
+                                                    :style="{ backgroundColor: extractColorFromSku(item.variantSku) }"></span>
+                                                <strong class="prop-name">اللون:</strong>
+                                                {{ extractColorFromSku(item.variantSku) }}
+                                            </span>
+                                            <span class="prop-chip" v-if="extractSizeFromSku(item.variantSku)">
+                                                <strong class="prop-name">المقاس:</strong>
+                                                {{ extractSizeFromSku(item.variantSku) }}
                                             </span>
                                         </div>
                                     </td>
-                                    <td class="text-center">{{ item.quantityAdded }}</td>
-                                    <td class="text-center">{{ formatCurrency(item.purchasePrice) }}</td>
-                                    <td class="text-end fw-bold">{{ formatCurrency(item.purchasePrice *
-                                        item.quantityAdded) }}</td>
+                                    <td class="text-center">{{ item.quantity }}</td>
+                                    <td class="text-center">{{ formatCurrency(item.costPerUnit) }}</td>
+                                    <td class="text-end fw-bold">{{ formatCurrency(item.costPerUnit * item.quantity) }}</td>
                                 </tr>
                             </tbody>
                             <tfoot>
                                 <tr class="table-light">
-                                    <td colspan="4" class="text-start fw-bold h5">الإجمالي الكلي للفاتورة</td>
-                                    <td class="text-end fw-bold h5 text-primary">{{ formatCurrency(invoice.totalAmount)
-                                        }}</td>
+                                    <td colspan="5" class="text-start fw-bold h5">الإجمالي الكلي للفاتورة</td>
+                                    <td class="text-end fw-bold h5 text-primary">{{ formatCurrency(invoice.totalAmount) }}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -90,29 +95,78 @@ const isLoading = ref(true);
 const invoiceId = computed(() => parseInt(route.params.id));
 const invoice = computed(() => productStore.getInvoiceById(invoiceId.value));
 
+// In PurchaseInvoiceDetails.vue
+
 onMounted(async () => {
     isLoading.value = true;
     // Fetch both all product data and the specific invoice details concurrently
     await Promise.all([
-        productStore.fetchAllData(), // For getProductInfo and getVariantImage to work
+        // Use the new, correct function to get ALL products
+        productStore.fetchAllProducts(), 
+        
         productStore.fetchPurchaseInvoiceDetails(invoiceId.value) // For invoice items
     ]);
     isLoading.value = false;
 });
-const getProductInfo = (productId) => {
-    return productStore.getProductById(productId) || { name: 'منتج غير معروف' };
+
+const getProductByName = (productName) => {
+    return productStore.getAllProducts.find(p => p.name === productName);
 };
 
-const getVariantImage = (productId, colorHex) => {
-    const product = productStore.getProductById(productId);
+// REPLACE the old getProductImage function with this new one
+const getProductImage = (productName, variantSku) => {
+    const product = productStore.getProductByName(productName);
     if (!product || !product.variants) {
         return 'https://placehold.co/60x60/eee/ccc?text=?';
     }
-    const variant = product.variants.find(v => v.colorHex === colorHex);
-    if (variant && variant.images && variant.images.length > 0) {
-        return variant.images[0];
+
+    // Loop through each color group in the product's variants
+    for (const colorVariant of product.variants) {
+        // Check if the stock array for this color exists
+        if (colorVariant.stock) {
+            // Find the specific size variant within the stock by matching the SKU
+            const stockItem = colorVariant.stock.find(s => s.sku === variantSku);
+            
+            // If we found the exact variant by its SKU...
+            if (stockItem) {
+                // ...and this color group has images, return the first one.
+                if (colorVariant.images && colorVariant.images.length > 0) {
+                    return colorVariant.images[0];
+                }
+            }
+        }
     }
+
+    // If no specific variant image was found, fall back to the product's main image.
+    if (product.mainImage) {
+        return product.mainImage;
+    }
+    
+    // If no images are available at all, show a placeholder.
     return 'https://placehold.co/60x60/eee/ccc?text=N/A';
+};
+const extractColorFromSku = (variantSku) => {
+    // Extract color from SKU format: "SPEDRO0-#21BA40-40"
+    const parts = variantSku.split('-');
+    for (const part of parts) {
+        if (part.startsWith('#') && part.length === 7) {
+            return part;
+        }
+    }
+    return '#000000'; // Default color if not found
+};
+
+const extractSizeFromSku = (variantSku) => {
+    // Extract size from SKU - usually the last part
+    const parts = variantSku.split('-');
+    const lastPart = parts[parts.length - 1];
+    
+    // Skip color codes
+    if (lastPart.startsWith('#')) {
+        return parts[parts.length - 2] || '';
+    }
+    
+    return lastPart || '';
 };
 
 const formatDate = (dateString) => {
@@ -153,25 +207,25 @@ const formatCurrency = (amount) => {
 .props-display {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
 }
 
 .prop-chip {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     background-color: #eef2ff;
     color: #4338ca;
-    padding: 6px 12px;
-    border-radius: 16px;
-    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
     font-weight: 500;
 }
 
 .prop-color-dot {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     border: 1px solid rgba(0, 0, 0, 0.1);
 }

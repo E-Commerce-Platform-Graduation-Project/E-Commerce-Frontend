@@ -43,7 +43,7 @@
               </div>
             </div>
 
-            <div class="row g-3 mb-4">
+            <div class="row g-3 mb-5">
               <div class="col-md-6">
                 <label for="editCategory" class="form-label">الفئة</label>
                 <select v-model="form.categoryId" class="form-select" id="editCategory">
@@ -58,10 +58,13 @@
               <div class="col-md-6">
                 <label class="form-label">حالة المنتج</label>
                 <div class="status-container">
-                  <div class="form-check form-switch">
-                    <input class="form-check-input status-switch" type="checkbox" role="switch" id="editStatus" v-model="form.is_active">
-                    <label class="form-check-label" for="editStatus">
-                      {{ form.is_active ? 'ظاهر' : 'مخفي' }}
+                  <div class="status-toggle-wrapper">
+                    <button @click="form.is_active = !form.is_active" type="button"
+                      :class="['status-toggle', { 'active': form.is_active }]">
+                      <div class="toggle-slider"></div>
+                    </button>
+                    <label class="status-label">
+                      {{ form.is_active ? 'نشط' : 'غير نشط' }}
                     </label>
                   </div>
                 </div>
@@ -128,7 +131,7 @@
             <div class="variations-section border-top pt-4">
               <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="mb-0">الألوان والصور</h5>
-                <button @click="addColorVariant" type="button" class="btn btn-primary btn-sm">
+                <button @click="addColorVariant" type="button" class="add-color">
                   <i class="fas fa-plus"></i> إضافة لون جديد
                 </button>
               </div>
@@ -137,62 +140,13 @@
                 <div class="variation-header">
                   <div class="form-group">
                     <label class="form-label">كود اللون</label>
-                    <div class="color-selection-container">
-                      <div class="color-picker-wrapper" @click="toggleColorPicker(index)">
+                    <div class="color-display-container">
+                      <div class="color-display-wrapper">
                         <div class="selected-color-preview" :style="{ backgroundColor: variant.colorHex }"></div>
                         <span class="color-hex-text">{{ variant.colorHex }}</span>
-                        <i class="fas fa-chevron-down" :class="{ 'rotated': variant.showColorPicker }"></i>
-                      </div>
-                      
-                      <div v-if="variant.showColorPicker" class="color-dropdown" @click.stop>
-                        <div class="color-dropdown-header">
-                          <span>اختر لوناً</span>
-                          <button type="button" @click="closeColorPicker(index)" class="close-dropdown-btn">×</button>
-                        </div>
-                        
-                        <div v-if="availableColors.length > 0" class="used-colors-section">
-                          <h4 class="color-section-title">الألوان المتاحة</h4>
-                          <div class="color-grid">
-                            <div 
-                              v-for="color in availableColors" 
-                              :key="color"
-                              class="color-option"
-                              :class="{ 'selected': variant.colorHex.toLowerCase() === color.toLowerCase() }"
-                              @click="selectUsedColor(index, color)"
-                            >
-                              <div class="color-circle" :style="{ backgroundColor: color }"></div>
-                              <span class="color-code">{{ color }}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div v-else class="no-used-colors">
-                          <p class="text-muted">لا توجد ألوان متاحة</p>
-                        </div>
-                        
-                        <div class="custom-color-section">
-                          <h4 class="color-section-title">أو اختر لون جديد</h4>
-                          <div class="custom-color-picker">
-                            <input 
-                              v-model="variant.colorHex" 
-                              type="color" 
-                              class="color-input"
-                              @change="handleHexColorChange(index, false)"
-                            >
-                            <input 
-                              v-model="variant.colorHex" 
-                              type="text" 
-                              class="color-hex-input" 
-                              placeholder="#000000"
-                              pattern="^#[0-9A-Fa-f]{6}$"
-                              @change="handleHexColorChange(index, true)"
-                            >
-                          </div>
-                        </div>
                       </div>
                     </div>
-                    <span v-if="variant.error" class="error-message">{{ variant.error }}</span>
                   </div>
-                  <button @click="removeColorVariant(index)" class="btn-remove-variation" type="button" title="حذف اللون">&times;</button>
                 </div>
 
                 <div class="form-group mt-3">
@@ -246,7 +200,7 @@ const propStore = usePropStore();
 
 const { properties: allProperties } = storeToRefs(propStore);
 
-// **FIXED**: Corrected character encoding issue ('اللون')
+// **FIXED**: Corrected character encoding issue
 const availableProperties = computed(() => {
   return allProperties.value.filter(p => p.name !== 'اللون');
 });
@@ -277,6 +231,7 @@ const initializeFormProperties = () => {
   const newSelectedProperties = {};
   const productData = props.product;
 
+  // Handle the new API structure where properties come from available_attributes
   if (productData && productData.properties && typeof productData.properties === 'object') {
     Object.keys(productData.properties).forEach(propName => {
       if (propName === 'اللون') return; // Color is handled by variants UI
@@ -287,11 +242,12 @@ const initializeFormProperties = () => {
       };
     });
   }
+  
   form.selectedProperties = newSelectedProperties;
 
+  // Initialize variant UI state (removed color picker state since it's no longer needed)
   if (form.variants) {
     form.variants.forEach(variant => {
-      variant.showColorPicker = variant.showColorPicker || false;
       variant.error = variant.error || null;
     });
   }
@@ -405,36 +361,20 @@ const cleanupPropertyData = (propName) => {
   if (Object.keys(prop).length === 0) delete form.selectedProperties[propName];
 };
 
-// Color variants management
+// Color variants management (simplified - removed editing and deletion)
 const addColorVariant = () => {
   if (!form.variants) form.variants = [];
-  form.variants.push({ colorHex: '#000000', images: [], stock: [], showColorPicker: false, error: null });
-};
-const removeColorVariant = (index) => form.variants.splice(index, 1);
-const toggleColorPicker = (index) => {
-  form.variants.forEach((v, i) => { if (i !== index) v.showColorPicker = false; });
-  form.variants[index].showColorPicker = !form.variants[index].showColorPicker;
-};
-const selectUsedColor = (index, colorHex) => {
-  form.variants[index].colorHex = colorHex;
-  handleHexColorChange(index, true);
-};
-const closeColorPicker = (index) => { form.variants[index].showColorPicker = false; };
-const handleHexColorChange = (index, shouldClosePicker) => {
-  const variant = form.variants[index];
-  let color = variant.colorHex.toLowerCase();
-  if (!color.startsWith('#')) color = '#' + color;
-  variant.colorHex = color;
-  const isDuplicate = form.variants.some((v, i) => i !== index && v.colorHex.toLowerCase() === variant.colorHex.toLowerCase());
-  variant.error = isDuplicate ? 'هذا اللون تم اختياره بالفعل.' : null;
-  if (shouldClosePicker) variant.showColorPicker = false;
+  form.variants.push({ colorHex: '#000000', images: [], stock: [], error: null });
 };
 
 // **FIXED**: Reworked variant image management for robustness
 const getNewImagesForVariant = (variantColorHex) => {
-  return newVariantImages.value.filter(img => img.colorHex.toLowerCase() === variantColorHex.toLowerCase());
+  return newVariantImages.value.filter(img => 
+    img.colorHex.toLowerCase() === variantColorHex.toLowerCase()
+  );
 };
 
+// Updated method to add images to variant
 const addImagesToVariant = (event, variantIndex) => {
   const files = Array.from(event.target.files);
   const variant = form.variants[variantIndex];
@@ -447,22 +387,33 @@ const addImagesToVariant = (event, variantIndex) => {
       url: URL.createObjectURL(file)
     });
   });
+  
+  // Clear the input so the same file can be selected again
+  event.target.value = '';
 };
 
+// Updated method to remove images from variant
 const removeImageFromVariant = (variantIndex, imageIndex, isNew) => {
   if (isNew) {
+    // Removing a newly added image
     const variant = form.variants[variantIndex];
     if (!variant) return;
+    
     const newImagesForThisColor = getNewImagesForVariant(variant.colorHex);
-    const targetImage = newImagesForThisColor[imageIndex];
-    const overallIndex = newVariantImages.value.findIndex(img => img === targetImage);
-    if (overallIndex > -1) {
-      URL.revokeObjectURL(newVariantImages.value[overallIndex].url);
-      newVariantImages.value.splice(overallIndex, 1);
+    if (imageIndex < newImagesForThisColor.length) {
+      const targetImage = newImagesForThisColor[imageIndex];
+      const overallIndex = newVariantImages.value.findIndex(img => img === targetImage);
+      if (overallIndex > -1) {
+        URL.revokeObjectURL(newVariantImages.value[overallIndex].url);
+        newVariantImages.value.splice(overallIndex, 1);
+      }
     }
   } else {
+    // Removing an existing image
     const variant = form.variants[variantIndex];
-    if (variant && variant.images) variant.images.splice(imageIndex, 1);
+    if (variant && variant.images && Array.isArray(variant.images)) {
+      variant.images.splice(imageIndex, 1);
+    }
   }
 };
 
@@ -493,12 +444,13 @@ const handleSubmit = async () => {
 };
 </script>
 
-
 <style scoped>
-/* All styles are unchanged */
+/* All styles are unchanged except for status toggle styles */
 .modal-xl {
   max-width: 1000px;
 }
+
+/* Updated status container styles to match ProductsList.vue */
 .status-container {
   display: flex;
   align-items: center;
@@ -508,25 +460,51 @@ const handleSubmit = async () => {
   border-radius: 6px;
   background-color: #fff;
 }
-.form-check.form-switch {
+
+.status-toggle-wrapper {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 0;
-  padding: 0;
 }
-.status-switch {
-  width: 3.5em !important;
-  height: 1.75em !important;
+
+/* Status toggle styles matching ProductsList.vue */
+.status-toggle {
+  position: relative;
+  width: 50px;
+  height: 24px;
+  border-radius: 12px;
+  border: none;
+  background-color: #dc3545;
   cursor: pointer;
-  margin: 0 !important;
+  transition: all 0.3s ease;
 }
-.form-check-label {
+
+.status-toggle.active {
+  background-color: #198754;
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: white;
+  transition: all 0.3s ease;
+}
+
+.status-toggle.active .toggle-slider {
+  transform: translateX(26px);
+}
+
+.status-label {
   font-weight: 500;
   color: #374151;
-  margin: 0 !important;
+  margin: 0;
   cursor: pointer;
 }
+
 .main-image-uploader {
   border: 2px dashed #ced4da;
   border-radius: 8px;
@@ -537,10 +515,12 @@ const handleSubmit = async () => {
   position: relative;
   background-color: #f8f9fa;
   overflow: hidden;
+  cursor: pointer;
 }
 .main-image-uploader .upload-prompt {
   text-align: center;
   color: #6c757d;
+  pointer-events: none;
 }
 .main-image-uploader .upload-prompt i {
   font-size: 2rem;
@@ -576,7 +556,10 @@ const handleSubmit = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 10;
 }
+
+/* FIXED: Enhanced file input styles for better click detection */
 .file-input {
   position: absolute;
   top: 0;
@@ -585,7 +568,9 @@ const handleSubmit = async () => {
   height: 100%;
   opacity: 0;
   cursor: pointer;
+  z-index: 5;
 }
+
 .properties-section {
   background-color: #f8f9fa;
 }
@@ -710,22 +695,19 @@ const handleSubmit = async () => {
   color: #6b7280;
   font-size: 14px;
 }
-.color-selection-container {
+
+/* Updated color display styles - removed interactive elements */
+.color-display-container {
   position: relative;
 }
-.color-picker-wrapper {
+.color-display-wrapper {
   display: flex;
   align-items: center;
   gap: 10px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 8px 12px;
-  background: white;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.color-picker-wrapper:hover {
-  border-color: #3b82f6;
+  background: #f8f9fa;
 }
 .selected-color-preview {
   width: 24px;
@@ -739,140 +721,9 @@ const handleSubmit = async () => {
   font-family: monospace;
   font-size: 14px;
   color: #374151;
+  font-weight: 500;
 }
-.color-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  max-height: 400px;
-  overflow-y: auto;
-}
-.color-dropdown-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e5e7eb;
-  background-color: #f8fafc;
-  font-weight: 600;
-  color: #374151;
-}
-.close-dropdown-btn {
-  background: none;
-  border: none;
-  font-size: 20px;
-  color: #6b7280;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.15s ease;
-}
-.close-dropdown-btn:hover {
-  background-color: #e5e7eb;
-  color: #374151;
-}
-.color-section-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #4b5563;
-  margin: 0 0 8px 0;
-}
-.used-colors-section {
-  padding: 16px;
-  border-bottom: 1px solid #e5e7eb;
-}
-.no-used-colors {
-  padding: 16px;
-  text-align: center;
-  border-bottom: 1px solid #e5e7eb;
-}
-.no-used-colors p {
-  margin: 0;
-  color: #6b7280;
-  font-size: 14px;
-}
-.color-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 8px;
-  margin-top: 8px;
-}
-.color-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  border: 2px solid transparent;
-}
-.color-option:hover {
-  background-color: #f3f4f6;
-}
-.color-option.selected {
-  background-color: #dbeafe;
-  border-color: #3b82f6;
-}
-.color-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid #e5e7eb;
-  flex-shrink: 0;
-}
-.color-code {
-  font-size: 10px;
-  font-family: monospace;
-  color: #6b7280;
-  text-align: center;
-}
-.custom-color-section {
-  padding: 16px;
-}
-.custom-color-picker {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin-top: 8px;
-}
-.color-input {
-  width: 60px;
-  height: 40px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  cursor: pointer;
-  padding: 0;
-}
-.color-hex-input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  font-family: monospace;
-  font-size: 14px;
-}
-.color-hex-input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-}
-.error-message {
-  color: #ef4444;
-  font-size: 12px;
-  margin-top: 4px;
-}
+
 .variation-card {
   background: #ffffff;
   border: 1px solid #dee2e6;
@@ -883,7 +734,7 @@ const handleSubmit = async () => {
 }
 .variation-header {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr;
   gap: 20px;
   align-items: flex-start;
   margin-bottom: 16px;
@@ -899,28 +750,8 @@ const handleSubmit = async () => {
   font-size: 14px;
   margin-bottom: 4px;
 }
-.btn-remove-variation {
-  background-color: #f8d7da;
-  color: #721c24;
-  border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  font-size: 20px;
-  cursor: pointer;
-  line-height: 1;
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-.btn-remove-variation:hover {
-  background-color: #f5c6cb;
-  transform: scale(1.1);
-}
+
+/* FIXED: Enhanced image uploader styles for better click detection */
 .image-uploader { 
   position: relative; 
   border: 2px dashed #d1d5db;
@@ -928,7 +759,20 @@ const handleSubmit = async () => {
   padding: 20px;
   text-align: center;
   background-color: #f9fafb;
+  cursor: pointer;
 }
+
+.image-uploader .file-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 5;
+}
+
 .image-preview-grid { 
   display: flex; 
   flex-wrap: wrap; 
@@ -952,6 +796,7 @@ const handleSubmit = async () => {
   background-color: #fff;
   cursor: pointer;
   transition: all 0.15s ease;
+  pointer-events: none; /* Prevents interference with file input */
 }
 .upload-prompt:hover {
   border-color: #3b82f6;
@@ -979,27 +824,44 @@ const handleSubmit = async () => {
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  z-index: 10;
 }
 .remove-btn:hover {
   background: rgba(0, 0, 0, 0.9);
   transform: scale(1.1);
+}
+.add-color {
+  /* ---Styles from your original code--- */
+  background: linear-gradient(135deg, #9aa5b4 0%, #5b616b 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+
+  /* ---Improvements--- */
+  padding: 12px 24px; /* Added padding for better spacing */
+  font-size: 16px; /* Set a base font size */
+  font-weight: bold; /* Make the text bold */
+  cursor: pointer; /* Change cursor to a pointer on hover */
+  transition: all 0.3s ease; /* Smooth transition for all properties */
+  outline: none; /* Removes the default browser outline */
+}
+
+/* ---Hover Effect--- */
+.add-color:hover {
+  transform: translateY(-3px); /* Lifts the button slightly */
+}
+
+/* ---Active/Click Effect--- */
+.add-color:active {
+  transform: translateY(1px); /* Pushes the button down slightly when clicked */
 }
 @media (max-width: 768px) {
   .variation-header {
     grid-template-columns: 1fr;
     gap: 16px;
   }
-  .btn-remove-variation {
-    position: static;
-    width: 100%;
-    border-radius: 6px;
-    margin-top: 12px;
-  }
   .properties-grid {
     grid-template-columns: 1fr;
-  }
-  .color-grid {
-    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
   }
 }
 </style>

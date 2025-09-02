@@ -152,14 +152,23 @@ const activeImage = ref('');
 const allImages = computed(() => {
     if (!props.product) return [];
     const images = [];
+    
+    // Add main image first
     if (props.product.mainImage) {
         images.push(props.product.mainImage);
     }
-    if (props.product.variants) {
-        const variantImages = props.product.variants.flatMap(variant => variant.images || []);
-        images.push(...variantImages);
+    
+    // Add variant images from the new structure
+    if (props.product.variants && Array.isArray(props.product.variants)) {
+        props.product.variants.forEach(variant => {
+            if (variant.images && Array.isArray(variant.images)) {
+                images.push(...variant.images);
+            }
+        });
     }
-    return images;
+    
+    // Remove duplicates
+    return [...new Set(images)];
 });
 
 watch(allImages, (newImages) => {
@@ -175,20 +184,60 @@ const setActiveImage = (image) => {
 };
 
 const purchaseHistoryItems = computed(() => {
-    // This logic is now correct because invoice items in the store contain the full `properties` object.
-    const invoices = productStore.getInvoicesByProductId(props.product.id);
-    const allItems = [];
-    invoices.forEach(invoice => {
-        const productItems = invoice.items.filter(item => item.productId === props.product.id);
-        productItems.forEach(item => {
-            allItems.push({
-                invoiceId: invoice.id,
-                date: invoice.date,
-                ...item
-            });
-        });
+  const invoices = productStore.getInvoicesByProductId(props.product.id);
+  const allItems = [];
+  
+  invoices.forEach(invoice => {
+    // Handle both old and new invoice item formats
+    const productItems = invoice.items ? invoice.items.filter(item => {
+      // For new API format with product names
+      if (item.productName) {
+        return item.productName === props.product.name;
+      }
+      // For old format with productId
+      return item.productId === props.product.id;
+    }) : [];
+
+    productItems.forEach(item => {
+      let properties = {};
+      
+      if (item.variantSku) {
+        // Extract properties from SKU format: "PANTS1-قماش-#21BA40-L"
+        const skuParts = item.variantSku.split('-');
+        
+        // Extract color (look for hex color pattern)
+        const colorPart = skuParts.find(part => part.startsWith('#') && part.length === 7);
+        if (colorPart) {
+          properties.color = colorPart;
+        }
+        
+        // Extract size (usually the last part)
+        const sizePart = skuParts[skuParts.length - 1];
+        if (sizePart && !sizePart.startsWith('#')) {
+          properties['المقاس'] = sizePart;
+        }
+        
+        // Extract material (parts between product name and color)
+        const materialParts = skuParts.slice(1, -2); // Skip first (product), last (size), and color
+        if (materialParts.length > 0) {
+          properties['الخامة'] = materialParts.join('-');
+        }
+      } else if (item.properties) {
+        // Use existing properties if available (old format)
+        properties = item.properties;
+      }
+
+      allItems.push({
+        invoiceId: invoice.id,
+        date: invoice.date,
+        properties: properties,
+        quantityAdded: item.quantity || item.quantityToAdd || 0,
+        purchasePrice: item.costPerUnit || item.purchasePrice || 0
+      });
     });
-    return allItems;
+  });
+  
+  return allItems.sort((a, b) => new Date(b.date) - new Date(a.date));
 });
 
 const calculatedProfit = computed(() => {

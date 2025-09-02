@@ -21,7 +21,7 @@
 
         <div class="form-group">
           <label class="form-label">الصورة الرئيسية للمنتج</label>
-          <div class="main-image-uploader" :class="{ 'error-border': errors.mainImage }">
+          <div id="mainImageUploader" class="main-image-uploader" :class="{ 'error-border': errors.mainImage }">
             <input type="file" @change="handleMainImageUpload" accept="image/*" class="file-input" />
 
             <div v-if="!productData.mainImage" class="upload-prompt">
@@ -59,7 +59,7 @@
         <div class="form-group" v-if="errors.categoryId"><span class="error-message">{{ errors.categoryId }}</span>
         </div>
 
-        <div class="properties-section">
+        <div id="propertiesSection" class="properties-section" :class="{ 'is-focused': openComboBox !== null }">
           <h3 class="section-title">خواص المنتج</h3>
           <div v-if="propertiesLoading" class="loading">جاري تحميل الخواص...</div>
           <div v-else-if="availableProperties.length === 0" class="no-properties">
@@ -114,7 +114,7 @@
           <span v-if="errors.profitMargin" class="error-message">{{ errors.profitMargin }}</span>
         </div>
 
-        <div class="variations-section">
+        <div id="variationsSection" class="variations-section">
           <div class="section-header">
             <h3 class="section-title">ألوان المنتج وصورها</h3>
             <button @click="addColorVariation" type="button" class="btn btn-add-color">
@@ -127,7 +127,7 @@
             <p>يجب إضافة لون واحد على الأقل للمنتج.</p>
           </div>
 
-          <div v-for="(variation, index) in productData.colorVariations" :key="variation.id" class="variation-card">
+          <div v-for="(variation, index) in productData.colorVariations" :key="variation.id" class="variation-card" :class="{ 'is-focused': variation.showColorPicker }">
             <div class="variation-header">
               <div class="form-group">
                 <label class="form-label">كود اللون</label>
@@ -186,9 +186,9 @@
                 title="حذف اللون">&times;</button>
             </div>
 
-            <div class="form-group">
+            <div class="form-group images-section" :class="{ 'pushed-down': variation.showColorPicker }">
               <label class="form-label">صور هذا اللون</label>
-              <div class="image-uploader" :class="{ 'error-border': errors[`color_${index}_images`] }">
+              <div :id="`colorImagesUploader-${index}`" class="image-uploader" :class="{ 'error-border': errors[`color_${index}_images`] }">
                 <input type="file" multiple @change="e => handleImageUpload(e, index)" accept="image/*"
                   class="file-input" />
                 <div v-if="variation.images.length === 0" class="upload-prompt">
@@ -207,8 +207,6 @@
           </div>
         </div>
 
-        <div v-if="productStore.error" class="alert alert-error">{{ productStore.error }}</div>
-        <div v-if="successMessage" class="alert alert-success">{{ successMessage }}</div>
         <div class="form-actions">
           <button type="button" @click="handleCancel" class="btn btn-secondary"
             :disabled="productStore.isLoading">إلغاء</button>
@@ -219,11 +217,35 @@
         </div>
       </form>
     </div>
+
+    <!-- Success Modal -->
+    <div v-if="showSuccessModal" class="modal-overlay" @click="closeSuccessModal">
+      <div class="modal-dialog success-modal" @click.stop>
+        <div class="modal-icon success-icon">
+          <i class="fas fa-check-circle"></i>
+        </div>
+        <h3>تم بنجاح!</h3>
+        <p>تمت إضافة المنتج بنجاح!</p>
+        <button @click="closeSuccessModal" class="btn btn-primary">موافق</button>
+      </div>
+    </div>
+    
+    <!-- Error Modal -->
+    <div v-if="showErrorModal" class="modal-overlay" @click="closeErrorModal">
+      <div class="modal-dialog error-modal" @click.stop>
+        <div class="modal-icon error-icon">
+          <i class="fas fa-times-circle"></i>
+        </div>
+        <h3>حدث خطأ!</h3>
+        <p>{{ modalErrorMessage }}</p>
+        <button @click="closeErrorModal" class="btn btn-danger">إغلاق</button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue';
+import { ref, reactive, computed, watch, onMounted, nextTick, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { useProductStore } from '@/stores/productStore';
@@ -247,10 +269,14 @@ const getInitialProductData = () => ({
 
 const productData = reactive(getInitialProductData());
 const errors = reactive({});
-const successMessage = ref('');
 const selectedMainCategory = ref(null);
 const openComboBox = ref(null);
 const propertiesLoading = ref(false);
+
+// Modal state
+const showSuccessModal = ref(false);
+const showErrorModal = ref(false);
+const modalErrorMessage = ref('');
 
 const mainCategories = computed(() => categoryStore.getMainCategories);
 const subCategories = computed(() => selectedMainCategory.value ? categoryStore.getSubcategoriesByParent(selectedMainCategory.value) : []);
@@ -273,6 +299,18 @@ const availableColors = computed(() => {
 
 watch(selectedMainCategory, () => { productData.categoryId = ''; });
 
+const handleClickOutside = (event) => {
+  const isClickInsidePropertyBox = event.target.closest('.property-combo-box');
+  const isClickInsideColorPicker = event.target.closest('.color-selection-container');
+
+  if (!isClickInsidePropertyBox && !isClickInsideColorPicker) {
+    openComboBox.value = null;
+    productData.colorVariations.forEach(variation => {
+      variation.showColorPicker = false;
+    });
+  }
+};
+
 onMounted(async () => { 
   categoryStore.fetchCategories();
   
@@ -284,7 +322,13 @@ onMounted(async () => {
   } finally {
     propertiesLoading.value = false;
   }
+  document.addEventListener('click', handleClickOutside);
 });
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
+
 
 const toggleComboBox = (propId) => {
   openComboBox.value = openComboBox.value === propId ? null : propId;
@@ -489,24 +533,87 @@ const validateForm = () => {
   return isValid;
 };
 
-const handleSubmit = async () => {
-  if (!validateForm()) return;
-  successMessage.value = '';
+const getFieldId = (fieldName) => {
+  if (fieldName.startsWith('color_')) {
+    const index = fieldName.split('_')[1];
+    return `colorImagesUploader-${index}`;
+  }
+  const fieldIdMap = {
+    name: 'productName',
+    mainImage: 'mainImageUploader',
+    categoryId: 'mainCategory',
+    properties: 'propertiesSection',
+    profitMargin: 'profitMargin',
+    colorVariations: 'variationsSection',
+  };
+  return fieldIdMap[fieldName] || fieldName;
+};
 
-  const result = await productStore.addProduct(productData);
-
-  if (result.success) {
-    successMessage.value = 'تمت إضافة المنتج بنجاح!';
-    
-    Object.assign(productData, getInitialProductData());
-    selectedMainCategory.value = null;
-    openComboBox.value = null;
-
-    setTimeout(() => successMessage.value = '', 4000);
+const scrollToFirstError = async () => {
+  await nextTick();
+  const firstErrorKey = Object.keys(errors)[0];
+  if (firstErrorKey) {
+    const elementId = getFieldId(firstErrorKey);
+    const element = document.getElementById(elementId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => {
+        element.classList.add('error-highlight');
+        if (['INPUT', 'SELECT', 'TEXTAREA'].includes(element.tagName)) {
+             element.focus();
+        }
+        setTimeout(() => {
+          element.classList.remove('error-highlight');
+        }, 2500);
+      }, 500);
+    }
   }
 };
 
-const handleCancel = () => { router.push('/products'); };
+const handleSubmit = async () => {
+  if (!validateForm()) {
+    await scrollToFirstError();
+    return;
+  }
+
+  try {
+    const result = await productStore.addProduct(productData);
+
+    if (result.success) {
+      showSuccessModal.value = true;
+      // Reset form data
+      Object.assign(productData, getInitialProductData());
+      selectedMainCategory.value = null;
+      openComboBox.value = null;
+      Object.keys(errors).forEach(key => delete errors[key]);
+    } else {
+      if (result.error && typeof result.error === 'string') {
+        modalErrorMessage.value = result.error;
+        showErrorModal.value = true;
+      } else {
+        modalErrorMessage.value = 'حدث خطأ غير معروف. يرجى المحاولة مرة أخرى.';
+        showErrorModal.value = true;
+      }
+      await scrollToFirstError();
+    }
+  } catch (error) {
+    console.error('Error adding product:', error);
+    modalErrorMessage.value = 'حدث خطأ غير متوقع أثناء الاتصال بالخادم.';
+    showErrorModal.value = true;
+  }
+};
+
+const handleCancel = () => { 
+  router.push('/products'); 
+};
+
+const closeSuccessModal = () => {
+  showSuccessModal.value = false;
+};
+
+const closeErrorModal = () => {
+  showErrorModal.value = false;
+};
 </script>
 
 <style scoped>
@@ -548,10 +655,11 @@ const handleCancel = () => { router.push('/products'); };
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-  max-height: 400px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  z-index: 1001; /* Higher than combo box dropdown */
+  max-height: 300px;
   overflow-y: auto;
+  margin-top: 4px;
 }
 .color-dropdown-header {
   display: flex;
@@ -593,8 +701,8 @@ const handleCancel = () => { router.push('/products'); };
 }
 .color-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 6px;
   margin-top: 8px;
 }
 .color-option {
@@ -602,7 +710,7 @@ const handleCancel = () => { router.push('/products'); };
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 8px;
+  padding: 6px;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -616,8 +724,8 @@ const handleCancel = () => { router.push('/products'); };
   border-color: #3b82f6;
 }
 .color-circle {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 2px solid #e5e7eb;
   flex-shrink: 0;
@@ -629,7 +737,7 @@ const handleCancel = () => { router.push('/products'); };
   text-align: center;
 }
 .custom-color-section {
-  padding: 16px;
+  padding: 12px 16px;
 }
 .custom-color-picker {
   display: flex;
@@ -638,8 +746,8 @@ const handleCancel = () => { router.push('/products'); };
   margin-top: 8px;
 }
 .color-input {
-  width: 60px;
-  height: 40px;
+  width: 50px;
+  height: 36px;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   cursor: pointer;
@@ -670,6 +778,7 @@ const handleCancel = () => { router.push('/products'); };
   display: flex;
   justify-content: center;
   align-items: center;
+  transition: all 0.3s ease;
 }
 .main-image-preview {
   width: 120px;
@@ -689,12 +798,23 @@ const handleCancel = () => { router.push('/products'); };
   margin-bottom: 16px;
   position: relative;
 }
+
+/* Images section that moves down when color picker is open */
+.images-section {
+  transition: margin-top 0.3s ease;
+}
+
+.images-section.pushed-down {
+  margin-top: 320px; /* Adjust this value based on your color dropdown height */
+}
+
 .image-uploader {
   border: 2px dashed #d1d5db;
   border-radius: 8px;
   padding: 20px;
   text-align: center;
   position: relative;
+  transition: all 0.3s ease;
 }
 .file-input {
   position: absolute;
@@ -743,14 +863,36 @@ const handleCancel = () => { router.push('/products'); };
   border-radius: 8px;
   border: none;
   cursor: pointer;
+  transition: all 0.3s ease;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .btn-primary {
   background-color: #3b82f6;
   color: white;
 }
+.btn-primary:hover:not(:disabled) {
+  background-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+}
 .btn-secondary {
   background-color: #6b7280;
   color: white;
+}
+.btn-secondary:hover:not(:disabled) {
+  background-color: #4b5563;
+  transform: translateY(-2px);
+}
+.btn-danger {
+  background: #e74c3c;
+  color: white;
+}
+.btn-danger:hover:not(:disabled) { 
+  background: #c0392b; 
+  transform: translateY(-2px);
 }
 .loading-spinner {
   width: 16px;
@@ -764,21 +906,6 @@ const handleCancel = () => { router.push('/products'); };
   to {
     transform: rotate(360deg);
   }
-}
-.alert {
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 16px;
-}
-.alert-error {
-  background-color: #fee2e2;
-  color: #ef4444;
-  border: 1px solid #fecaca;
-}
-.alert-success {
-  background-color: #d1fae5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
 }
 .btn-remove-variation {
   position: absolute;
@@ -795,15 +922,17 @@ const handleCancel = () => { router.push('/products'); };
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1;
+  z-index: 5;
 }
 .error-border {
-  border-color: #ef4444;
+  border-color: #ef4444 !important;
+  border-style: solid !important;
 }
 .add-product-container {
   direction: rtl;
   padding: 40px 20px;
-  background-color: #f5f7fa;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
 }
 .header {
   text-align: center;
@@ -823,6 +952,7 @@ const handleCancel = () => { router.push('/products'); };
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   padding: 30px 40px;
+  overflow: visible; /* Changed from hidden to visible */
 }
 .product-form {
   display: flex;
@@ -850,11 +980,31 @@ const handleCancel = () => { router.push('/products'); };
   padding: 12px 16px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
+  transition: all 0.3s ease;
 }
+.form-input.error,
+.form-textarea.error,
+.form-select.error {
+    border-color: #ef4444;
+    background: #fef2f2;
+}
+
 .error-message {
   color: #ef4444;
   font-size: 12px;
   margin-top: 4px;
+  display: block;
+  animation: errorSlideIn 0.3s ease-out;
+}
+@keyframes errorSlideIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(-10px);
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0);
+  }
 }
 .properties-section {
   border-top: 1px solid #e5e7eb;
@@ -870,10 +1020,16 @@ const handleCancel = () => { router.push('/products'); };
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
+  position: relative;
+  z-index: 1;
 }
 .property-group,
 .property-combo-box {
   position: relative;
+}
+.property-group {
+  position: relative;
+  z-index: 2;
 }
 .combo-box-button {
   width: 100%;
@@ -1024,5 +1180,161 @@ const handleCancel = () => { router.push('/products'); };
   padding: 20px;
   margin-bottom: 16px;
   position: relative;
+  overflow: visible;
+  z-index: 1; /* Lower z-index for variation cards */
+}
+
+.variation-card.is-focused {
+  z-index: 50; /* Higher when color picker is open */
+}
+
+.properties-section.is-focused {
+  position: relative;
+  z-index: 100;
+}
+
+.property-combo-box {
+  position: relative;
+  z-index: 10;
+}
+
+.combo-box-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  z-index: 1000; /* Increased z-index */
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.combo-box-button.active + .combo-box-dropdown,
+.color-picker-wrapper + .color-dropdown {
+  z-index: 9999;
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-dialog {
+  background: white;
+  border-radius: 20px;
+  padding: 40px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from { opacity: 0; transform: translateY(-50px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.modal-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 32px;
+}
+
+.success-icon {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+}
+
+.error-icon {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.modal-dialog h3 {
+  font-size: 24px;
+  color: #2c3e50;
+  margin: 0 0 10px 0;
+}
+
+.modal-dialog p {
+  color: #7f8c8d;
+  margin: 0 0 30px 0;
+  font-size: 16px;
+}
+
+/* Error Highlighting */
+.error-highlight {
+  border-color: #e74c3c !important; 
+  background-color: #fef2f2;
+  box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.2);
+  animation: errorPulse 0.5s ease-in-out;
+}
+
+.form-input.error-highlight, 
+.form-textarea.error-highlight, 
+.form-select.error-highlight, 
+.main-image-uploader.error-highlight, 
+.image-uploader.error-highlight {
+  border-style: solid !important;
+}
+
+@keyframes errorPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+/* Slide-in Animation */
+.form-group, .properties-section, .variations-section, .form-actions, .form-row {
+  animation: slideInUp 0.6s ease-out;
+  animation-fill-mode: both;
+}
+
+/* Stagger the animations */
+.product-form > .form-group:nth-of-type(1) { animation-delay: 0.1s; }
+.product-form > .form-group:nth-of-type(2) { animation-delay: 0.2s; }
+.product-form > .form-group:nth-of-type(3) { animation-delay: 0.3s; }
+.form-row { animation-delay: 0.4s; }
+.properties-section { animation-delay: 0.5s; }
+.form-group:has(#profitMargin) { animation-delay: 0.6s; }
+.variations-section { animation-delay: 0.7s; }
+.form-actions { animation-delay: 0.8s; }
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .add-product-container { padding: 10px; }
+  .title { font-size: 24px; }
+  .form-container { padding: 30px 20px; }
+  .form-row { grid-template-columns: 1fr; gap: 15px; }
+  .form-actions { flex-direction: column; }
+  .btn { width: 100%; }
 }
 </style>
+
