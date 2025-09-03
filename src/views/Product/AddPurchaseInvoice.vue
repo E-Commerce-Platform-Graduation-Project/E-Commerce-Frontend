@@ -565,6 +565,7 @@ const handleSubmit = async () => {
 
 const closeSuccessModal = () => {
   showSuccessModal.value = false;
+  router.push('/purchase-invoices');
 };
 
 const closeErrorModal = () => {

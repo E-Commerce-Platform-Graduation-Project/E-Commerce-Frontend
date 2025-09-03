@@ -609,6 +609,7 @@ const handleCancel = () => {
 
 const closeSuccessModal = () => {
   showSuccessModal.value = false;
+  router.push('/products');
 };
 
 const closeErrorModal = () => {

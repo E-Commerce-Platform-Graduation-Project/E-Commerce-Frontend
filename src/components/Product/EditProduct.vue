@@ -1,7 +1,7 @@
 <template>
   <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5); z-index: 1060;" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-      <div class="modal-content">
+      <div class="modal-content edit-product-modal">
         <div class="modal-header bg-warning">
           <h5 class="modal-title">تعديل المنتج: {{ form.name }}</h5>
         </div>
@@ -29,11 +29,21 @@
               </div>
               <div class="col-md-4 mb-3">
                 <label class="form-label">الصورة الرئيسية</label>
-                <div class="main-image-uploader">
-                  <input type="file" @change="handleMainImageUpload" accept="image/*" class="file-input" title="انقر لتغيير الصورة الرئيسية" />
+                <div class="main-image-uploader" @click="triggerMainImageUpload">
+                  <input 
+                    ref="mainImageInput"
+                    type="file" 
+                    @change="handleMainImageUpload" 
+                    accept="image/*" 
+                    class="file-input" 
+                  />
                   <div v-if="mainImagePreview" class="image-preview main-image-preview">
-                    <img :src="mainImagePreview" alt="Main product image preview" />
-                    <button @click.prevent="removeMainImage" class="remove-btn" type="button" title="إزالة الصورة">&times;</button>
+                    <img 
+                      :src="mainImagePreview" 
+                      alt="Main product image preview" 
+                      @click.stop="openImageModal(mainImagePreview)"
+                    />
+                    <button @click.stop="removeMainImage" class="remove-btn" type="button" title="إزالة الصورة">&times;</button>
                   </div>
                   <div v-else class="upload-prompt">
                     <i class="fas fa-camera"></i>
@@ -43,10 +53,10 @@
               </div>
             </div>
 
-            <div class="row g-3 mb-5">
-              <div class="col-md-6">
+            <div class="row g-3 mb-3">
+              <div class="col-md-9">
                 <label for="editCategory" class="form-label">الفئة</label>
-                <select v-model="form.categoryId" class="form-select" id="editCategory">
+                <select v-model="form.categoryId" class="form-select py-3" id="editCategory">
                   <option disabled value="">اختر فئة فرعية...</option>
                   <optgroup v-for="group in subCategoryGroups" :key="group.id" :label="group.name">
                     <option v-for="subCategory in group.subCategories" :key="subCategory.id" :value="subCategory.id">
@@ -55,9 +65,9 @@
                   </optgroup>
                 </select>
               </div>
-              <div class="col-md-6">
+              <div class="col-md-3">
                 <label class="form-label">حالة المنتج</label>
-                <div class="status-container">
+                <div class="status-container py-3">
                   <div class="status-toggle-wrapper">
                     <button @click="form.is_active = !form.is_active" type="button"
                       :class="['status-toggle', { 'active': form.is_active }]">
@@ -151,16 +161,29 @@
 
                 <div class="form-group mt-3">
                   <label class="form-label">صور هذا اللون</label>
-                  <div class="image-uploader">
-                    <input type="file" multiple @change="e => addImagesToVariant(e, index)" accept="image/*" class="file-input" />
+                  <div class="image-uploader" @click="triggerVariantImageUpload(index)">
+                    <input 
+                      :ref="`variantImageInput_${index}`"
+                      type="file" 
+                      multiple 
+                      @change="e => addImagesToVariant(e, index)" 
+                      accept="image/*" 
+                      class="file-input" 
+                    />
                     <div class="image-preview-grid">
                       <div v-for="(image, imgIndex) in (variant.images || [])" :key="`existing-${imgIndex}`" class="image-preview">
-                        <img :src="image" />
-                        <button @click="removeImageFromVariant(index, imgIndex, false)" class="remove-btn" type="button">&times;</button>
+                        <img 
+                          :src="image" 
+                          @click.stop="openImageModal(image)"
+                        />
+                        <button @click.stop="removeImageFromVariant(index, imgIndex, false)" class="remove-btn" type="button">&times;</button>
                       </div>
                       <div v-for="(newImg, newImgIndex) in getNewImagesForVariant(variant.colorHex)" :key="`new-${newImgIndex}`" class="image-preview">
-                        <img :src="newImg.url" />
-                        <button @click="removeImageFromVariant(index, newImgIndex, true)" class="remove-btn" type="button">&times;</button>
+                        <img 
+                          :src="newImg.url" 
+                          @click.stop="openImageModal(newImg.url)"
+                        />
+                        <button @click.stop="removeImageFromVariant(index, newImgIndex, true)" class="remove-btn" type="button">&times;</button>
                       </div>
                       <div class="upload-prompt"><span>+</span></div>
                     </div>
@@ -177,6 +200,14 @@
             حفظ التغييرات
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div v-if="showImageModal" class="image-modal" @click="closeImageModal">
+      <div class="image-modal-content" @click.stop>
+        <button @click="closeImageModal" class="image-modal-close">&times;</button>
+        <img :src="modalImageSrc" alt="عرض الصورة" />
       </div>
     </div>
   </div>
@@ -200,12 +231,17 @@ const propStore = usePropStore();
 
 const { properties: allProperties } = storeToRefs(propStore);
 
-// **FIXED**: Corrected character encoding issue
+// Image modal state
+const showImageModal = ref(false);
+const modalImageSrc = ref('');
+
+// Refs for file inputs
+const mainImageInput = ref(null);
+
 const availableProperties = computed(() => {
   return allProperties.value.filter(p => p.name !== 'اللون');
 });
 
-// **FIXED**: Get the list of predefined colors from the 'Color' attribute, like in AddProduct.vue
 const availableColors = computed(() => {
     const colorProp = allProperties.value.find(p => p.name === 'اللون');
     return colorProp && Array.isArray(colorProp.values) 
@@ -220,12 +256,38 @@ const openComboBox = ref(null);
 // State for managing new file uploads
 const newMainImageFile = ref(null);
 const newMainImageURL = ref(null);
-// **FIXED**: `newVariantImages` now stores colorHex directly for more robust logic
 const newVariantImages = ref([]); // Shape: { colorHex: string, file: File, url: string }
 
 const mainImagePreview = computed(() => {
   return newMainImageURL.value || form.mainImage;
 });
+
+// Image modal methods
+const openImageModal = (imageSrc) => {
+  modalImageSrc.value = imageSrc;
+  showImageModal.value = true;
+  document.body.style.overflow = 'hidden'; // Prevent background scroll
+};
+
+const closeImageModal = () => {
+  showImageModal.value = false;
+  modalImageSrc.value = '';
+  document.body.style.overflow = 'auto'; // Restore scroll
+};
+
+// File input trigger methods
+const triggerMainImageUpload = () => {
+  if (mainImageInput.value) {
+    mainImageInput.value.click();
+  }
+};
+
+const triggerVariantImageUpload = (index) => {
+  const input = document.querySelector(`input[ref="variantImageInput_${index}"]`);
+  if (input) {
+    input.click();
+  }
+};
 
 const initializeFormProperties = () => {
   const newSelectedProperties = {};
@@ -274,6 +336,8 @@ const handleMainImageUpload = (event) => {
   if (newMainImageURL.value) URL.revokeObjectURL(newMainImageURL.value);
   newMainImageFile.value = file;
   newMainImageURL.value = URL.createObjectURL(file);
+  // Clear the input
+  event.target.value = '';
 };
 
 const removeMainImage = () => {
@@ -367,7 +431,6 @@ const addColorVariant = () => {
   form.variants.push({ colorHex: '#000000', images: [], stock: [], error: null });
 };
 
-// **FIXED**: Reworked variant image management for robustness
 const getNewImagesForVariant = (variantColorHex) => {
   return newVariantImages.value.filter(img => 
     img.colorHex.toLowerCase() === variantColorHex.toLowerCase()
@@ -421,7 +484,6 @@ const handleSubmit = async () => {
   const updateData = { ...form, properties: form.selectedProperties };
   delete updateData.selectedProperties;
 
-  // **FIXED**: Prepare variant files with color info in a robust way
   const variantFiles = newVariantImages.value.map(img => ({
     file: img.file,
     colorHex: img.colorHex
@@ -445,16 +507,87 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-/* All styles are unchanged except for status toggle styles */
 .modal-xl {
   max-width: 1000px;
+}
+
+/* Add slide-up animation like ProductDetails */
+.edit-product-modal {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Image Modal Styles - UPDATED with size constraints */
+.image-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  cursor: pointer;
+  overflow: auto; /* Allow scrolling if needed */
+}
+
+.image-modal-content {
+  position: relative;
+  max-width: 85vw; /* Reduced from 90vw */
+  max-height: 85vh; /* Reduced from 90vh */
+  cursor: default;
+  margin: auto; /* Center the content */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-modal-content img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  /* Ensure the image doesn't exceed viewport bounds */
+  max-width: 80vw;
+  max-height: 80vh;
+}
+
+.image-modal-close {
+  position: absolute;
+  top: -45px;
+  right: -45px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 2001; /* Ensure it's above the image */
+}
+
+.image-modal-close:hover {
+  background: white;
+  transform: scale(1.1);
 }
 
 /* Updated status container styles to match ProductsList.vue */
 .status-container {
   display: flex;
   align-items: center;
-  height: 100%;
   padding: 12px 16px;
   border: 1px solid #ced4da;
   border-radius: 6px;
@@ -516,17 +649,31 @@ const handleSubmit = async () => {
   background-color: #f8f9fa;
   overflow: hidden;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
+
+.main-image-uploader:hover {
+  border-color: #3b82f6;
+  background-color: #f0f9ff;
+}
+
 .main-image-uploader .upload-prompt {
   text-align: center;
   color: #6c757d;
   pointer-events: none;
+  transition: color 0.3s ease;
 }
+
+.main-image-uploader:hover .upload-prompt {
+  color: #3b82f6;
+}
+
 .main-image-uploader .upload-prompt i {
   font-size: 2rem;
   margin-bottom: 8px;
   display: block;
 }
+
 .main-image-preview {
   width: 100%;
   height: 100%;
@@ -534,12 +681,20 @@ const handleSubmit = async () => {
   top: 0;
   left: 0;
 }
+
 .main-image-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
 }
+
+.main-image-preview img:hover {
+  transform: scale(1.02);
+}
+
 .main-image-preview .remove-btn {
   position: absolute;
   top: 8px;
@@ -557,18 +712,21 @@ const handleSubmit = async () => {
   align-items: center;
   justify-content: center;
   z-index: 10;
+  transition: all 0.2s ease;
 }
 
-/* FIXED: Enhanced file input styles for better click detection */
+.main-image-preview .remove-btn:hover {
+  background: rgba(220, 53, 69, 0.9);
+  transform: scale(1.1);
+}
+
+/* File input - completely hidden */
 .file-input {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
   opacity: 0;
-  cursor: pointer;
-  z-index: 5;
+  width: 0;
+  height: 0;
+  pointer-events: none;
 }
 
 .properties-section {
@@ -751,7 +909,7 @@ const handleSubmit = async () => {
   margin-bottom: 4px;
 }
 
-/* FIXED: Enhanced image uploader styles for better click detection */
+/* Enhanced image uploader styles */
 .image-uploader { 
   position: relative; 
   border: 2px dashed #d1d5db;
@@ -760,17 +918,16 @@ const handleSubmit = async () => {
   text-align: center;
   background-color: #f9fafb;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.image-uploader .file-input {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  z-index: 5;
+.image-uploader:hover {
+  border-color: #3b82f6;
+  background-color: #f0f9ff;
+}
+
+.image-uploader:hover .upload-prompt {
+  color: #3b82f6;
 }
 
 .image-preview-grid { 
@@ -779,6 +936,7 @@ const handleSubmit = async () => {
   gap: 10px; 
   margin-top: 10px;
 }
+
 .image-preview, .upload-prompt {
   position: relative;
   width: 100px;
@@ -789,24 +947,34 @@ const handleSubmit = async () => {
   align-items: center;
   justify-content: center;
 }
+
 .upload-prompt { 
   border: 2px dashed #ced4da; 
   color: #6c757d; 
   font-size: 24px; 
   background-color: #fff;
   cursor: pointer;
-  transition: all 0.15s ease;
-  pointer-events: none; /* Prevents interference with file input */
+  transition: all 0.3s ease;
+  pointer-events: none;
 }
-.upload-prompt:hover {
+
+.image-uploader:hover .upload-prompt {
   border-color: #3b82f6;
   color: #3b82f6;
 }
+
 .image-preview img { 
   width: 100%; 
   height: 100%; 
-  object-fit: cover; 
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.2s ease;
 }
+
+.image-preview img:hover {
+  transform: scale(1.05);
+}
+
 .remove-btn {
   position: absolute;
   top: 4px;
@@ -826,35 +994,33 @@ const handleSubmit = async () => {
   transition: all 0.15s ease;
   z-index: 10;
 }
+
 .remove-btn:hover {
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(220, 53, 69, 0.9);
   transform: scale(1.1);
 }
+
 .add-color {
-  /* ---Styles from your original code--- */
-  background: linear-gradient(135deg, #9aa5b4 0%, #5b616b 100%);
+  background: linear-gradient(135deg, #84e297 0%, #0b6b28 100%);
   color: white;
   border: none;
   border-radius: 12px;
-
-  /* ---Improvements--- */
-  padding: 12px 24px; /* Added padding for better spacing */
-  font-size: 16px; /* Set a base font size */
-  font-weight: bold; /* Make the text bold */
-  cursor: pointer; /* Change cursor to a pointer on hover */
-  transition: all 0.3s ease; /* Smooth transition for all properties */
-  outline: none; /* Removes the default browser outline */
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
 }
 
-/* ---Hover Effect--- */
 .add-color:hover {
-  transform: translateY(-3px); /* Lifts the button slightly */
+  transform: translateY(-3px);
 }
 
-/* ---Active/Click Effect--- */
 .add-color:active {
-  transform: translateY(1px); /* Pushes the button down slightly when clicked */
+  transform: translateY(1px);
 }
+
 @media (max-width: 768px) {
   .variation-header {
     grid-template-columns: 1fr;
@@ -862,6 +1028,24 @@ const handleSubmit = async () => {
   }
   .properties-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .image-modal-close {
+    top: 10px;
+    right: 10px;
+    width: 35px;
+    height: 35px;
+    font-size: 20px;
+  }
+  
+  .image-modal-content {
+    max-width: 95vw;
+    max-height: 85vh;
+  }
+  
+  .image-modal-content img {
+    max-width: 90vw;
+    max-height: 75vh;
   }
 }
 </style>
