@@ -242,10 +242,12 @@ import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { useProductStore } from '@/stores/productStore';
 import { storeToRefs } from 'pinia';
+import { useRouter } from 'vue-router';
 
 const categoryStore = useCategoryStore();
 const productStore = useProductStore();
 const { getAllProducts } = storeToRefs(productStore);
+const router = useRouter();
 
 // State for search functionality
 const searchQuery = ref('');
