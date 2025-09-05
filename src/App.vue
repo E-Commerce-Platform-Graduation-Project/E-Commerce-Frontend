@@ -1,9 +1,11 @@
 <template>
-  <div v-if="!authStore.isInitialized" class="loading-overlay">
+  <!-- Show loading screen while auth is initializing or during minimum loading time -->
+  <div v-if="showLoading" class="loading-overlay">
     <div class="spinner"></div>
     <p class="loading-text">يتم التحميل...</p>
   </div>
   
+  <!-- Only render the app after loading is complete -->
   <div v-else id="app" class="rtl-app">
     <div v-if="!isLoginPage" class="dashboard-layout">
       <Sidebar/>
@@ -33,14 +35,24 @@ export default {
     const route = useRoute()
     const sidebarExpanded = ref(localStorage.getItem("is_expanded") === "true")
     const authStore = useAuthStore()
+    const appLoaded = ref(false)
 
     const isLoginPage = computed(() => {
       return route.path === '/login'
     })
 
-    onMounted(async () => {
-      await authStore.initAuth()
+    const showLoading = computed(() => {
+      return !authStore.isInitialized || !appLoaded.value
+    })
 
+    onMounted(async () => {
+      // Ensure minimum loading time for better UX (adjust as needed)
+      const minLoadingTime = 300; // milliseconds
+      const startTime = Date.now()
+      
+      // The router guard will handle auth initialization
+      // We just need to wait for it and ensure minimum loading time
+      
       const handleStorageChange = () => {
         sidebarExpanded.value = localStorage.getItem("is_expanded") === "true"
       }
@@ -52,6 +64,16 @@ export default {
       window.addEventListener('storage', handleStorageChange)
       window.addEventListener('sidebarToggle', handleSidebarToggle)
       
+      // Wait for minimum loading time
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, minLoadingTime - elapsedTime)
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime))
+      }
+      
+      appLoaded.value = true
+      
       return () => {
         window.removeEventListener('storage', handleStorageChange)
         window.removeEventListener('sidebarToggle', handleSidebarToggle)
@@ -61,7 +83,8 @@ export default {
     return {
       isLoginPage,
       sidebarExpanded,
-      authStore
+      authStore,
+      showLoading
     }
   }
 }
@@ -94,23 +117,29 @@ export default {
   min-height: 100vh;
 }
 
-/* --- UPDATED STYLES FOR LOADING STATE --- */
+/* --- LOADING STYLES --- */
 .loading-overlay {
   display: flex;
-  flex-direction: column; /* Stack spinner and text vertically */
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 1.5rem; /* Space between spinner and text */
+  gap: 1.5rem;
   height: 100vh;
   width: 100%;
   background-color: var(--dark-alt);
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  opacity: 1;
+  transition: opacity 0.3s ease-out;
 }
 
 .spinner {
   width: 50px;
   height: 50px;
-  border: 5px solid #e2e8f0; /* Light grey border */
-  border-top: 5px solid var(--primary); /* Primary color for spinner part */
+  border: 5px solid #e2e8f0;
+  border-top: 5px solid var(--primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }

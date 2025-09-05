@@ -2,7 +2,9 @@
   <div class="add-purchase-invoice-container">
     <div class="header">
       <h1 class="title">فاتورة شراء جديدة</h1>
-      <p class="subtitle">إضافة كميات وتحديث أسعار المنتجات عبر تحديد المتغيرات</p>
+      <p class="subtitle">
+        إضافة كميات وتحديث أسعار المنتجات عبر تحديد المتغيرات
+      </p>
     </div>
 
     <div class="form-container">
@@ -12,10 +14,10 @@
           <div class="form-group search-group">
             <label class="form-label">البحث عن المنتج</label>
             <div class="search-wrapper">
-              <input 
-                v-model="searchQuery" 
-                type="text" 
-                class="search-input" 
+              <input
+                v-model="searchQuery"
+                type="text"
+                class="search-input"
                 placeholder="اكتب اسم المنتج للبحث..."
                 @input="handleSearchInput"
               />
@@ -23,81 +25,113 @@
                 <div class="loading-spinner"></div>
               </div>
             </div>
-            
-            <!-- Search Results Dropdown -->
-            <div v-if="showSearchResults && searchResults.length > 0" class="search-results">
-              <div 
-                v-for="product in searchResults" 
+
+            <div
+              v-if="showSearchResults && searchResults.length > 0"
+              class="search-results"
+            >
+              <div
+                v-for="product in searchResults"
                 :key="product.id"
                 class="search-result-item"
-                :class="{ 'selected': selectedProductId === product.id }"
+                :class="{ selected: selectedProductId === product.id }"
                 @click="selectProduct(product)"
               >
                 <div class="product-result">
-                  <img v-if="product.mainImage" :src="product.mainImage" :alt="product.name" class="product-thumb" />
+                  <img
+                    v-if="product.mainImage"
+                    :src="product.mainImage"
+                    :alt="product.name"
+                    class="product-thumb"
+                  />
                   <div class="product-result-info">
                     <span class="product-result-name">{{ product.name }}</span>
-                    <span class="product-result-desc">{{ product.description || 'لا يوجد وصف' }}</span>
+                    <span class="product-result-desc">{{
+                      product.description || "لا يوجد وصف"
+                    }}</span>
                   </div>
                 </div>
               </div>
             </div>
-            
-            <!-- No Results Message -->
-            <div v-if="showSearchResults && searchResults.length === 0 && searchQuery.length > 0" class="no-results">
+
+            <div
+              v-if="
+                showSearchResults &&
+                searchResults.length === 0 &&
+                searchQuery.length > 0
+              "
+              class="no-results"
+            >
               لم يتم العثور على منتجات تطابق "{{ searchQuery }}"
             </div>
           </div>
         </div>
-        
-        <!-- Loading indicator for product details -->
+
         <div v-if="loadingProductDetails" class="loading-state">
           <div class="loading-spinner"></div>
           <span>جاري تحميل تفاصيل المنتج...</span>
         </div>
       </div>
 
-      <div v-if="selectedProductDetails && !loadingProductDetails" class="selection-section step-2">
+      <div
+        v-if="selectedProductDetails && !loadingProductDetails"
+        class="selection-section step-2"
+      >
         <h3 class="section-title">الخطوة 2: اختر المتغير</h3>
         <div class="selected-product-info">
-          <h4 class="selected-product-name">{{ selectedProductDetails.name }}</h4>
-          <p class="selected-product-desc">{{ selectedProductDetails.description }}</p>
+          <h4 class="selected-product-name">
+            {{ selectedProductDetails.name }}
+          </h4>
+          <p class="selected-product-desc">
+            {{ selectedProductDetails.description }}
+          </p>
         </div>
-        
+
         <div class="variants-grid">
-          <div 
-            v-for="variant in selectedProductDetails.variants" 
-            :key="variant.id" 
+          <div
+            v-for="variant in selectedProductDetails.variants"
+            :key="variant.id"
             class="variant-card"
-            :class="{ 'selected': selectedVariant?.id === variant.id }"
+            :class="{ selected: selectedVariant?.id === variant.id }"
             @click="selectVariant(variant)"
           >
             <div class="variant-header">
               <h4 class="variant-sku">{{ variant.sku }}</h4>
-              <span class="stock-badge" :class="getStockBadgeClass(variant.quantity_in_stock)">
+              <span
+                class="stock-badge"
+                :class="getStockBadgeClass(variant.quantity_in_stock)"
+              >
                 المخزون: {{ variant.quantity_in_stock }}
               </span>
             </div>
-            
-            <!-- Variant Image -->
-            <div v-if="getVariantImage(variant)" class="variant-image-container">
-              <img 
-                :src="getVariantImage(variant)" 
+
+            <div
+              v-if="getVariantImage(variant)"
+              class="variant-image-container"
+            >
+              <img
+                :src="getVariantImage(variant)"
                 :alt="`صورة ${variant.sku}`"
                 class="variant-main-image"
                 @error="handleImageError"
               />
             </div>
-            
+
             <div class="variant-attributes">
-              <div 
-                v-for="attr in variant.attribute_values" 
-                :key="attr.attribute_name" 
+              <div
+                v-for="attr in variant.attribute_values"
+                :key="attr.attribute_name"
                 class="attribute-item"
               >
                 <span class="attribute-label">{{ attr.attribute_name }}:</span>
-                <span v-if="attr.attribute_name === 'اللون'" class="attribute-value">
-                  <span class="color-dot" :style="{ backgroundColor: attr.value }"></span>
+                <span
+                  v-if="attr.attribute_name === 'اللون'"
+                  class="attribute-value"
+                >
+                  <span
+                    class="color-dot"
+                    :style="{ backgroundColor: attr.value }"
+                  ></span>
                   {{ attr.value }}
                 </span>
                 <span v-else class="attribute-value">{{ attr.value }}</span>
@@ -105,9 +139,15 @@
             </div>
           </div>
         </div>
-        
+
         <div class="add-item-row">
-          <button id="add-to-invoice-btn" @click="addVariantToInvoice" type="button" class="btn btn-add" :disabled="!selectedVariant">
+          <button
+            id="add-to-invoice-btn"
+            @click="addVariantToInvoice"
+            type="button"
+            class="btn btn-add"
+            :disabled="!selectedVariant"
+          >
             <span class="btn-icon">+</span>
             إضافة للفاتورة
           </button>
@@ -131,11 +171,18 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(item, index) in invoiceItems" :key="item.uniqueId" class="invoice-row" :id="`invoice-row-${item.uniqueId}`">
+              <tr
+                v-for="(item, index) in invoiceItems"
+                :key="item.uniqueId"
+                class="invoice-row"
+                :id="`invoice-row-${item.uniqueId}`"
+              >
                 <td class="col-product">
                   <div class="product-info">
                     <span class="product-name">{{ item.productName }}</span>
-                    <small class="product-margin">هامش ربح: {{ item.profitMargin }}%</small>
+                    <small class="product-margin"
+                      >هامش ربح: {{ item.profitMargin }}%</small
+                    >
                   </div>
                 </td>
                 <td class="col-variant">
@@ -143,42 +190,117 @@
                 </td>
                 <td class="col-attributes">
                   <div class="props-display">
-                    <span v-for="attr in item.attributes" :key="attr.attribute_name" class="prop-chip">
-                      <span v-if="attr.attribute_name === 'اللون'" class="prop-color-dot" :style="{ backgroundColor: attr.value }"></span>
-                      <strong class="prop-name">{{ attr.attribute_name }}:</strong>
+                    <span
+                      v-for="attr in item.attributes"
+                      :key="attr.attribute_name"
+                      class="prop-chip"
+                    >
+                      <span
+                        v-if="attr.attribute_name === 'اللون'"
+                        class="prop-color-dot"
+                        :style="{ backgroundColor: attr.value }"
+                      ></span>
+                      <strong class="prop-name"
+                        >{{ attr.attribute_name }}:</strong
+                      >
                       {{ attr.value }}
                     </span>
                   </div>
                 </td>
                 <td class="col-price">
-                  <input 
-                    v-model.number="item.purchasePrice" 
-                    type="number" 
-                    class="table-input" 
-                    placeholder="0.00"
-                    step="0.01"
-                    :class="{ 'input-error': errorItem === item.uniqueId && errorType === 'price' }"
-                    @input="syncPurchasePrice(item, item.purchasePrice)"
-                  />
+                  <div class="input-wrapper">
+                    <input
+                      :value="item.purchasePrice || ''"
+                      type="text"
+                      class="table-input"
+                      placeholder="0.00"
+                      :class="{
+                        'input-error':
+                          errorItem === item.uniqueId && errorType === 'price',
+                        'input-warning':
+                          item.purchasePrice === 0 &&
+                          item.purchasePrice !== null,
+                      }"
+                      @keydown="onNumericInputKeyDown"
+                      @input="handlePurchasePriceInput(item, $event)"
+                      @blur="validateSingleItem(item, 'price')"
+                    />
+                    <small
+                      v-if="
+                        item.purchasePrice === 0 && item.purchasePrice !== null
+                      "
+                      class="input-warning-message"
+                    >
+                      قيمة الشراء الحالية 0 دينار
+                    </small>
+                    <small
+                      v-if="
+                        errorItem === item.uniqueId && errorType === 'price'
+                      "
+                      class="input-error-message"
+                    >
+                      سعر شراء غير صالح
+                    </small>
+                  </div>
                 </td>
+
                 <td class="col-quantity">
-                  <input 
-                    v-model.number="item.quantity" 
-                    type="number" 
-                    class="table-input" 
-                    placeholder="0" 
-                    min="1"
-                    :class="{ 'input-error': errorItem === item.uniqueId && errorType === 'quantity' }" 
-                  />
+                  <div class="input-wrapper">
+                    <input
+                      :value="item.quantity || ''"
+                      type="text"
+                      class="table-input"
+                      placeholder="0"
+                      :class="{
+                        'input-error':
+                          errorItem === item.uniqueId &&
+                          errorType === 'quantity',
+                      }"
+                      @keydown="onIntegerInputKeyDown"
+                      @input="handleQuantityInput(item, $event)"
+                      @blur="validateSingleItem(item, 'quantity')"
+                    />
+                    <small
+                      v-if="
+                        errorItem === item.uniqueId &&
+                        errorType === 'quantity' &&
+                        item.quantity === 0
+                      "
+                      class="input-error-message"
+                    >
+                      لا يمكن ان تكون الكمية 0
+                    </small>
+                    <small
+                      v-if="
+                        errorItem === item.uniqueId &&
+                        errorType === 'quantity' &&
+                        (item.quantity === null || item.quantity < 0)
+                      "
+                      class="input-error-message"
+                    >
+                      كمية غير صالحة
+                    </small>
+                  </div>
                 </td>
                 <td class="col-price">
-                  <span class="calculated-price">{{ formatCurrency(calculateSellingPrice(item), '') }}</span>
+                  <span class="calculated-price">{{
+                    formatCurrency(calculateSellingPrice(item), "")
+                  }}</span>
                 </td>
                 <td class="col-total">
-                  <span class="total-amount">{{ formatCurrency((item.purchasePrice || 0) * (item.quantity || 0)) }}</span>
+                  <span class="total-amount">{{
+                    formatCurrency(
+                      (item.purchasePrice || 0) * (item.quantity || 0)
+                    )
+                  }}</span>
                 </td>
                 <td class="col-actions">
-                  <button @click="removeItem(index)" type="button" class="btn-remove" title="حذف المنتج">
+                  <button
+                    @click="removeItem(index)"
+                    type="button"
+                    class="btn-remove"
+                    title="حذف المنتج"
+                  >
                     <span>×</span>
                   </button>
                 </td>
@@ -187,7 +309,9 @@
             <tfoot>
               <tr class="total-row">
                 <td colspan="7" class="total-label">إجمالي فاتورة الشراء:</td>
-                <td class="total-amount-cell">{{ formatCurrency(totalInvoiceAmount) }}</td>
+                <td class="total-amount-cell">
+                  {{ formatCurrency(totalInvoiceAmount) }}
+                </td>
               </tr>
             </tfoot>
           </table>
@@ -201,29 +325,43 @@
       </div>
 
       <div class="form-actions">
-        <button @click="clearInvoice" type="button" class="btn btn-secondary" :disabled="invoiceItems.length === 0">
+        <button
+          @click="clearInvoice"
+          type="button"
+          class="btn btn-secondary"
+          :disabled="invoiceItems.length === 0"
+        >
           مسح الفاتورة
         </button>
-        <button @click="handleSubmit" type="button" class="btn btn-primary" :disabled="invoiceItems.length === 0 || productStore.isLoading">
+        <button
+          @click="handleSubmit"
+          type="button"
+          class="btn btn-primary"
+          :disabled="invoiceItems.length === 0 || productStore.isLoading"
+        >
           <span v-if="productStore.isLoading" class="loading-spinner"></span>
-          حفظ الفاتورة
+          انشاء الفاتورة
         </button>
       </div>
     </div>
 
-    <!-- Success Modal -->
-    <div v-if="showSuccessModal" class="modal-overlay" @click="closeSuccessModal">
+    <div
+      v-if="showSuccessModal"
+      class="modal-overlay"
+      @click="closeSuccessModal"
+    >
       <div class="modal-dialog success-modal" @click.stop>
         <div class="modal-icon success-icon">
           <i class="fas fa-check-circle"></i>
         </div>
         <h3>تم بنجاح!</h3>
         <p>تم إنشاء فاتورة الشراء بنجاح!</p>
-        <button @click="closeSuccessModal" class="btn btn-primary">موافق</button>
+        <button @click="closeSuccessModal" class="btn btn-primary">
+          موافق
+        </button>
       </div>
     </div>
-    
-    <!-- Error Modal -->
+
     <div v-if="showErrorModal" class="modal-overlay" @click="closeErrorModal">
       <div class="modal-dialog error-modal" @click.stop>
         <div class="modal-icon error-icon">
@@ -238,11 +376,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, nextTick } from 'vue';
-import { useCategoryStore } from '@/stores/categoryStore';
-import { useProductStore } from '@/stores/productStore';
-import { storeToRefs } from 'pinia';
-import { useRouter } from 'vue-router';
+import { ref, reactive, computed, watch, onMounted, nextTick } from "vue";
+import { useCategoryStore } from "@/stores/categoryStore";
+import { useProductStore } from "@/stores/productStore";
+import { storeToRefs } from "pinia";
+import { useRouter } from "vue-router";
 
 const categoryStore = useCategoryStore();
 const productStore = useProductStore();
@@ -250,7 +388,7 @@ const { getAllProducts } = storeToRefs(productStore);
 const router = useRouter();
 
 // State for search functionality
-const searchQuery = ref('');
+const searchQuery = ref("");
 const searchResults = ref([]);
 const showSearchResults = ref(false);
 const isSearching = ref(false);
@@ -264,39 +402,125 @@ const loadingProductDetails = ref(false);
 
 // State for the invoice itself
 const invoiceItems = reactive([]);
-const error = ref('');
+const error = ref("");
 const errorItem = ref(null);
 const errorType = ref(null);
-const successMessage = ref('');
+const successMessage = ref("");
 
 // Modal state
 const showSuccessModal = ref(false);
 const showErrorModal = ref(false);
-const modalErrorMessage = ref('');
+const modalErrorMessage = ref("");
 
 // Computed properties for UI
 const totalInvoiceAmount = computed(() => {
-  return invoiceItems.reduce((total, item) => total + ((item.purchasePrice || 0) * (item.quantity || 0)), 0);
+  return invoiceItems.reduce((total, item) => {
+    const price = sanitizeNumericInput(item.purchasePrice) || 0;
+    const quantity = sanitizeNumericInput(item.quantity) || 0;
+    return total + price * quantity;
+  }, 0);
 });
+
+// ✅ START: ADDED KEYDOWN HANDLERS TO PREVENT INVALID INPUT
+/**
+ * Prevents non-numeric characters from being entered.
+ * Allows numbers, one decimal point, one leading sign (+/-), and control keys.
+ */
+const onNumericInputKeyDown = (event) => {
+  const allowedKeys = [
+    "Backspace",
+    "Delete",
+    "Tab",
+    "Escape",
+    "Enter",
+    "ArrowLeft",
+    "ArrowRight",
+    "ArrowUp",
+    "ArrowDown",
+  ];
+
+  // Allow control keys and shortcuts (Ctrl+A, Ctrl+C, etc.)
+  if (allowedKeys.includes(event.key) || event.ctrlKey || event.metaKey) {
+    return;
+  }
+
+  const currentValue = event.target.value;
+
+  // Allow one decimal point
+  if (event.key === "." && !currentValue.includes(".")) {
+    return;
+  }
+
+  // Allow one sign (+ or -) only at the beginning
+  if ((event.key === "-" || event.key === "+") && currentValue.length === 0) {
+    return;
+  }
+
+  // Allow numbers
+  if (/[0-9]/.test(event.key)) {
+    return;
+  }
+
+  // Prevent any other key
+  event.preventDefault();
+};
+
+/**
+ * Prevents non-integer characters from being entered.
+ * Allows only whole numbers and control keys.
+ */
+const onIntegerInputKeyDown = (event) => {
+  const allowedKeys = [
+    "Backspace",
+    "Delete",
+    "Tab",
+    "Escape",
+    "Enter",
+    "ArrowLeft",
+    "ArrowRight",
+    "ArrowUp",
+    "ArrowDown",
+  ];
+
+  // Allow control keys and shortcuts
+  if (allowedKeys.includes(event.key) || event.ctrlKey || event.metaKey) {
+    return;
+  }
+
+  // Allow numbers only
+  if (/[0-9]/.test(event.key)) {
+    return;
+  }
+
+  // Prevent any other key
+  event.preventDefault();
+};
+// ✅ END: ADDED KEYDOWN HANDLERS
 
 // Helper function to get the first image for a variant based on its color
 const getVariantImage = (variant) => {
   if (!selectedProductDetails.value?.images_by_attribute) return null;
-  
+
   // Find the color attribute for this variant
-  const colorAttr = variant.attribute_values?.find(attr => attr.attribute_name === 'اللون');
+  const colorAttr = variant.attribute_values?.find(
+    (attr) => attr.attribute_name === "اللون"
+  );
   if (!colorAttr) return null;
-  
+
   // Get images for this color
-  const colorImages = selectedProductDetails.value.images_by_attribute[colorAttr.value];
-  if (!colorImages || !Array.isArray(colorImages) || colorImages.length === 0) return null;
-  
+  const colorImages =
+    selectedProductDetails.value.images_by_attribute[colorAttr.value];
+  if (!colorImages || !Array.isArray(colorImages) || colorImages.length === 0)
+    return null;
+
   // Return the first image (they're already sorted by display_order)
   const firstImage = colorImages[0];
   const imageUrl = firstImage.image;
-  
+
   // Handle both full URLs and relative paths
-  return imageUrl.startsWith('http') ? imageUrl : `http://13.48.136.207${imageUrl}`;
+  return imageUrl.startsWith("http")
+    ? imageUrl
+    : `http://13.48.136.207${imageUrl}`;
 };
 
 // Search functionality
@@ -304,7 +528,7 @@ const handleSearchInput = () => {
   if (searchTimeout.value) {
     clearTimeout(searchTimeout.value);
   }
-  
+
   searchTimeout.value = setTimeout(() => {
     performSearch();
   }, 300); // Debounce search by 300ms
@@ -316,16 +540,16 @@ const performSearch = async () => {
     searchResults.value = [];
     return;
   }
-  
+
   isSearching.value = true;
-  
+
   try {
     // Use the existing fetchProducts method with search parameter
-    const result = await productStore.fetchProducts({ 
-      page: 1, 
-      search: searchQuery.value 
+    const result = await productStore.fetchProducts({
+      page: 1,
+      search: searchQuery.value,
     });
-    
+
     if (result.success) {
       searchResults.value = getAllProducts.value;
       showSearchResults.value = true;
@@ -334,7 +558,7 @@ const performSearch = async () => {
       showSearchResults.value = true;
     }
   } catch (err) {
-    console.error('Search error:', err);
+    console.error("Search error:", err);
     searchResults.value = [];
     showSearchResults.value = true;
   } finally {
@@ -347,7 +571,7 @@ const selectProduct = async (product) => {
   searchQuery.value = product.name;
   showSearchResults.value = false;
   searchResults.value = [];
-  
+
   await fetchProductDetails(product.id);
 };
 
@@ -361,21 +585,23 @@ const hideSearchResults = () => {
 // Fetch product details from API
 const fetchProductDetails = async (productId) => {
   loadingProductDetails.value = true;
-  error.value = '';
-  
+  error.value = "";
+
   try {
     // Use the new method that returns raw API data with variants
-    const result = await productStore.fetchProductDetailsWithVariants(productId);
-    
+    const result = await productStore.fetchProductDetailsWithVariants(
+      productId
+    );
+
     if (result.success) {
       selectedProductDetails.value = result.data;
-      console.log('Product details loaded:', result.data);
+      console.log("Product details loaded:", result.data);
     } else {
-      error.value = result.error || 'فشل في تحميل تفاصيل المنتج';
+      error.value = result.error || "فشل في تحميل تفاصيل المنتج";
     }
   } catch (err) {
-    console.error('Error fetching product details:', err);
-    error.value = 'فشل في تحميل تفاصيل المنتج';
+    console.error("Error fetching product details:", err);
+    error.value = "فشل في تحميل تفاصيل المنتج";
   } finally {
     loadingProductDetails.value = false;
   }
@@ -384,25 +610,28 @@ const fetchProductDetails = async (productId) => {
 const selectVariant = async (variant) => {
   selectedVariant.value = variant;
   await nextTick();
-  const addButton = document.getElementById('add-to-invoice-btn');
+  const addButton = document.getElementById("add-to-invoice-btn");
   if (addButton) {
-    addButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    addButton.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 };
 
 const getStockBadgeClass = (quantity) => {
-  if (quantity === 0) return 'stock-zero';
-  if (quantity < 16) return 'stock-low';
-  return 'stock-good';
+  if (quantity === 0) return "stock-zero";
+  if (quantity < 16) return "stock-low";
+  return "stock-good";
 };
 
 const handleImageError = (event) => {
-  event.target.style.display = 'none';
+  event.target.style.display = "none";
 };
 
 const calculateSellingPrice = (item) => {
-  if (item.purchasePrice > 0 && item.profitMargin >= 0) {
-    const calculatedPrice = item.purchasePrice * (1 + item.profitMargin / 100);
+  const price = sanitizeNumericInput(item.purchasePrice);
+  const margin = sanitizeNumericInput(item.profitMargin);
+
+  if (price > 0 && margin >= 0) {
+    const calculatedPrice = price * (1 + margin / 100);
     return parseFloat(calculatedPrice.toFixed(2));
   }
   return 0;
@@ -417,25 +646,31 @@ onMounted(async () => {
 const addVariantToInvoice = () => {
   if (!selectedVariant.value || !selectedProductDetails.value) return;
 
-  const existingItemIndex = invoiceItems.findIndex(item => item.variantId === selectedVariant.value.id);
-  
+  const existingItemIndex = invoiceItems.findIndex(
+    (item) => item.variantId === selectedVariant.value.id
+  );
+
   if (existingItemIndex !== -1) {
     invoiceItems[existingItemIndex].quantity += 1;
-    error.value = '';
-    successMessage.value = 'تم زيادة كمية المتغير الموجود';
-    setTimeout(() => { successMessage.value = '' }, 3000);
+    error.value = "";
+    successMessage.value = "تم زيادة كمية المتغير الموجود";
+    setTimeout(() => {
+      successMessage.value = "";
+    }, 3000);
     return;
   }
 
-  const existingProductItem = invoiceItems.find(item => item.productId === selectedProductDetails.value.id);
-  const defaultPrice = existingProductItem ? 
-  existingProductItem.purchasePrice : 
-  parseFloat(selectedProductDetails.value.purchase_cost || 0);
+  const existingProductItem = invoiceItems.find(
+    (item) => item.productId === selectedProductDetails.value.id
+  );
+  const defaultPrice = existingProductItem
+    ? existingProductItem.purchasePrice
+    : parseFloat(selectedProductDetails.value.purchase_cost || 0);
 
-  const profitMargin = selectedProductDetails.value.profit_margin 
-    ? parseFloat(selectedProductDetails.value.profit_margin) 
+  const profitMargin = selectedProductDetails.value.profit_margin
+    ? parseFloat(selectedProductDetails.value.profit_margin)
     : 0;
-  
+
   invoiceItems.push({
     uniqueId: Date.now(),
     productId: selectedProductDetails.value.id,
@@ -446,13 +681,15 @@ const addVariantToInvoice = () => {
     purchasePrice: defaultPrice,
     quantity: 1,
     profitMargin: profitMargin,
-    currentStock: selectedVariant.value.quantity_in_stock
+    currentStock: selectedVariant.value.quantity_in_stock,
   });
 
   selectedVariant.value = null;
-  
-  successMessage.value = 'تم إضافة المتغير للفاتورة بنجاح';
-  setTimeout(() => { successMessage.value = '' }, 3000);
+
+  successMessage.value = "تم إضافة المتغير للفاتورة بنجاح";
+  setTimeout(() => {
+    successMessage.value = "";
+  }, 3000);
 };
 
 const removeItem = (index) => {
@@ -464,54 +701,226 @@ const clearInvoice = () => {
   selectedProductId.value = null;
   selectedProductDetails.value = null;
   selectedVariant.value = null;
-  searchQuery.value = '';
+  searchQuery.value = "";
   showSearchResults.value = false;
   searchResults.value = [];
-  error.value = '';
-  successMessage.value = '';
+  error.value = "";
+  successMessage.value = "";
 };
 
 // Function to sync purchase prices across same product variants
 const syncPurchasePrice = (changedItem, newPrice) => {
-  invoiceItems.forEach(item => {
-    if (item.productId === changedItem.productId && item.uniqueId !== changedItem.uniqueId) {
-      item.purchasePrice = newPrice;
-    }
-  });
+  // Only sync if the new price is a valid number
+  if (newPrice !== null && newPrice !== undefined) {
+    invoiceItems.forEach((item) => {
+      if (
+        item.productId === changedItem.productId &&
+        item.uniqueId !== changedItem.uniqueId
+      ) {
+        item.purchasePrice = newPrice;
+      }
+    });
+  }
 };
 
+// Change Start: Updated validation to show a specific message for quantity 0
 const validateInvoice = () => {
-  error.value = '';
+  error.value = "";
   errorItem.value = null;
   errorType.value = null;
 
   for (const item of invoiceItems) {
-    if (!item.purchasePrice || item.purchasePrice <= 0) {
-      error.value = `سعر الشراء للمتغير "${item.variantSku}" مطلوب ويجب أن يكون أكبر من صفر.`;
+    // Sanitize and validate purchase price
+    const sanitizedPrice = sanitizeNumericInput(item.purchasePrice);
+
+    // Update the item with sanitized value
+    item.purchasePrice = sanitizedPrice;
+
+    // Check if purchase price is null, undefined, or negative. Allow 0.
+    if (
+      sanitizedPrice === null ||
+      sanitizedPrice === undefined ||
+      sanitizedPrice < 0
+    ) {
+      error.value = `سعر الشراء للمتغير "${item.variantSku}" مطلوب ولا يمكن أن يكون قيمة سالبة أو غير صالحة.`;
       errorItem.value = item.uniqueId;
-      errorType.value = 'price';
+      errorType.value = "price";
       return { isValid: false, errorId: item.uniqueId };
     }
-    if (!item.quantity || item.quantity <= 0) {
+
+    // Sanitize and validate quantity
+    const sanitizedQuantity = sanitizeNumericInput(item.quantity);
+
+    // Update the item with sanitized value
+    item.quantity = sanitizedQuantity;
+
+    // Check for quantity
+    if (sanitizedQuantity === 0) {
+      error.value = `لا يمكن ان تكون الكمية 0 للمتغير "${item.variantSku}".`;
+      errorItem.value = item.uniqueId;
+      errorType.value = "quantity";
+      return { isValid: false, errorId: item.uniqueId };
+    }
+    if (
+      sanitizedQuantity === null ||
+      sanitizedQuantity === undefined ||
+      sanitizedQuantity < 0
+    ) {
       error.value = `الكمية للمتغير "${item.variantSku}" مطلوبة ويجب أن تكون أكبر من صفر.`;
       errorItem.value = item.uniqueId;
-      errorType.value = 'quantity';
+      errorType.value = "quantity";
       return { isValid: false, errorId: item.uniqueId };
     }
   }
   return { isValid: true, errorId: null };
 };
+// Change End
+
+const sanitizeNumericInput = (value) => {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  // Convert to string for processing
+  let stringValue = String(value).trim();
+
+  // Handle edge cases that cause parsing issues
+  if (
+    stringValue === "+" ||
+    stringValue === "-" ||
+    stringValue === "+." ||
+    stringValue === "-."
+  ) {
+    return null;
+  }
+
+  // Remove invalid characters but keep numbers, decimal point, and valid signs
+  stringValue = stringValue.replace(/[^\d.-]/g, "");
+
+  // Handle multiple decimal points - keep only the first one
+  const parts = stringValue.split(".");
+  if (parts.length > 2) {
+    stringValue = parts[0] + "." + parts.slice(1).join("");
+  }
+
+  // Handle multiple signs - keep only the first one if it's at the beginning
+  if (stringValue.match(/[-+]/g)?.length > 1) {
+    const firstChar = stringValue.charAt(0);
+    const restOfString = stringValue.slice(1).replace(/[-+]/g, "");
+    stringValue =
+      firstChar === "-" || firstChar === "+"
+        ? firstChar + restOfString
+        : restOfString;
+  }
+
+  // Remove signs that are not at the beginning
+  stringValue = stringValue.replace(/(?!^)[-+]/g, "");
+
+  // Parse the cleaned value
+  const parsed = parseFloat(stringValue);
+
+  // Return null for invalid numbers
+  if (isNaN(parsed) || !isFinite(parsed)) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const handlePurchasePriceInput = (item, event) => {
+  const rawValue = event.target.value;
+  const sanitizedValue = sanitizeNumericInput(rawValue);
+
+  // Update the item's purchase price
+  item.purchasePrice = sanitizedValue;
+
+  // Sync with other items of the same product
+  syncPurchasePrice(item, sanitizedValue);
+
+  // Clear any existing errors for this item if the value is now valid
+  if (
+    sanitizedValue !== null &&
+    sanitizedValue >= 0 &&
+    errorItem.value === item.uniqueId &&
+    errorType.value === "price"
+  ) {
+    error.value = "";
+    errorItem.value = null;
+    errorType.value = null;
+  }
+};
+
+// Enhanced input handler for quantity - add this method
+const handleQuantityInput = (item, event) => {
+  const rawValue = event.target.value;
+  const sanitizedValue = sanitizeNumericInput(rawValue);
+
+  // Update the item's quantity
+  item.quantity = sanitizedValue;
+
+  // Clear any existing errors for this item if the value is now valid
+  if (
+    sanitizedValue !== null &&
+    sanitizedValue > 0 &&
+    errorItem.value === item.uniqueId &&
+    errorType.value === "quantity"
+  ) {
+    error.value = "";
+    errorItem.value = null;
+    errorType.value = null;
+  }
+};
+
+const validateSingleItem = (item, fieldType) => {
+  // Clear previous errors for this item and field type
+  if (errorItem.value === item.uniqueId && errorType.value === fieldType) {
+    error.value = "";
+    errorItem.value = null;
+    errorType.value = null;
+  }
+
+  if (fieldType === "price") {
+    const sanitizedPrice = sanitizeNumericInput(item.purchasePrice);
+    item.purchasePrice = sanitizedPrice;
+
+    if (
+      sanitizedPrice === null ||
+      sanitizedPrice === undefined ||
+      sanitizedPrice < 0
+    ) {
+      error.value = `سعر الشراء للمتغير "${item.variantSku}" غير صالح.`;
+      errorItem.value = item.uniqueId;
+      errorType.value = "price";
+    } else {
+      // Sync the valid price with other items of the same product
+      syncPurchasePrice(item, sanitizedPrice);
+    }
+  } else if (fieldType === "quantity") {
+    const sanitizedQuantity = sanitizeNumericInput(item.quantity);
+    item.quantity = sanitizedQuantity;
+
+    if (
+      sanitizedQuantity === null ||
+      sanitizedQuantity === undefined ||
+      sanitizedQuantity <= 0
+    ) {
+      error.value = `الكمية للمتغير "${item.variantSku}" غير صالحة.`;
+      errorItem.value = item.uniqueId;
+      errorType.value = "quantity";
+    }
+  }
+};
 
 const scrollToFirstError = async (errorItemId) => {
-    await nextTick();
-    const errorRow = document.getElementById(`invoice-row-${errorItemId}`);
-    if (errorRow) {
-        errorRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        errorRow.classList.add('error-highlight');
-        setTimeout(() => {
-            errorRow.classList.remove('error-highlight');
-        }, 2500);
-    }
+  await nextTick();
+  const errorRow = document.getElementById(`invoice-row-${errorItemId}`);
+  if (errorRow) {
+    errorRow.scrollIntoView({ behavior: "smooth", block: "center" });
+    errorRow.classList.add("error-highlight");
+    setTimeout(() => {
+      errorRow.classList.remove("error-highlight");
+    }, 2500);
+  }
 };
 
 const handleSubmit = async () => {
@@ -520,33 +929,33 @@ const handleSubmit = async () => {
     await scrollToFirstError(validationResult.errorId);
     return;
   }
-  successMessage.value = '';
-  error.value = '';
+  successMessage.value = "";
+  error.value = "";
 
   const productsMap = new Map();
-  
-  invoiceItems.forEach(item => {
+
+  invoiceItems.forEach((item) => {
     if (!productsMap.has(item.productId)) {
       productsMap.set(item.productId, {
         product_id: item.productId,
         purchase_price: item.purchasePrice.toFixed(2),
         selling_price: calculateSellingPrice(item).toFixed(2),
-        items: []
+        items: [],
       });
     }
-    
+
     const productData = productsMap.get(item.productId);
     productData.items.push({
       variant_id: item.variantId,
-      quantity: item.quantity
+      quantity: item.quantity,
     });
   });
 
   const payload = {
-    products: Array.from(productsMap.values())
+    products: Array.from(productsMap.values()),
   };
 
-  console.log('Submitting purchase invoice:', payload);
+  console.log("Submitting purchase invoice:", payload);
 
   try {
     const result = await productStore.submitPurchaseInvoice(payload);
@@ -555,31 +964,31 @@ const handleSubmit = async () => {
       showSuccessModal.value = true;
       clearInvoice();
     } else {
-      modalErrorMessage.value = result.error || 'فشل في حفظ فاتورة الشراء';
+      modalErrorMessage.value = result.error || "فشل في حفظ فاتورة الشراء";
       showErrorModal.value = true;
     }
   } catch (err) {
-    console.error('Error submitting invoice:', err);
-    modalErrorMessage.value = 'حدث خطأ غير متوقع أثناء الاتصال بالخادم.';
+    console.error("Error submitting invoice:", err);
+    modalErrorMessage.value = "حدث خطأ غير متوقع أثناء الاتصال بالخادم.";
     showErrorModal.value = true;
   }
 };
 
 const closeSuccessModal = () => {
   showSuccessModal.value = false;
-  router.push('/purchase-invoices');
+  router.push("/purchase-invoices");
 };
 
 const closeErrorModal = () => {
   showErrorModal.value = false;
 };
 
-const formatCurrency = (amount, currencySymbol = ' د.ل') => {
-  const formatted = new Intl.NumberFormat('en-US', {
+const formatCurrency = (amount, currencySymbol = " د.ل") => {
+  const formatted = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount || 0);
-  return `${formatted}${currencySymbol ? ` ${currencySymbol}` : ''}`;
+  return `${formatted}${currencySymbol ? ` ${currencySymbol}` : ""}`;
 };
 </script>
 
@@ -792,7 +1201,9 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Product Details Section */
@@ -1093,6 +1504,30 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   color: #64748b;
 }
 
+/*// Change Start: Added styles for input error message */
+.input-wrapper {
+  position: relative;
+}
+
+.input-warning-message {
+  color: #b45309;
+  font-weight: 500;
+  font-size: 11px;
+  display: block;
+  margin-top: 4px;
+  text-align: center;
+}
+
+.input-error-message {
+  color: #b91c1c;
+  font-weight: 500;
+  font-size: 11px;
+  display: block;
+  margin-top: 4px;
+  text-align: center;
+}
+/*// Change End */
+
 .table-input {
   width: 100%;
   padding: 8px 12px;
@@ -1113,6 +1548,11 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 .table-input.input-error {
   border-color: #ef4444;
   background-color: #fef2f2;
+}
+
+.table-input.input-warning {
+  border-color: #f59e0b;
+  background-color: #fffbeb;
 }
 
 .calculated-price,
@@ -1237,8 +1677,12 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .modal-dialog {
@@ -1253,13 +1697,13 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 }
 
 @keyframes modalSlideIn {
-  from { 
-    opacity: 0; 
-    transform: translateY(-50px) scale(0.9); 
+  from {
+    opacity: 0;
+    transform: translateY(-50px) scale(0.9);
   }
-  to { 
-    opacity: 1; 
-    transform: translateY(0) scale(1); 
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -1348,9 +1792,15 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 }
 
 @keyframes errorPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.02); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .invoice-row.error-highlight {
@@ -1383,7 +1833,7 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 
 /* Currency formatting helper */
 .currency {
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: "Monaco", "Menlo", monospace;
   font-weight: 600;
 }
 
@@ -1398,49 +1848,49 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   .add-purchase-invoice-container {
     padding: 10px;
   }
-  
+
   .title {
     font-size: 24px;
   }
-  
+
   .form-container {
     padding: 20px;
   }
-  
+
   .search-row {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
   }
-  
+
   .variants-grid {
     grid-template-columns: 1fr;
     gap: 12px;
   }
-  
+
   .table-wrapper {
     border-radius: 8px;
   }
-  
+
   .invoice-table {
     font-size: 12px;
   }
-  
+
   .invoice-table th,
   .invoice-table td {
     padding: 8px 12px;
   }
-  
+
   .form-actions {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .btn {
     width: 100%;
     justify-content: center;
   }
-  
+
   .modal-dialog {
     margin: 20px;
     width: calc(100% - 40px);
@@ -1454,7 +1904,7 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
     padding: 6px 8px;
     font-size: 11px;
   }
-  
+
   .col-product,
   .col-variant,
   .col-attributes,
@@ -1463,7 +1913,7 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   .col-total {
     min-width: auto;
   }
-  
+
   .prop-chip {
     font-size: 10px;
     padding: 2px 6px;
@@ -1478,10 +1928,18 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
   animation-fill-mode: both;
 }
 
-.selection-section.step-1 { animation-delay: 0.1s; }
-.selection-section.step-2 { animation-delay: 0.2s; }
-.invoice-table-container { animation-delay: 0.3s; }
-.form-actions { animation-delay: 0.4s; }
+.selection-section.step-1 {
+  animation-delay: 0.1s;
+}
+.selection-section.step-2 {
+  animation-delay: 0.2s;
+}
+.invoice-table-container {
+  animation-delay: 0.3s;
+}
+.form-actions {
+  animation-delay: 0.4s;
+}
 
 @keyframes slideInUp {
   from {
@@ -1495,14 +1953,34 @@ const formatCurrency = (amount, currencySymbol = ' د.ل') => {
 }
 
 /* Utility classes */
-.text-center { text-align: center; }
-.text-right { text-align: right; }
-.text-left { text-align: left; }
-.font-bold { font-weight: bold; }
-.font-semibold { font-weight: 600; }
-.text-sm { font-size: 14px; }
-.text-xs { font-size: 12px; }
-.mt-2 { margin-top: 8px; }
-.mb-2 { margin-bottom: 8px; }
-.p-2 { padding: 8px; }
+.text-center {
+  text-align: center;
+}
+.text-right {
+  text-align: right;
+}
+.text-left {
+  text-align: left;
+}
+.font-bold {
+  font-weight: bold;
+}
+.font-semibold {
+  font-weight: 600;
+}
+.text-sm {
+  font-size: 14px;
+}
+.text-xs {
+  font-size: 12px;
+}
+.mt-2 {
+  margin-top: 8px;
+}
+.mb-2 {
+  margin-bottom: 8px;
+}
+.p-2 {
+  padding: 8px;
+}
 </style>

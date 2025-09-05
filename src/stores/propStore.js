@@ -26,7 +26,7 @@ export const usePropStore = defineStore('property', () => {
     async function addAttribute(name) {
         try {
             const response = await api.post('products/attributes/', { name });
-            // Add newValue property to the new attribute
+            // Only update local state after successful API call
             const newAttribute = {
                 ...response.data,
                 newValue: '',
@@ -49,6 +49,7 @@ export const usePropStore = defineStore('property', () => {
     async function editAttribute(id, name) {
         try {
             await api.put(`products/attributes/${id}/`, { name });
+            // Only update local state after successful API call
             const index = properties.value.findIndex(p => p.id === id);
             if (index !== -1) {
                 properties.value[index].name = name;
@@ -69,6 +70,7 @@ export const usePropStore = defineStore('property', () => {
     async function deleteAttribute(id) {
         try {
             await api.delete(`products/attributes/${id}/`);
+            // Only update local state after successful API call
             properties.value = properties.value.filter(p => p.id !== id);
             return { success: true };
         } catch (error) {
@@ -94,6 +96,8 @@ export const usePropStore = defineStore('property', () => {
             console.log('Sending payload:', payload); // Debug log
 
             const response = await api.post('products/attribute-values/', payload);
+            
+            // Only update local state after successful API call
             const index = properties.value.findIndex(p => p.id === attributeId);
             if (index !== -1) {
                 // Ensure values array exists before pushing
@@ -101,7 +105,7 @@ export const usePropStore = defineStore('property', () => {
                     properties.value[index].values = [];
                 }
                 properties.value[index].values.push(response.data);
-                // Clear the input field
+                // Clear the input field only after success
                 properties.value[index].newValue = '';
             }
             return { success: true };
@@ -110,7 +114,8 @@ export const usePropStore = defineStore('property', () => {
             console.error('Full error:', error.response?.data); // More detailed error logging
 
             const errorMessage = error.response?.data?.non_field_errors?.[0] ||
-                error.response?.data?.name?.[0] ||
+                error.response?.data?.value?.[0] ||
+                error.response?.data?.attribute?.[0] ||
                 error.response?.data?.error ||
                 error.response?.data?.message ||
                 error.response?.data?.detail ||
@@ -126,7 +131,7 @@ export const usePropStore = defineStore('property', () => {
                 attribute: attributeId,
                 value
             });
-            // Update the local state immediately
+            // Only update local state after successful API call
             const propIndex = properties.value.findIndex(p => p.id === attributeId);
             if (propIndex !== -1) {
                 const valueIndex = properties.value[propIndex].values.findIndex(v => v.id === id);
@@ -138,7 +143,8 @@ export const usePropStore = defineStore('property', () => {
         } catch (error) {
             console.error('Error editing attribute value:', error);
             const errorMessage = error.response?.data?.non_field_errors?.[0] ||
-                error.response?.data?.name?.[0] ||
+                error.response?.data?.value?.[0] ||
+                error.response?.data?.attribute?.[0] ||
                 error.response?.data?.error ||
                 error.response?.data?.message ||
                 error.response?.data?.detail ||
@@ -150,7 +156,7 @@ export const usePropStore = defineStore('property', () => {
     async function deleteAttributeValue(id, attributeId) {
         try {
             await api.delete(`products/attribute-values/${id}/`);
-            // Remove from local state immediately instead of re-fetching
+            // Only remove from local state after successful API call
             const propIndex = properties.value.findIndex(p => p.id === attributeId);
             if (propIndex !== -1) {
                 properties.value[propIndex].values = properties.value[propIndex].values.filter(v => v.id !== id);
@@ -159,7 +165,6 @@ export const usePropStore = defineStore('property', () => {
         } catch (error) {
             console.error('Error deleting attribute value:', error);
             const errorMessage = error.response?.data?.non_field_errors?.[0] ||
-                error.response?.data?.name?.[0] ||
                 error.response?.data?.error ||
                 error.response?.data?.message ||
                 error.response?.data?.detail ||

@@ -158,7 +158,7 @@ export const useProductStore = defineStore('product', {
         this.isLoading = false;
       }
     },
-
+    
     // Restore the original fetchProductDetails method for EditProduct.vue and others
     async fetchProductDetails(productId) {
       this.isLoading = true;
@@ -484,7 +484,8 @@ export const useProductStore = defineStore('product', {
         profitMargin: apiData.profit_margin || 0,
         is_active: apiData.is_active !== undefined ? apiData.is_active : true,
         properties: properties,
-        variants: variants,
+        variants: variants, // This is your custom formatted variants for UI
+        rawVariants: apiData.variants || [], // <-- ADD THIS LINE to keep original variant data
         purchasePrice: parseFloat(apiData.purchase_cost || 0),
         sellingPrice: parseFloat(apiData.selling_price || 0),
       };

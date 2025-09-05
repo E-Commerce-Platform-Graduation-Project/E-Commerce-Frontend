@@ -165,7 +165,7 @@ export const useOrderStore = defineStore('order', {
         this.error = null;
         try {
             const productStore = useProductStore();
-            await productStore.fetchAllData();
+            await productStore.fetchProducts();
             await new Promise(resolve => setTimeout(resolve, 500));
             this.orders = mockOrders;
             return { success: true };

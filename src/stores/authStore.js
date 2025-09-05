@@ -82,22 +82,72 @@ export const useAuthStore = defineStore('auth', {
         }
     },
 
+    // OPTIMIZED: Fast initial auth check with visible loading
     async initAuth() {
       const token = localStorage.getItem('auth_token');
+      const cachedUser = localStorage.getItem('auth_user');
+      
+      // Ensure loading screen is visible for at least 200ms for better UX
+      const minLoadingTime = new Promise(resolve => setTimeout(resolve, 200));
+      
       try {
-        if (token) {
+        if (token && cachedUser) {
+          // FAST: Use cached data immediately
+          this.user = JSON.parse(cachedUser);
+          this.isAuthenticated = true;
           api.defaults.headers.common['Authorization'] = `Token ${token}`;
-          await this.fetchUser();
           
-          if (this.user && !this.user.is_active) {
-            this.logout();
-            window.location.href = '/login?message=account_deactivated';
-          }
+          // Wait for minimum loading time before marking as initialized
+          await minLoadingTime;
+          this.isInitialized = true;
+          
+          // SLOW: Verify in background (don't await this)
+          this.verifyTokenInBackground();
+          
+        } else {
+          // No token or cached user - user is not authenticated
+          this.user = null;
+          this.isAuthenticated = false;
+          await minLoadingTime;
+          this.isInitialized = true;
         }
       } catch (error) {
+        console.error('Error parsing cached user data:', error);
         this.logout();
-      } finally {
+        await minLoadingTime;
         this.isInitialized = true;
+      }
+    },
+
+    // Background verification without blocking the UI
+    async verifyTokenInBackground() {
+      try {
+        const response = await api.get('/users/me/');
+        const freshUser = response.data;
+
+        if (!freshUser.is_active) {
+          // User became inactive - logout and redirect
+          this.logout();
+          window.location.href = '/login?message=account_deactivated';
+          return;
+        }
+
+        // Update user data if it changed
+        const currentUserString = JSON.stringify(this.user);
+        const freshUserString = JSON.stringify(freshUser);
+        
+        if (currentUserString !== freshUserString) {
+          this.user = freshUser;
+          localStorage.setItem('auth_user', JSON.stringify(freshUser));
+        }
+        
+        this.startStatusCheck();
+
+      } catch (error) {
+        console.error('Background token verification failed:', error);
+        // Token is invalid - logout
+        this.logout();
+        window.location.href = '/login?message=session_expired';
       }
     },
 

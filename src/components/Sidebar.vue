@@ -90,7 +90,7 @@
           <router-link to="/add-purchase-invoice"
             class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">add</span>
-            <span class="sidebar-text">اضافة فاتورة شراء</span>
+            <span class="sidebar-text">انشاء فاتورة شراء</span>
           </router-link>
           <router-link to="/product-prop"
             class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">

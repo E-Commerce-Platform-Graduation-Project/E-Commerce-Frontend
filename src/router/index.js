@@ -24,7 +24,8 @@ const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: Login
+    component: Login,
+    meta: { requiresGuest: true } // Added this meta
   },
   {
     path: '/dashboard',
@@ -39,10 +40,10 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/customers/:id', // This is the new dynamic route
+    path: '/customers/:id',
     name: 'CustomerDetails',
     component: CustomerDetails,
-    props: true, // This allows the ID to be passed as a prop
+    props: true,
     meta: { requiresAuth: true }
   },
   {
@@ -70,10 +71,10 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/purchase-invoices/:id', // This is the new dynamic route
+    path: '/purchase-invoices/:id',
     name: 'PurchaseInvoiceDetails',
     component: PurchaseInvoiceDetails,
-    props: true, // This allows the ID to be passed as a prop
+    props: true,
     meta: { requiresAuth: true }
   },
   {
@@ -126,14 +127,14 @@ const routes = [
       requiresAuth: true
     }
   },
-  // Default redirects
+  // Updated default redirects
   {
     path: '/',
-    redirect: '/login'
+    redirect: '/dashboard' // Changed from /login to /dashboard
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/login'
+    redirect: '/dashboard' // Changed from /login to /dashboard
   }
 ]
 
@@ -142,17 +143,17 @@ const router = createRouter({
   routes
 })
 
-// Navigation guards
+// Updated navigation guards
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
 
-  // Initialize auth if not already done
-  if (!authStore.getIsAuthenticated && localStorage.getItem('auth_user')) {
+  // CRITICAL: Always wait for auth initialization to complete
+  if (!authStore.isInitialized) {
     await authStore.initAuth()
   }
 
   const isAuthenticated = authStore.getIsAuthenticated
-  const userRole = authStore.getCurrentUser?.role // Updated to use getCurrentUser
+  const userRole = authStore.getCurrentUser?.role
 
   // Check if route requires authentication
   if (to.meta.requiresAuth && !isAuthenticated) {
@@ -160,7 +161,7 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
-  // Check if route requires guest (not authenticated)
+  // Check if route requires guest (not authenticated) - prevents authenticated users from accessing login
   if (to.meta.requiresGuest && isAuthenticated) {
     next('/dashboard')
     return

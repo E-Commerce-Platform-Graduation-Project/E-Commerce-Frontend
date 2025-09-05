@@ -80,7 +80,6 @@
                 <div v-show="openComboBox === prop.id" class="combo-box-dropdown">
                   <div v-if="prop.values && prop.values.length > 0" class="checkbox-section">
                     <div class="section-header-small">
-                      <span>قيم عامة</span>
                       <button type="button" class="select-all-btn"
                         @click="toggleSelectAllLegacy(prop.name, prop.values.map(v => v.value || v))">
                         {{ areAllLegacyValuesSelected(prop.name, prop.values.map(v => v.value || v)) ? 'إلغاء تحديد الكل' : 'تحديد الكل' }}
@@ -212,7 +211,7 @@
             :disabled="productStore.isLoading">إلغاء</button>
           <button type="submit" class="btn btn-primary" :disabled="productStore.isLoading">
             <span v-if="productStore.isLoading" class="loading-spinner"></span>
-            {{ productStore.isLoading ? 'جاري الحفظ...' : 'حفظ المنتج' }}
+            {{ productStore.isLoading ? 'جاري الاضافة...' : 'اضافة المنتج' }}
           </button>
         </div>
       </form>
@@ -671,6 +670,9 @@ const closeErrorModal = () => {
   background-color: #f8fafc;
   font-weight: 600;
   color: #374151;
+}
+.btn{
+  cursor: pointer;
 }
 .close-dropdown-btn {
   background: none;
