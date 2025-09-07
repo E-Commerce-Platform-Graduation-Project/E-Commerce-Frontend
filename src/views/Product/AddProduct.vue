@@ -259,11 +259,11 @@ const propStore = usePropStore();
 const getInitialProductData = () => ({
   name: '',
   description: '',
-  mainImage: null, // { file, url }
+  mainImage: null,
   categoryId: '',
   profitMargin: null,
   selectedProperties: {},
-  colorVariations: [], // each variation: { id, colorHex, images, showColorPicker, error }
+  colorVariations: [],
 });
 
 const productData = reactive(getInitialProductData());
@@ -271,8 +271,6 @@ const errors = reactive({});
 const selectedMainCategory = ref(null);
 const openComboBox = ref(null);
 const propertiesLoading = ref(false);
-
-// Modal state
 const showSuccessModal = ref(false);
 const showErrorModal = ref(false);
 const modalErrorMessage = ref('');
@@ -280,17 +278,23 @@ const modalErrorMessage = ref('');
 const mainCategories = computed(() => categoryStore.getMainCategories);
 const subCategories = computed(() => selectedMainCategory.value ? categoryStore.getSubcategoriesByParent(selectedMainCategory.value) : []);
 
-// --- Logic to filter properties and get available colors ---
 const { properties: allProperties } = storeToRefs(propStore);
 
-// Filter out the 'Color' attribute from the list of selectable properties
+// NEW: Helper function to check for hex color format
+const isHexColorValue = (value) => /^#[0-9A-F]{6}$/i.test(value);
+
+// MODIFIED: Filter out properties that are used for colors dynamically.
 const availableProperties = computed(() => {
-  return allProperties.value.filter(p => p.name !== 'اللون');
+  return allProperties.value.filter(prop => {
+    // A property is considered a "color" property if any of its values is a hex code.
+    const isColorProp = prop.values?.some(v => isHexColorValue(v.value));
+    return !isColorProp;
+  });
 });
 
-// **FIXED**: Get the list of predefined colors from the 'Color' attribute property
+// MODIFIED: Find the color property dynamically to populate available colors.
 const availableColors = computed(() => {
-    const colorProp = allProperties.value.find(p => p.name === 'اللون');
+    const colorProp = allProperties.value.find(p => p.values?.some(v => isHexColorValue(v.value)));
     return colorProp && Array.isArray(colorProp.values) 
       ? colorProp.values.map(v => v.value) 
       : [];
@@ -312,7 +316,6 @@ const handleClickOutside = (event) => {
 
 onMounted(async () => { 
   categoryStore.fetchCategories();
-  
   propertiesLoading.value = true;
   try {
     await propStore.fetchAttributes();
@@ -461,7 +464,6 @@ const handleHexColorChange = (index, shouldClosePicker) => {
   }
 };
 
-
 const handleImageUpload = (event, variationIndex) => {
   const files = Array.from(event.target.files);
   const variation = productData.colorVariations[variationIndex];
@@ -490,10 +492,7 @@ const validateForm = () => {
   if (productData.profitMargin === null || productData.profitMargin === undefined || productData.profitMargin === '') {
     errors.profitMargin = 'هامش الربح مطلوب';
     isValid = false;
-  } else if (isNaN(productData.profitMargin)) {
-    errors.profitMargin = 'هامش الربح يجب أن يكون رقماً صحيحاً';
-    isValid = false;
-  } else if (productData.profitMargin <= 0) {
+  } else if (isNaN(productData.profitMargin) || productData.profitMargin <= 0) {
     errors.profitMargin = 'هامش الربح يجب أن يكون أكثر من صفر';
     isValid = false;
   }
@@ -508,12 +507,11 @@ const validateForm = () => {
     isValid = false;
   } else {
     const colorSet = new Set();
-    let hasDuplicateColor = false;
     productData.colorVariations.forEach((v, i) => {
       const lowerCaseColor = v.colorHex.toLowerCase();
       if (colorSet.has(lowerCaseColor)) {
         v.error = 'هذا اللون تم اختياره بالفعل.';
-        hasDuplicateColor = true;
+        errors.colorVariations = 'لا يمكن اختيار نفس اللون أكثر من مرة.';
         isValid = false;
       } else {
         v.error = null;
@@ -525,9 +523,6 @@ const validateForm = () => {
         isValid = false;
       }
     });
-     if (hasDuplicateColor) {
-        errors.colorVariations = 'لا يمكن اختيار نفس اللون أكثر من مرة.';
-      }
   }
   return isValid;
 };
@@ -538,12 +533,8 @@ const getFieldId = (fieldName) => {
     return `colorImagesUploader-${index}`;
   }
   const fieldIdMap = {
-    name: 'productName',
-    mainImage: 'mainImageUploader',
-    categoryId: 'mainCategory',
-    properties: 'propertiesSection',
-    profitMargin: 'profitMargin',
-    colorVariations: 'variationsSection',
+    name: 'productName', mainImage: 'mainImageUploader', categoryId: 'mainCategory',
+    properties: 'propertiesSection', profitMargin: 'profitMargin', colorVariations: 'variationsSection',
   };
   return fieldIdMap[fieldName] || fieldName;
 };
@@ -556,15 +547,6 @@ const scrollToFirstError = async () => {
     const element = document.getElementById(elementId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => {
-        element.classList.add('error-highlight');
-        if (['INPUT', 'SELECT', 'TEXTAREA'].includes(element.tagName)) {
-             element.focus();
-        }
-        setTimeout(() => {
-          element.classList.remove('error-highlight');
-        }, 2500);
-      }, 500);
     }
   }
 };
@@ -575,48 +557,24 @@ const handleSubmit = async () => {
     return;
   }
 
-  try {
-    const result = await productStore.addProduct(productData);
-
-    if (result.success) {
-      showSuccessModal.value = true;
-      // Reset form data
-      Object.assign(productData, getInitialProductData());
-      selectedMainCategory.value = null;
-      openComboBox.value = null;
-      Object.keys(errors).forEach(key => delete errors[key]);
-    } else {
-      if (result.error && typeof result.error === 'string') {
-        modalErrorMessage.value = result.error;
-        showErrorModal.value = true;
-      } else {
-        modalErrorMessage.value = 'حدث خطأ غير معروف. يرجى المحاولة مرة أخرى.';
-        showErrorModal.value = true;
-      }
-      await scrollToFirstError();
-    }
-  } catch (error) {
-    console.error('Error adding product:', error);
-    modalErrorMessage.value = 'حدث خطأ غير متوقع أثناء الاتصال بالخادم.';
+  const result = await productStore.addProduct(productData);
+  if (result.success) {
+    showSuccessModal.value = true;
+    Object.assign(productData, getInitialProductData());
+    selectedMainCategory.value = null;
+  } else {
+    modalErrorMessage.value = result.error || 'حدث خطأ غير متوقع.';
     showErrorModal.value = true;
   }
 };
 
-const handleCancel = () => { 
-  router.push('/products'); 
-};
-
-const closeSuccessModal = () => {
-  showSuccessModal.value = false;
-  router.push('/products');
-};
-
-const closeErrorModal = () => {
-  showErrorModal.value = false;
-};
+const handleCancel = () => { router.push('/products'); };
+const closeSuccessModal = () => { showSuccessModal.value = false; router.push('/products'); };
+const closeErrorModal = () => { showErrorModal.value = false; };
 </script>
 
 <style scoped>
+/* ... (all styles remain the same) ... */
 .color-selection-container {
   position: relative;
 }
@@ -801,8 +759,6 @@ const closeErrorModal = () => {
   margin-bottom: 16px;
   position: relative;
 }
-
-/* Images section that moves down when color picker is open */
 .images-section {
   transition: margin-top 0.3s ease;
 }
@@ -1340,4 +1296,3 @@ const closeErrorModal = () => {
   .btn { width: 100%; }
 }
 </style>
-

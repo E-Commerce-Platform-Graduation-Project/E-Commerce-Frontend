@@ -84,17 +84,18 @@
             <div class="variant-id">#{{ variant.id }}</div>
             
             <div class="variant-attributes">
+              <!-- MODIFIED: Logic now uses a helper to identify color attributes -->
               <div v-for="attr in variant.attribute_values" :key="attr.attribute_name" class="attribute-tag">
                 <span class="attr-name">{{ attr.attribute_name }}:</span>
                 <span class="attr-value" 
-                      :style="attr.attribute_name === 'اللون' ? { 
+                      :style="isHexColor(attr.value) ? { 
                         backgroundColor: attr.value, 
                         color: getContrastColor(attr.value),
                         padding: '2px 8px',
                         borderRadius: '12px',
                         fontSize: '12px'
                       } : {}">
-                  {{ attr.attribute_name === 'اللون' ? attr.value : attr.value }}
+                  {{ attr.value }}
                 </span>
               </div>
             </div>
@@ -127,26 +128,31 @@ defineEmits(['view-details', 'edit-product']);
 
 const productStore = useProductStore();
 const categoryStore = useCategoryStore();
-
 const expandedProducts = ref({});
 
 const toggleProductExpansion = (productId) => {
   expandedProducts.value[productId] = !expandedProducts.value[productId];
 };
 
-// MODIFIED: This function now correctly gets the original variants from the store
 const getProductVariants = (product) => {
   const rawProduct = productStore.getProductById(product.id);
-  // Use the rawVariants property we added in the store
   return rawProduct?.rawVariants || [];
 };
 
-// Get variant image (first image of the color variant)
+// NEW: Helper to check if a string is a hex color code.
+const isHexColor = (value) => {
+  if (typeof value !== 'string') return false;
+  return /^#[0-9A-F]{6}$/i.test(value);
+};
+
+// MODIFIED: This function now dynamically finds the color attribute value.
 const getVariantImage = (product, variant) => {
-  const colorHex = variant.attribute_values?.find(attr => attr.attribute_name === 'اللون')?.value;
-  if (!colorHex) return 'https://placehold.co/40x40/CCCCCC/FFFFFF?text=N/A';
+  const colorAttribute = variant.attribute_values?.find(attr => isHexColor(attr.value));
+  const colorHex = colorAttribute?.value;
+
+  if (!colorHex) return product.mainImage || 'https://placehold.co/40x40/CCCCCC/FFFFFF?text=N/A';
   
-  const colorVariant = product.variants?.find(v => v.colorHex === colorHex);
+  const colorVariant = product.variants?.find(v => v.colorHex.toLowerCase() === colorHex.toLowerCase());
   if (colorVariant && colorVariant.images && colorVariant.images.length > 0) {
     return colorVariant.images[0];
   }
@@ -154,7 +160,6 @@ const getVariantImage = (product, variant) => {
   return product.mainImage || 'https://placehold.co/40x40/CCCCCC/FFFFFF?text=N/A';
 };
 
-// ... (keep the rest of the script section unchanged)
 const getContrastColor = (hexColor) => {
   if (!hexColor) return '#000000';
   const hex = hexColor.replace('#', '');
@@ -184,10 +189,7 @@ const getCategoryPath = (subCategoryId) => {
 };
 
 const getQuantityUnit = (quantity) => {
-  if (quantity >= 3 && quantity <= 10) {
-    return 'قطع';
-  }
-  return 'قطعة';
+  return (quantity >= 3 && quantity <= 10) ? 'قطع' : 'قطعة';
 };
 
 const getStockStatus = (quantity) => {
@@ -209,12 +211,9 @@ const onImageError = (event) => {
 const onVariantImageError = (event) => {
   event.target.src = 'https://placehold.co/40x40/CCCCCC/FFFFFF?text=N/A';
 };
-
 </script>
 
 <style scoped>
-/* ... (keep all your existing styles) ... */
-
 /* NEW CSS: Added styles for the slide-fade animation */
 .slide-fade-enter-active,
 .slide-fade-leave-active {

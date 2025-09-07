@@ -20,6 +20,30 @@ async function compressImage(file) {
   }
 }
 
+// NEW: Helper to identify the color attribute name from API data based on hex values.
+function findColorAttributeNameFromApi(availableAttributes) {
+  const hexRegex = /^#[0-9A-F]{6}$/i;
+  const defaultColorName = 'اللون'; // Fallback if not found
+
+  if (!Array.isArray(availableAttributes)) {
+    return defaultColorName;
+  }
+
+  const colorAttr = availableAttributes.find(attr =>
+    Array.isArray(attr.values) &&
+    attr.values.length > 0 &&
+    hexRegex.test(attr.values[0]) // Efficiently check if the first value is a hex code
+  );
+
+  return colorAttr ? colorAttr.attribute_name : defaultColorName;
+}
+
+// NEW: Helper to find the "secondary" attribute (like size) from a variant's attributes.
+function findSecondaryAttribute(variantAttributes, colorAttributeName) {
+    if (!Array.isArray(variantAttributes)) return null;
+    return variantAttributes.find(attr => attr.attribute_name !== colorAttributeName);
+}
+
 
 export const useProductStore = defineStore('product', {
   state: () => ({
@@ -69,321 +93,211 @@ export const useProductStore = defineStore('product', {
   },
 
   actions: {
-    // async fetchAllData() { //تجيب اول 10 منتجات بس
-    //   this.isLoading = true;
-    //   this.error = null;
-    //   try {
-    //     const response = await api.get('products/products/');
-    //     const productList = Array.isArray(response.data) ? response.data : response.data.results;
-
-    //     if (!Array.isArray(productList)) {
-    //       console.error('Invalid data structure for products received from API:', response.data);
-    //       throw new Error('Received data is not in the expected format.');
-    //     }
-
-    //     this.products = productList.map(product => this.convertFromApiFormat(product));
-    //     return { success: true };
-    //   } catch (error) {
-    //     console.error('Error fetching products:', error);
-    //     const errorMessage = error.response?.data?.detail ||
-    //       error.response?.data?.error ||
-    //       'فشل في جلب البيانات.';
-    //     this.error = errorMessage;
-    //     return { success: false };
-    //   } finally {
-    //     this.isLoading = false;
-    //   }
-    // },
-    // Add this new function inside the `actions: { ... }` block in productStore.js
-
     async fetchAllProducts() { // تبحت بالصفحة
-      this.isLoading = true;
-      this.error = null;
-      let allProducts = [];
-      let nextUrl = 'products/products/'; // This is the starting API endpoint
-
-      try {
-        // This loop will continue as long as the API provides a "next" page URL
-        while (nextUrl) {
-          const response = await api.get(nextUrl);
-          const data = response.data;
-
-          // Add the products from the current page to our list
-          const productList = data.results || [];
-          allProducts.push(...productList);
-
-          // Update nextUrl to the URL of the next page, or null if it's the last page
-          nextUrl = data.next;
+        this.isLoading = true;
+        this.error = null;
+        let allProducts = [];
+        let nextUrl = 'products/products/';
+  
+        try {
+          while (nextUrl) {
+            const response = await api.get(nextUrl);
+            const data = response.data;
+            const productList = data.results || [];
+            allProducts.push(...productList);
+            nextUrl = data.next;
+          }
+          this.products = allProducts.map(product => this.convertFromApiFormat(product));
+          return { success: true };
+        } catch (error) {
+          console.error('Error fetching all products:', error);
+          this.error = 'فشل في جلب كل المنتجات.';
+          return { success: false, error: this.error };
+        } finally {
+          this.isLoading = false;
         }
-
-        // Once all pages are fetched, update the state with the complete list
-        this.products = allProducts.map(product => this.convertFromApiFormat(product));
-
-        return { success: true };
-
-      } catch (error) {
-        console.error('Error fetching all products:', error);
-        this.error = 'فشل في جلب كل المنتجات.';
-        return { success: false, error: this.error };
-      } finally {
-        this.isLoading = false;
-      }
     },
 
-    // Add this new method for AddPurchaseInvoice.vue
     async fetchProductDetailsWithVariants(productId) {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        const response = await api.get(`products/products/${productId}/`);
-        // Return the raw API response data for variant details (used by AddPurchaseInvoice)
-        const productData = response.data;
-
-        // Also update the products array with converted format for consistency
-        const convertedProduct = this.convertFromApiFormat(productData);
-        const index = this.products.findIndex(p => p.id === productId);
-        if (index !== -1) {
-          this.products[index] = convertedProduct;
-        } else {
-          this.products.push(convertedProduct);
+        this.isLoading = true;
+        this.error = null;
+        try {
+          const response = await api.get(`products/products/${productId}/`);
+          const productData = response.data;
+  
+          const convertedProduct = this.convertFromApiFormat(productData);
+          const index = this.products.findIndex(p => p.id === productId);
+          if (index !== -1) {
+            this.products[index] = convertedProduct;
+          } else {
+            this.products.push(convertedProduct);
+          }
+  
+          return { success: true, data: productData };
+        } catch (error) {
+          console.error(`Error fetching product details with variants for ID ${productId}:`, error);
+          const errorMessage = error.response?.data?.detail || 'فشل في جلب تفاصيل المنتج.';
+          this.error = errorMessage;
+          return { success: false, error: errorMessage };
+        } finally {
+          this.isLoading = false;
         }
-
-        return { success: true, data: productData };
-      } catch (error) {
-        console.error(`Error fetching product details with variants for ID ${productId}:`, error);
-        const errorMessage = error.response?.data?.detail || 'فشل في جلب تفاصيل المنتج.';
-        this.error = errorMessage;
-        return { success: false, error: errorMessage };
-      } finally {
-        this.isLoading = false;
-      }
     },
-    
-    // Restore the original fetchProductDetails method for EditProduct.vue and others
+
     async fetchProductDetails(productId) {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        const response = await api.get(`products/products/${productId}/`);
-        const detailedProduct = this.convertFromApiFormat(response.data);
-        const index = this.products.findIndex(p => p.id === productId);
-        if (index !== -1) {
-          this.products[index] = detailedProduct;
-        } else {
-          this.products.push(detailedProduct);
+        this.isLoading = true;
+        this.error = null;
+        try {
+          const response = await api.get(`products/products/${productId}/`);
+          const detailedProduct = this.convertFromApiFormat(response.data);
+          const index = this.products.findIndex(p => p.id === productId);
+          if (index !== -1) {
+            this.products[index] = detailedProduct;
+          } else {
+            this.products.push(detailedProduct);
+          }
+          return { success: true, data: detailedProduct };
+        } catch (error) {
+          console.error(`Error fetching product details for ID ${productId}:`, error);
+          const errorMessage = error.response?.data?.detail || 'فشل في جلب تفاصيل المنتج.';
+          this.error = errorMessage;
+          return { success: false, error: errorMessage };
+        } finally {
+          this.isLoading = false;
         }
-        return { success: true, data: detailedProduct };
-      } catch (error) {
-        console.error(`Error fetching product details for ID ${productId}:`, error);
-        const errorMessage = error.response?.data?.detail || 'فشل في جلب تفاصيل المنتج.';
-        this.error = errorMessage;
-        return { success: false, error: errorMessage };
-      } finally {
-        this.isLoading = false;
-      }
     },
 
     async fetchProducts({ page = 1, search = '' } = {}) {
-      this.isLoading = true;
-      this.error = null;
-
-      // Construct the query parameters
-      const params = new URLSearchParams();
-      if (page > 1) {
-        params.append('page', page);
-      }
-      if (search) {
-        params.append('search', search);
-      }
-
-      const url = `products/products/?${params.toString()}`;
-
-      try {
-        const response = await api.get(url);
-        const data = response.data;
-
-        // Ensure we have a results array
-        const productList = Array.isArray(data.results) ? data.results : [];
-
-        // Update state with new data
-        this.products = productList.map(product => this.convertFromApiFormat(product));
-        this.productsCount = data.count || 0;
-        this.nextPageUrl = data.next;
-        this.previousPageUrl = data.previous;
-
-        return { success: true };
-      } catch (error) {
-        console.error('Error fetching products:', error);
-        const errorMessage = error.response?.data?.detail || 'فشل في جلب البيانات.';
-        this.error = errorMessage;
-        return { success: false };
-      } finally {
-        this.isLoading = false;
-      }
+        this.isLoading = true;
+        this.error = null;
+        const params = new URLSearchParams();
+        if (page > 1) params.append('page', page);
+        if (search) params.append('search', search);
+        const url = `products/products/?${params.toString()}`;
+  
+        try {
+          const response = await api.get(url);
+          const data = response.data;
+          const productList = Array.isArray(data.results) ? data.results : [];
+  
+          this.products = productList.map(product => this.convertFromApiFormat(product));
+          this.productsCount = data.count || 0;
+          this.nextPageUrl = data.next;
+          this.previousPageUrl = data.previous;
+  
+          return { success: true };
+        } catch (error) {
+          console.error('Error fetching products:', error);
+          const errorMessage = error.response?.data?.detail || 'فشل في جلب البيانات.';
+          this.error = errorMessage;
+          return { success: false };
+        } finally {
+          this.isLoading = false;
+        }
     },
 
     async submitPurchaseInvoice(payload) {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        console.log('Submitting purchase invoice to API:', payload);
-
-        const response = await api.post('products/purchase-invoices/', payload);
-
-        console.log('Purchase invoice response:', response.data);
-
-        // Instead of trying to create the local invoice object,
-        // just refresh the invoices from the API to ensure consistency
-        await this.fetchPurchaseInvoices();
-
-        return { success: true, data: response.data };
-      } catch (error) {
-        console.error('Error submitting purchase invoice:', error.response?.data || error);
-        const errorMessage = error.response?.data?.detail ||
-          error.response?.data?.error ||
-          error.response?.data?.message ||
-          'فشل في حفظ فاتورة الشراء';
-        this.error = errorMessage;
-        return { success: false, error: errorMessage };
-      } finally {
-        this.isLoading = false;
-      }
+        this.isLoading = true;
+        this.error = null;
+        try {
+          console.log('Submitting purchase invoice to API:', payload);
+          const response = await api.post('products/purchase-invoices/', payload);
+          console.log('Purchase invoice response:', response.data);
+          await this.fetchPurchaseInvoices();
+          return { success: true, data: response.data };
+        } catch (error) {
+          console.error('Error submitting purchase invoice:', error.response?.data || error);
+          const errorMessage = error.response?.data?.detail || 'فشل في حفظ فاتورة الشراء';
+          this.error = errorMessage;
+          return { success: false, error: errorMessage };
+        } finally {
+          this.isLoading = false;
+        }
     },
 
     async addProduct(productData) {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        const hasMainImage = productData.mainImage && productData.mainImage.file;
-        const hasVariantImages = productData.colorVariations &&
-          productData.colorVariations.some(variation => variation.images && variation.images.length > 0);
-
-        if (hasMainImage || hasVariantImages) {
-          const formData = new FormData();
-          formData.append('name', productData.name.toString());
-          formData.append('description', productData.description ? productData.description.toString() : '');
-          formData.append('category', parseInt(productData.categoryId));
-          formData.append('profit_margin', parseFloat(productData.profitMargin));
-          formData.append('is_active', productData.is_active !== undefined ? productData.is_active : true);
-
-          if (hasMainImage) {
-            const compressedMainImage = await compressImage(productData.mainImage.file);
-            formData.append('main_image', compressedMainImage, compressedMainImage.name);
-          }
-
-          // FIXED: Use the exact same attributes logic as updateProduct
-          const attributes = [];
-
-          // Add non-color properties (copied from updateProduct)
-          if (productData.selectedProperties && Object.keys(productData.selectedProperties).length > 0) {
-            Object.entries(productData.selectedProperties).forEach(([attrName, attrData]) => {
-              const values = [];
-              if (attrData.legacy && Array.isArray(attrData.legacy)) {
-                values.push(...attrData.legacy);
-              }
-              if (attrData.subtitles && typeof attrData.subtitles === 'object') {
-                Object.values(attrData.subtitles).forEach(subtitleValues => {
-                  if (Array.isArray(subtitleValues)) values.push(...subtitleValues);
-                });
-              }
-              if (values.length > 0) {
-                attributes.push({
-                  attribute: attrName.toString(),
-                  values: [...new Set(values.map(v => v.toString()))]
-                });
-              }
-            });
-          }
-
-          // Add color attribute (copied from updateProduct)
-          if (productData.colorVariations && productData.colorVariations.length > 0) {
-            const colorValues = productData.colorVariations.map(v => v.colorHex.toString());
-            const colorAttr = attributes.find(attr => attr.attribute === 'اللون');
-            if (!colorAttr) {
-              attributes.push({ attribute: 'اللون', values: [...new Set(colorValues)] });
-            } else {
-              colorAttr.values = [...new Set([...colorAttr.values, ...colorValues])];
+        this.isLoading = true;
+        this.error = null;
+        try {
+          const hasMainImage = productData.mainImage && productData.mainImage.file;
+          const hasVariantImages = productData.colorVariations?.some(v => v.images?.length > 0);
+  
+          if (hasMainImage || hasVariantImages) {
+            const formData = new FormData();
+            formData.append('name', productData.name);
+            formData.append('description', productData.description || '');
+            formData.append('category', parseInt(productData.categoryId));
+            formData.append('profit_margin', parseFloat(productData.profitMargin));
+            formData.append('is_active', productData.is_active ?? true);
+  
+            if (hasMainImage) {
+              const compressedMainImage = await compressImage(productData.mainImage.file);
+              formData.append('main_image', compressedMainImage, compressedMainImage.name);
             }
-          }
-
-          formData.append('attributes', JSON.stringify(attributes));
-
-          if (hasVariantImages) {
-            const variantImagesMetadata = [];
-
-            for (const variation of productData.colorVariations) {
-              if (variation.images && Array.isArray(variation.images)) {
-                for (const [imageIndex, image] of variation.images.entries()) {
-                  if (image.file) {
-                    const compressedFile = await compressImage(image.file);
-                    formData.append('variant_images', compressedFile, compressedFile.name);
-
-                    variantImagesMetadata.push({
-                      display_order: imageIndex + 1,
-                      values: { "اللون": variation.colorHex }
-                    });
+  
+            const attributes = this.convertToApiFormat(productData).attributes || [];
+            formData.append('attributes', JSON.stringify(attributes));
+            
+            const colorAttributeName = findColorAttributeNameFromApi({ available_attributes: attributes });
+  
+            if (hasVariantImages) {
+              const variantImagesMetadata = [];
+              for (const variation of productData.colorVariations) {
+                if (Array.isArray(variation.images)) {
+                  for (const [imageIndex, image] of variation.images.entries()) {
+                    if (image.file) {
+                      const compressedFile = await compressImage(image.file);
+                      formData.append('variant_images', compressedFile, compressedFile.name);
+                      
+                      variantImagesMetadata.push({
+                        display_order: imageIndex + 1,
+                        values: { [colorAttributeName]: variation.colorHex }
+                      });
+                    }
                   }
                 }
               }
+              if (variantImagesMetadata.length > 0) {
+                formData.append('variant_images_meta', JSON.stringify(variantImagesMetadata));
+              }
             }
-
-            if (variantImagesMetadata.length > 0) {
-              formData.append('variant_images_meta', JSON.stringify(variantImagesMetadata));
-            }
+  
+            const response = await api.post('products/products/', formData, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            const newProduct = this.convertFromApiFormat(response.data);
+            this.products.push(newProduct);
+            return { success: true, data: newProduct };
+          } else {
+            const apiPayload = this.convertToApiFormat(productData);
+            const response = await api.post('products/products/', apiPayload);
+            const newProduct = this.convertFromApiFormat(response.data);
+            this.products.push(newProduct);
+            return { success: true, data: newProduct };
           }
-
-          console.log('=== DEBUG: Final FormData ===');
-          console.log('Attributes:', formData.get('attributes'));
-          if (formData.get('variant_images_meta')) {
-            console.log('Variant Images Meta:', formData.get('variant_images_meta'));
-          }
-
-          const response = await api.post('products/products/', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-
-          const newProduct = this.convertFromApiFormat(response.data);
-          this.products.push(newProduct);
-          return { success: true, data: newProduct };
-        } else {
-          // Fallback for no files - use the same convertToApiFormat as before
-          const apiPayload = this.convertToApiFormat(productData);
-          const response = await api.post('products/products/', apiPayload);
-          const newProduct = this.convertFromApiFormat(response.data);
-          this.products.push(newProduct);
-          return { success: true, data: newProduct };
+        } catch (error) {
+          console.error('Error adding product:', error.response?.data || error);
+          const errorMessage = error.response?.data?.non_field_errors?.[0] || 'فشل في إضافة المنتج.';
+          this.error = errorMessage;
+          return { success: false, error: this.error };
+        } finally {
+          this.isLoading = false;
         }
-      } catch (error) {
-        console.error('Error adding product:', error.response?.data || error);
-
-        // Log the specific error details
-        if (error.response?.data?.non_field_errors) {
-          console.error('Non-field errors:', error.response.data.non_field_errors);
-        }
-
-        const errorMessage = error.response?.data?.non_field_errors?.[0] ||
-          error.response?.data?.name?.[0] ||
-          error.response?.data?.attributes?.[0] ||
-          error.response?.data?.detail ||
-          'فشل في إضافة المنتج.';
-        this.error = errorMessage;
-        return { success: false, error: this.error };
-      } finally {
-        this.isLoading = false;
-      }
     },
-
-
+    
     convertFromApiFormat(apiData) {
       const properties = {};
       const variants = [];
 
-      // Process available_attributes to build properties structure
-      if (apiData.available_attributes && Array.isArray(apiData.available_attributes)) {
+      // NEW: Dynamically find the name of the attribute used for colors.
+      const colorAttributeName = findColorAttributeNameFromApi(apiData.available_attributes);
+
+      // Process available_attributes to build the generic properties structure
+      if (Array.isArray(apiData.available_attributes)) {
         apiData.available_attributes.forEach(attr => {
-          const attrName = attr.attribute_name;
-          if (attrName !== 'اللون') { // Skip color as it's handled separately
-            properties[attrName] = {
+          // MODIFIED: Do not include the detected color attribute in the generic `properties` object.
+          if (attr.attribute_name !== colorAttributeName) {
+            properties[attr.attribute_name] = {
               legacy: attr.values || [],
               subtitles: {}
             };
@@ -391,88 +305,48 @@ export const useProductStore = defineStore('product', {
         });
       }
 
-      // Build color variants using images_by_attribute
-      if (apiData.images_by_attribute && typeof apiData.images_by_attribute === 'object') {
-        Object.entries(apiData.images_by_attribute).forEach(([colorHex, imageData]) => {
-          // Sort images by display_order
-          const sortedImages = Array.isArray(imageData)
-            ? imageData
-              .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
-              .map(img => {
-                // Handle both full URLs and relative paths
-                const imageUrl = img.image;
-                return imageUrl.startsWith('http') ? imageUrl : `http://13.48.136.207${imageUrl}`;
-              })
-            : [];
+      // MODIFIED: Refactored the entire variant creation logic for robustness.
+      // It now correctly creates a variant for each color and then populates its images and stock.
 
-          // Find stock information for this color from variants
-          const stockForColor = [];
-          if (apiData.variants && Array.isArray(apiData.variants)) {
-            apiData.variants
-              .filter(variant => {
-                // Find variants that match this color
-                return variant.attribute_values?.some(attr =>
-                  attr.attribute_name === 'اللون' && attr.value === colorHex
-                );
-              })
-              .forEach(variant => {
-                // Extract size and quantity
-                const sizeAttr = variant.attribute_values?.find(attr => attr.attribute_name === 'المقاس');
-                if (sizeAttr) {
-                  stockForColor.push({
-                    size: sizeAttr.value,
-                    quantity: variant.quantity_in_stock || 0,
-                    sku: variant.sku
-                  });
-                }
-              });
-          }
+      // 1. Get all unique color hex values from the attributes. This is the source of truth for variants.
+      const colorAttribute = apiData.available_attributes?.find(attr => attr.attribute_name === colorAttributeName);
+      const colorHexValues = colorAttribute?.values || [];
 
-          variants.push({
-            colorHex: colorHex,
-            images: sortedImages,
-            stock: stockForColor,
-            showColorPicker: false,
-            error: null
-          });
-        });
-      }
+      // 2. Create a variant for each color value.
+      for (const colorHex of colorHexValues) {
+        // Find images for this specific color from the API data.
+        const imageData = apiData.images_by_attribute?.[colorHex] || [];
+        const sortedImages = imageData
+          .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+          .map(img => img.image.startsWith('http') ? img.image : `http://13.48.136.207${img.image}`);
 
-      // If no images_by_attribute but we have color values, create variants without images
-      if (variants.length === 0 && apiData.available_attributes) {
-        const colorAttr = apiData.available_attributes.find(attr => attr.attribute_name === 'اللون');
-        if (colorAttr && colorAttr.values) {
-          colorAttr.values.forEach(colorHex => {
-            // Find stock for this color
-            const stockForColor = [];
-            if (apiData.variants && Array.isArray(apiData.variants)) {
-              apiData.variants
-                .filter(variant => {
-                  return variant.attribute_values?.some(attr =>
-                    attr.attribute_name === 'اللون' && attr.value === colorHex
-                  );
-                })
-                .forEach(variant => {
-                  const sizeAttr = variant.attribute_values?.find(attr => attr.attribute_name === 'المقاس');
-                  if (sizeAttr) {
-                    stockForColor.push({
-                      size: sizeAttr.value,
-                      quantity: variant.quantity_in_stock || 0,
-                      sku: variant.sku
-                    });
-                  }
+        // Find stock information for this color from the raw variants list.
+        const stockForColor = [];
+        if (Array.isArray(apiData.variants)) {
+          apiData.variants
+            .filter(variant => variant.attribute_values?.some(attr =>
+                attr.attribute_name === colorAttributeName && attr.value.toLowerCase() === colorHex.toLowerCase()
+            ))
+            .forEach(variant => {
+              const secondaryAttr = findSecondaryAttribute(variant.attribute_values, colorAttributeName);
+              if (secondaryAttr) {
+                stockForColor.push({
+                  size: secondaryAttr.value,
+                  quantity: variant.quantity_in_stock || 0,
+                  sku: variant.sku
                 });
-            }
-
-            variants.push({
-              colorHex: colorHex,
-              images: [],
-              stock: stockForColor,
-              showColorPicker: false,
-              error: null
+              }
             });
-          });
         }
+
+        // Create the final, structured variant object for the UI.
+        variants.push({
+          colorHex,
+          images: sortedImages,
+          stock: stockForColor,
+          showColorPicker: false,
+          error: null
+        });
       }
 
       return {
@@ -480,359 +354,254 @@ export const useProductStore = defineStore('product', {
         name: apiData.name || '',
         description: apiData.description || '',
         mainImage: apiData.main_image || null,
-        categoryId: typeof apiData.category === 'object' && apiData.category !== null ? apiData.category.id : apiData.category,
+        categoryId: apiData.category?.id ?? apiData.category,
         profitMargin: apiData.profit_margin || 0,
-        is_active: apiData.is_active !== undefined ? apiData.is_active : true,
+        is_active: apiData.is_active ?? true,
         properties: properties,
-        variants: variants, // This is your custom formatted variants for UI
-        rawVariants: apiData.variants || [], // <-- ADD THIS LINE to keep original variant data
+        variants: variants,
+        rawVariants: apiData.variants || [],
         purchasePrice: parseFloat(apiData.purchase_cost || 0),
         sellingPrice: parseFloat(apiData.selling_price || 0),
       };
     },
 
-    // Keep this method for backward compatibility, but deprecate it
-    async processPurchaseInvoice(invoiceItems) {
-      console.warn('processPurchaseInvoice is deprecated, use submitPurchaseInvoice instead');
-      this.isLoading = true;
-      this.error = null;
-      try {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        let totalAmount = 0;
-        invoiceItems.forEach(item => {
-          const { productId, purchasePrice, quantityToAdd, properties } = item;
-          const product = this.products.find(p => p.id === productId);
-          if (product) {
-            product.purchasePrice = purchasePrice;
-            product.sellingPrice = parseFloat((purchasePrice * (1 + (product.profitMargin || 0) / 100)).toFixed(2));
-            const color = properties.color;
-            const size = properties['المقاس'];
-            let variant = product.variants.find(v => v.colorHex === color);
-            if (!variant) throw new Error(`لم يتم العثور على اللون بالكود "${color}"`);
-            let stockItem = variant.stock.find(s => s.size === size);
-            if (stockItem) {
-              stockItem.quantity += quantityToAdd;
-            } else {
-              variant.stock.push({ size, quantity: quantityToAdd });
-            }
-            totalAmount += purchasePrice * quantityToAdd;
-          }
-        });
-        const newInvoice = { id: Math.random(), date: new Date().toISOString(), totalAmount, items: invoiceItems };
-        this.purchaseInvoices.unshift(newInvoice);
-        return { success: true, data: newInvoice };
-      } catch (e) {
-        this.error = e.message;
-        return { success: false, error: this.error };
-      } finally {
-        this.isLoading = false;
-      }
-    },
-
     async fetchPurchaseInvoices() {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        const response = await api.get('products/purchase-invoices/');
-        // Map the API response to match the new format
-        this.purchaseInvoices = response.data.map(invoice => ({
-          id: invoice.id,
-          user: invoice.user,
-          date: invoice.invoice_date,
-          totalAmount: parseFloat(invoice.total_cost),
-          items: invoice.items.map(item => ({
-            productName: item.product_name,
-            variantSku: item.variant_sku,
-            quantity: item.quantity,
-            costPerUnit: parseFloat(item.cost_per_unit)
-          }))
-        }));
-        return { success: true };
-      } catch (error) {
-        console.error('Error fetching purchase invoices:', error);
-        this.error = 'فشل في جلب فواتير الشراء.';
-        return { success: false, error: this.error };
-      } finally {
-        this.isLoading = false;
-      }
+        this.isLoading = true;
+        this.error = null;
+        try {
+          const response = await api.get('products/purchase-invoices/');
+          this.purchaseInvoices = response.data.map(invoice => ({
+            id: invoice.id,
+            user: invoice.user,
+            date: invoice.invoice_date,
+            totalAmount: parseFloat(invoice.total_cost),
+            items: invoice.items.map(item => ({
+              productName: item.product_name,
+              variantSku: item.variant_sku,
+              quantity: item.quantity,
+              costPerUnit: parseFloat(item.cost_per_unit)
+            }))
+          }));
+          return { success: true };
+        } catch (error) {
+          console.error('Error fetching purchase invoices:', error);
+          this.error = 'فشل في جلب فواتير الشراء.';
+          return { success: false, error: this.error };
+        } finally {
+          this.isLoading = false;
+        }
     },
 
     async fetchPurchaseInvoiceDetails(invoiceId) {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        const response = await api.get(`products/purchase-invoices/${invoiceId}/`);
-        const data = response.data;
-
-        // Map the detailed response using the new API format
-        const detailedInvoice = {
-          id: data.id,
-          user: data.user,
-          date: data.invoice_date,
-          totalAmount: parseFloat(data.total_cost),
-          items: data.items.map(item => ({
-            productName: item.product_name,
-            variantSku: item.variant_sku,
-            quantity: item.quantity,
-            costPerUnit: parseFloat(item.cost_per_unit)
-          }))
-        };
-
-        console.log('Detailed invoice data:', detailedInvoice);
-
-        // Update the invoice in the state with its full details
-        const index = this.purchaseInvoices.findIndex(inv => inv.id === invoiceId);
-        if (index !== -1) {
-          this.purchaseInvoices[index] = detailedInvoice;
-        } else {
-          this.purchaseInvoices.push(detailedInvoice);
+        this.isLoading = true;
+        this.error = null;
+        try {
+          const response = await api.get(`products/purchase-invoices/${invoiceId}/`);
+          const data = response.data;
+          const detailedInvoice = {
+            id: data.id,
+            user: data.user,
+            date: data.invoice_date,
+            totalAmount: parseFloat(data.total_cost),
+            items: data.items.map(item => ({
+              productName: item.product_name,
+              variantSku: item.variant_sku,
+              quantity: item.quantity,
+              costPerUnit: parseFloat(item.cost_per_unit)
+            }))
+          };
+          const index = this.purchaseInvoices.findIndex(inv => inv.id === invoiceId);
+          if (index !== -1) this.purchaseInvoices[index] = detailedInvoice;
+          else this.purchaseInvoices.push(detailedInvoice);
+          return { success: true, data: detailedInvoice };
+        } catch (error) {
+          console.error(`Error fetching details for invoice ${invoiceId}:`, error);
+          this.error = 'فشل في جلب تفاصيل الفاتورة.';
+          return { success: false, error: this.error };
+        } finally {
+          this.isLoading = false;
         }
-        return { success: true, data: detailedInvoice };
-      } catch (error) {
-        console.error(`Error fetching details for invoice ${invoiceId}:`, error);
-        this.error = 'فشل في جلب تفاصيل الفاتورة.';
-        return { success: false, error: this.error };
-      } finally {
-        this.isLoading = false;
-      }
     },
 
     async updateProduct(productId, dataToUpdate, newMainImageFile = null, newVariantFiles = []) {
-      this.isLoading = true;
-      this.error = null;
-      try {
-        const hasMainImageFile = newMainImageFile !== null;
-        const hasVariantImageFiles = newVariantFiles && newVariantFiles.length > 0;
-        const hasFiles = hasMainImageFile || hasVariantImageFiles;
-
-        if (hasFiles) {
-          const formData = new FormData();
-          formData.append('name', dataToUpdate.name.toString());
-          formData.append('description', dataToUpdate.description ? dataToUpdate.description.toString() : '');
-          formData.append('category', parseInt(dataToUpdate.categoryId));
-          formData.append('profit_margin', parseFloat(dataToUpdate.profitMargin));
-          formData.append('is_active', dataToUpdate.is_active !== undefined ? dataToUpdate.is_active : true);
-
-          if (hasMainImageFile) {
-            const compressedMainImage = await compressImage(newMainImageFile);
-            formData.append('main_image', compressedMainImage, compressedMainImage.name);
-          } else if (dataToUpdate.mainImage) {
-            formData.append('main_image_url', dataToUpdate.mainImage);
-          }
-
-          const attributes = [];
-          if (dataToUpdate.properties && Object.keys(dataToUpdate.properties).length > 0) {
-            Object.entries(dataToUpdate.properties).forEach(([attrName, attrData]) => {
-              const values = [];
-              if (attrData.legacy && Array.isArray(attrData.legacy)) {
-                values.push(...attrData.legacy);
-              }
-              if (attrData.subtitles && typeof attrData.subtitles === 'object') {
-                Object.values(attrData.subtitles).forEach(subtitleValues => {
-                  if (Array.isArray(subtitleValues)) values.push(...subtitleValues);
+        this.isLoading = true;
+        this.error = null;
+        try {
+            const hasFiles = newMainImageFile || newVariantFiles?.length > 0;
+    
+            if (hasFiles) {
+                const formData = new FormData();
+                formData.append('name', dataToUpdate.name);
+                formData.append('description', dataToUpdate.description || '');
+                formData.append('category', parseInt(dataToUpdate.categoryId));
+                formData.append('profit_margin', parseFloat(dataToUpdate.profitMargin));
+                formData.append('is_active', dataToUpdate.is_active ?? true);
+    
+                if (newMainImageFile) {
+                    const compressedMainImage = await compressImage(newMainImageFile);
+                    formData.append('main_image', compressedMainImage, compressedMainImage.name);
+                } else if (dataToUpdate.mainImage) {
+                    formData.append('main_image_url', dataToUpdate.mainImage);
+                }
+    
+                const apiPayloadForAttributes = this.convertToApiFormat({
+                    ...dataToUpdate,
+                    selectedProperties: dataToUpdate.properties,
                 });
-              }
-              if (values.length > 0) {
-                attributes.push({
-                  attribute: attrName.toString(),
-                  values: [...new Set(values.map(v => v.toString()))]
-                });
-              }
-            });
-          }
+                const attributes = apiPayloadForAttributes.attributes || [];
+                formData.append('attributes', JSON.stringify(attributes));
 
-          if (dataToUpdate.variants && dataToUpdate.variants.length > 0) {
-            const colorValues = dataToUpdate.variants.map(v => v.colorHex.toString());
-            const colorAttr = attributes.find(attr => attr.attribute === 'اللون');
-            if (!colorAttr) {
-              attributes.push({ attribute: 'اللون', values: [...new Set(colorValues)] });
+                const colorAttributeName = findColorAttributeNameFromApi({ available_attributes: attributes });
+    
+                if (newVariantFiles?.length > 0) {
+                    const variantImagesMetadata = [];
+                    for (const [index, imgData] of newVariantFiles.entries()) {
+                        const compressedFile = await compressImage(imgData.file);
+                        formData.append('variant_images', compressedFile, compressedFile.name);
+                        const variant = dataToUpdate.variants.find(v => v.colorHex.toLowerCase() === imgData.colorHex.toLowerCase());
+                        const existingImageCount = variant?.images?.length || 0;
+                        const newImagesForSameColorBefore = newVariantFiles.slice(0, index).filter(p => p.colorHex.toLowerCase() === imgData.colorHex.toLowerCase()).length;
+                        const displayOrder = existingImageCount + newImagesForSameColorBefore + 1;
+                        
+                        variantImagesMetadata.push({
+                            display_order: displayOrder,
+                            values: { [colorAttributeName]: imgData.colorHex }
+                        });
+                    }
+                    if (variantImagesMetadata.length > 0) {
+                        formData.append('variant_images_meta', JSON.stringify(variantImagesMetadata));
+                    }
+                }
+    
+                await api.patch(`products/products/${productId}/`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
             } else {
-              colorAttr.values = [...new Set([...colorAttr.values, ...colorValues])];
+                const apiPayload = this.convertToApiFormat({
+                    ...dataToUpdate,
+                    selectedProperties: dataToUpdate.properties,
+                });
+                await api.patch(`products/products/${productId}/`, apiPayload);
             }
-          }
-
-          formData.append('attributes', JSON.stringify(attributes));
-
-          if (hasVariantImageFiles) {
-            const variantImagesMetadata = [];
-
-            for (const [index, imgData] of newVariantFiles.entries()) {
-              const compressedFile = await compressImage(imgData.file);
-              formData.append('variant_images', compressedFile, compressedFile.name);
-
-              const variant = dataToUpdate.variants.find(v => v.colorHex.toLowerCase() === imgData.colorHex.toLowerCase());
-              const existingImageCount = (variant && variant.images && Array.isArray(variant.images)) ? variant.images.length : 0;
-
-              const newImagesForSameColorBefore = newVariantFiles
-                .slice(0, index)
-                .filter(prevImgData => prevImgData.colorHex.toLowerCase() === imgData.colorHex.toLowerCase())
-                .length;
-
-              const displayOrder = existingImageCount + newImagesForSameColorBefore + 1;
-
-              variantImagesMetadata.push({
-                display_order: displayOrder,
-                values: { "اللون": imgData.colorHex }
-              });
+    
+            const freshDataResponse = await api.get(`products/products/${productId}/`);
+            const updatedProductInState = this.convertFromApiFormat(freshDataResponse.data);
+            const index = this.products.findIndex(p => p.id === productId);
+            if (index !== -1) {
+                this.products[index] = updatedProductInState;
             }
-
-            if (variantImagesMetadata.length > 0) {
-              formData.append('variant_images_meta', JSON.stringify(variantImagesMetadata));
-            }
-          }
-
-          console.log('--- Submitting FormData to Backend ---');
-          for (const [key, value] of formData.entries()) {
-            console.log(`${key}:`, value);
-          }
-          console.log('------------------------------------');
-
-          await api.patch(`products/products/${productId}/`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-        } else {
-          const apiPayload = this.convertToApiFormat({
-            ...dataToUpdate,
-            selectedProperties: dataToUpdate.properties,
-          });
-
-          console.log('--- Submitting JSON Object to Backend ---');
-          console.log(JSON.stringify(apiPayload, null, 2));
-          console.log('---------------------------------------');
-
-          await api.patch(`products/products/${productId}/`, apiPayload);
+            return { success: true, data: this.products[index] };
+        } catch (e) {
+            console.error("Failed to update product:", e.response?.data || e.message);
+            this.error = e.response?.data?.detail || 'فشل في تحديث المنتج.';
+            return { success: false, error: this.error };
+        } finally {
+            this.isLoading = false;
         }
-
-        const freshDataResponse = await api.get(`products/products/${productId}/`);
-        const updatedProductInState = this.convertFromApiFormat(freshDataResponse.data);
-        const index = this.products.findIndex(p => p.id === productId);
-
-        if (index !== -1) {
-          this.products[index] = updatedProductInState;
-        }
-        return { success: true, data: this.products[index] };
-      } catch (e) {
-        console.error("Failed to update product:", e.response?.data || e.message);
-        const errorData = e.response?.data;
-        this.error = errorData?.attributes?.[0] ||
-          errorData?.variant_images_meta?.[0] ||
-          errorData?.variant_images?.[0] ||
-          errorData?.detail ||
-          errorData?.non_field_errors?.[0] ||
-          'فشل في تحديث المنتج.';
-        return { success: false, error: this.error };
-      } finally {
-        this.isLoading = false;
-      }
     },
 
     convertToApiFormat(productData) {
-      const apiData = {
-        name: productData.name,
-        description: productData.description || '',
-        category: productData.categoryId,
-        profit_margin: productData.profitMargin,
-        is_active: productData.is_active !== undefined ? productData.is_active : true,
-      };
-
-      if (productData.selectedProperties && Object.keys(productData.selectedProperties).length > 0) {
+        const apiData = {
+          name: productData.name,
+          description: productData.description || '',
+          category: productData.categoryId,
+          profit_margin: productData.profitMargin,
+          is_active: productData.is_active !== undefined ? productData.is_active : true,
+        };
+    
         const attributes = [];
-        Object.entries(productData.selectedProperties).forEach(([attrName, attrData]) => {
-          const values = [];
-          if (attrData.legacy && Array.isArray(attrData.legacy)) {
-            values.push(...attrData.legacy);
-          }
-          if (attrData.subtitles && typeof attrData.subtitles === 'object') {
-            Object.values(attrData.subtitles).forEach(subtitleValues => {
-              if (Array.isArray(subtitleValues)) values.push(...subtitleValues);
+        if (productData.selectedProperties && Object.keys(productData.selectedProperties).length > 0) {
+            Object.entries(productData.selectedProperties).forEach(([attrName, attrData]) => {
+                const values = new Set();
+                if (Array.isArray(attrData.legacy)) {
+                    attrData.legacy.forEach(v => values.add(v));
+                }
+                if (typeof attrData.subtitles === 'object') {
+                    Object.values(attrData.subtitles).forEach(subValues => {
+                        if (Array.isArray(subValues)) subValues.forEach(v => values.add(v));
+                    });
+                }
+                if (values.size > 0) {
+                    attributes.push({
+                        attribute: attrName,
+                        values: Array.from(values)
+                    });
+                }
             });
-          }
-          if (values.length > 0) {
-            attributes.push({
-              attribute: attrName,
-              values: [...new Set(values)]
-            });
-          }
-        });
-
-        if (productData.colorVariations && productData.colorVariations.length > 0) {
-          const colorValues = productData.colorVariations.map(v => v.colorHex);
-          const colorAttr = attributes.find(attr => attr.attribute === 'اللون');
-          if (!colorAttr) {
-            attributes.push({ attribute: 'اللون', values: [...new Set(colorValues)] });
-          } else {
-            colorAttr.values = [...new Set([...colorAttr.values, ...colorValues])];
-          }
         }
+    
+        if (productData.colorVariations && productData.colorVariations.length > 0) {
+            const colorValues = productData.colorVariations.map(v => v.colorHex);
+            const colorAttributeName = findColorAttributeNameFromApi({ available_attributes: attributes });
+            const colorAttr = attributes.find(attr => attr.attribute === colorAttributeName);
 
-        apiData.attributes = attributes;
-      }
-
-      return apiData;
+            if (!colorAttr) {
+                attributes.push({ attribute: colorAttributeName, values: [...new Set(colorValues)] });
+            } else {
+                colorAttr.values = [...new Set([...colorAttr.values, ...colorValues])];
+            }
+        }
+    
+        if (attributes.length > 0) {
+            apiData.attributes = attributes;
+        }
+    
+        return apiData;
     },
 
     async toggleProductStatus(productId) {
-      const product = this.products.find(p => p.id === productId);
-      if (!product) {
-        this.error = 'لم يتم العثور على المنتج';
-        return { success: false, error: this.error };
-      }
-
-      const originalStatus = product.is_active;
-      const newStatus = !originalStatus;
-      product.is_active = newStatus;
-
-      try {
-        await api.patch(`products/products/${productId}/`, { is_active: newStatus });
-        return { success: true, data: product };
-      } catch (e) {
-        product.is_active = originalStatus;
-        this.error = e.response?.data?.detail || 'فشل في تغيير حالة المنتج.';
-        console.error("Failed to toggle status:", e.response?.data);
-        return { success: false, error: this.error };
-      }
+        const product = this.products.find(p => p.id === productId);
+        if (!product) return { success: false, error: 'لم يتم العثور على المنتج' };
+        const originalStatus = product.is_active;
+        product.is_active = !originalStatus;
+        try {
+            await api.patch(`products/products/${productId}/`, { is_active: product.is_active });
+            return { success: true, data: product };
+        } catch (e) {
+            product.is_active = originalStatus;
+            this.error = e.response?.data?.detail || 'فشل في تغيير حالة المنتج.';
+            return { success: false, error: this.error };
+        }
     },
 
     getAvailableSizesForProduct(productId) {
       const product = this.products.find(p => p.id === productId);
-      if (!product) return [];
-      return product.properties?.['المقاس'] || [];
+      if (!product || !product.properties) return [];
+
+      const propertyKeys = Object.keys(product.properties);
+      if (propertyKeys.length > 0) {
+          const sizeAttributeName = propertyKeys[0];
+          return product.properties[sizeAttributeName]?.legacy || [];
+      }
+      return [];
     },
 
     getAvailableColorsForProduct(productId) {
       const product = this.products.find(p => p.id === productId);
       if (!product || !product.variants) return [];
-      return product.variants.map(variant => ({
-        hex: variant.colorHex
-      }));
+      return product.variants.map(variant => ({ hex: variant.colorHex }));
     },
 
     clearError() {
       this.error = null;
     },
-    // Helper method to extract color from variant SKU
+    
     extractColorFromSku(variantSku) {
-      // SKU format: "SPEDRO0-#21BA40-40" or "CAP0-جلد-#B20101-مقاس عام (STANDARD)"
       const parts = variantSku.split('-');
       for (const part of parts) {
-        if (part.startsWith('#') && part.length === 7) {
-          return part;
-        }
+        if (part.startsWith('#') && part.length === 7) return part;
       }
-      return '#000000'; // Default color if not found
+      return '#000000';
     },
 
-    // Helper method to extract size from variant SKU
     extractSizeFromSku(variantSku) {
-      // SKU format: "SPEDRO0-#21BA40-40" or "CAP0-جلد-#B20101-مقاس عام (STANDARD)"
       const parts = variantSku.split('-');
-      // Return the last part as size
       return parts[parts.length - 1] || '';
     },
 
-    // Helper method to get product by name (since API now returns product names)
     getProductByName(productName) {
       return this.products.find(p => p.name === productName);
     },
   },
 });
+

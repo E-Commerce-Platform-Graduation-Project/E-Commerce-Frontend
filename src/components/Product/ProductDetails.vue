@@ -7,7 +7,8 @@
                 </div>
 
                 <div class="modal-body p-4">
-                    <div class="image-gallery-container mb-4">
+                    <!-- ... (image gallery and main product details are unchanged) ... -->
+                     <div class="image-gallery-container mb-4">
                         <div class="main-image-wrapper mb-3">
                             <img v-if="activeImage" :src="activeImage" class="main-product-image" alt="Main product view">
                             <div v-else class="text-center bg-light p-5 rounded d-flex align-items-center justify-content-center" style="height: 350px;">
@@ -43,8 +44,7 @@
                         <label class="fw-semibold text-muted">الوصف</label>
                         <p>{{ product.description || 'لا يوجد وصف متاح.' }}</p>
                     </div>
-
-                    <div class="row border-top pt-3">
+                     <div class="row border-top pt-3">
                         <div class="col-sm-3 mb-3">
                             <label class="fw-semibold text-muted">أحدث سعر شراء</label>
                             <p class="fs-5 fw-bold text-primary">
@@ -70,7 +70,6 @@
                             </p>
                         </div>
                     </div>
-
                     <div class="row border-top pt-3">
                         <div class="col-sm-6 mb-3">
                             <label class="fw-semibold text-muted">إجمالي الكمية المتاحة</label>
@@ -100,9 +99,10 @@
                                 <div class="invoice-date">{{ formatDate(item.date) }}</div>
                                 <div class="invoice-properties">
                                     <div class="props-display">
+                                        <!-- MODIFIED: Logic now uses a helper to identify color properties -->
                                         <span v-for="(value, propName) in item.properties" :key="propName" class="prop-chip">
-                                            <span v-if="propName === 'color'" class="prop-color-dot" :style="{ backgroundColor: value }"></span>
-                                            <strong class="prop-name">{{ propName === 'color' ? 'اللون' : propName }}:</strong>
+                                            <span v-if="isHexColor(value)" class="prop-color-dot" :style="{ backgroundColor: value }"></span>
+                                            <strong class="prop-name">{{ propName }}:</strong>
                                             {{ value }}
                                         </span>
                                     </div>
@@ -118,6 +118,7 @@
                 </div>
 
                 <div class="modal-footer bg-light">
+                    <!-- ... (modal footer is unchanged) ... -->
                     <button type="button" class="btn btn-secondary" @click="$emit('close')">
                         إغلاق<i class="fas fa-times me-2"></i>
                     </button>
@@ -135,95 +136,66 @@ import { ref, computed, watch } from 'vue';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { useProductStore } from '@/stores/productStore';
 
-const props = defineProps({
-    product: {
-        type: Object,
-        required: true,
-    },
-});
-
+const props = defineProps({ product: { type: Object, required: true } });
 defineEmits(['close', 'edit-product']);
 
 const categoryStore = useCategoryStore();
 const productStore = useProductStore();
-
 const activeImage = ref('');
 
 const allImages = computed(() => {
     if (!props.product) return [];
-    const images = [];
-    
-    // Add main image first
-    if (props.product.mainImage) {
-        images.push(props.product.mainImage);
-    }
-    
-    // Add variant images from the new structure
-    if (props.product.variants && Array.isArray(props.product.variants)) {
-        props.product.variants.forEach(variant => {
-            if (variant.images && Array.isArray(variant.images)) {
-                images.push(...variant.images);
-            }
-        });
-    }
-    
-    // Remove duplicates
-    return [...new Set(images)];
+    const images = new Set();
+    if (props.product.mainImage) images.add(props.product.mainImage);
+    props.product.variants?.forEach(variant => {
+        variant.images?.forEach(img => images.add(img));
+    });
+    return Array.from(images);
 });
 
 watch(allImages, (newImages) => {
-    if (newImages.length > 0) {
-        activeImage.value = newImages[0];
-    } else {
-        activeImage.value = '';
-    }
+    activeImage.value = newImages.length > 0 ? newImages[0] : '';
 }, { immediate: true });
 
 const setActiveImage = (image) => {
     activeImage.value = image;
 };
 
+// NEW: Helper to check if a string is a hex color code.
+const isHexColor = (value) => {
+  if (typeof value !== 'string') return false;
+  return /^#[0-9A-F]{6}$/i.test(value);
+};
+
+// MODIFIED: Simplified SKU parsing logic, which was already format-based and robust.
 const purchaseHistoryItems = computed(() => {
   const invoices = productStore.getInvoicesByProductId(props.product.id);
   const allItems = [];
   
   invoices.forEach(invoice => {
-    // Handle both old and new invoice item formats
-    const productItems = invoice.items ? invoice.items.filter(item => {
-      // For new API format with product names
-      if (item.productName) {
-        return item.productName === props.product.name;
-      }
-      // For old format with productId
-      return item.productId === props.product.id;
-    }) : [];
+    const productItems = invoice.items?.filter(item => 
+      item.productName === props.product.name || item.productId === props.product.id
+    ) || [];
 
     productItems.forEach(item => {
       let properties = {};
       
       if (item.variantSku) {
-        // Extract properties from SKU format: "PANTS1-قماش-#21BA40-L"
-        const skuParts = item.variantSku.split('-');
-        
-        // Extract color (look for hex color pattern)
-        const colorPart = skuParts.find(part => part.startsWith('#') && part.length === 7);
-        if (colorPart) {
-          properties.color = colorPart;
-        }
-        
-        // Extract size (usually the last part)
-        const sizePart = skuParts[skuParts.length - 1];
-        if (sizePart && !sizePart.startsWith('#')) {
-          properties['المقاس'] = sizePart;
-        }
-        
-        // Extract material (parts between product name and color)
-        const materialParts = skuParts.slice(1, -2); // Skip first (product), last (size), and color
-        if (materialParts.length > 0) {
-          properties['الخامة'] = materialParts.join('-');
-        }
+          // This logic is based on SKU format, which is fine.
+          const skuParts = item.variantSku.split('-');
+          const colorPart = skuParts.find(part => isHexColor(part));
+          if (colorPart) properties.color = colorPart;
+
+          // Find other attributes by excluding known parts
+          const nonProductParts = skuParts.slice(1); // Exclude product code
+          const otherAttrs = nonProductParts.filter(p => !isHexColor(p));
+          
+          // A simple assumption: last non-color part is size/dimension
+          if (otherAttrs.length > 0) {
+              properties['المقاس'] = otherAttrs[otherAttrs.length - 1];
+          }
+
       } else if (item.properties) {
-        // Use existing properties if available (old format)
         properties = item.properties;
       }
 
@@ -348,7 +320,6 @@ p {
 
 .invoice-item {
     display: grid;
-    /* UPDATED: Changed from 5 to 4 columns */
     grid-template-columns: 1.5fr 2fr 0.8fr 1.2fr;
     gap: 1rem;
     padding: 0.75rem 1rem;

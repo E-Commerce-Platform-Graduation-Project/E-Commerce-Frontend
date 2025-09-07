@@ -125,7 +125,7 @@
               >
                 <span class="attribute-label">{{ attr.attribute_name }}:</span>
                 <span
-                  v-if="attr.attribute_name === 'اللون'"
+                  v-if="isColorAttribute(attr.value)"
                   class="attribute-value"
                 >
                   <span
@@ -196,7 +196,7 @@
                       class="prop-chip"
                     >
                       <span
-                        v-if="attr.attribute_name === 'اللون'"
+                        v-if="isColorAttribute(attr.value)"
                         class="prop-color-dot"
                         :style="{ backgroundColor: attr.value }"
                       ></span>
@@ -421,6 +421,15 @@ const totalInvoiceAmount = computed(() => {
   }, 0);
 });
 
+// ✅ NEW: Function to check if an attribute value is a color (hex color starting with #)
+const isColorAttribute = (value) => {
+  if (!value || typeof value !== 'string') return false;
+  
+  // Check if value starts with # and has valid hex color format
+  const hexColorRegex = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
+  return hexColorRegex.test(value);
+};
+
 // ✅ START: ADDED KEYDOWN HANDLERS TO PREVENT INVALID INPUT
 /**
  * Prevents non-numeric characters from being entered.
@@ -497,17 +506,18 @@ const onIntegerInputKeyDown = (event) => {
 };
 // ✅ END: ADDED KEYDOWN HANDLERS
 
-// Helper function to get the first image for a variant based on its color
+// ✅ UPDATED: Helper function to get the first image for a variant based on its color attribute VALUE
 const getVariantImage = (variant) => {
   if (!selectedProductDetails.value?.images_by_attribute) return null;
 
-  // Find the color attribute for this variant
-  const colorAttr = variant.attribute_values?.find(
-    (attr) => attr.attribute_name === "اللون"
+  // Find the color attribute for this variant by checking the VALUE (not the name)
+  const colorAttr = variant.attribute_values?.find(attr => 
+    isColorAttribute(attr.value)
   );
+  
   if (!colorAttr) return null;
 
-  // Get images for this color
+  // Get images for this color using the color value as key
   const colorImages =
     selectedProductDetails.value.images_by_attribute[colorAttr.value];
   if (!colorImages || !Array.isArray(colorImages) || colorImages.length === 0)

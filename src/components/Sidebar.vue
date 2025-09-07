@@ -45,6 +45,11 @@
             <span class="material-icons me-3">shopping_basket</span>
             <span class="sidebar-text">الطلبات</span>
           </router-link>
+          <router-link to="/delivery-locations"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
+            <span class="material-icons me-3">local_shipping</span>
+            <span class="sidebar-text">إدارة المدن والمناطق</span>
+          </router-link>
         </nav>
       </div>
 
@@ -62,7 +67,7 @@
           <router-link to="/add-category"
             class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">add</span>
-            <span class="sidebar-text">اضافة فئة</span>
+            <span class="sidebar-text">إضافة فئة</span>
           </router-link>
             </nav>
       </div>
@@ -80,7 +85,7 @@
           <router-link to="/add-product"
             class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">add</span>
-            <span class="sidebar-text">اضافة منتج</span>
+            <span class="sidebar-text">إضافة منتج</span>
           </router-link>
           <router-link to="/purchase-invoices"
             class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
@@ -90,12 +95,12 @@
           <router-link to="/add-purchase-invoice"
             class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">add</span>
-            <span class="sidebar-text">انشاء فاتورة شراء</span>
+            <span class="sidebar-text">إنشاء فاتورة شراء</span>
           </router-link>
           <router-link to="/product-prop"
             class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">settings</span>
-            <span class="sidebar-text">ادارة خواص المنتجات</span>
+            <span class="sidebar-text">إدارة خواص المنتجات</span>
           </router-link>
               </nav>
       </div>
@@ -115,7 +120,7 @@
           <router-link to="/add-employee"
             class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">add</span>
-            <span class="sidebar-text">اضافة موظف</span>
+            <span class="sidebar-text">إضافة موظف</span>
           </router-link>
         </nav>
       </div>

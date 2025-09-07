@@ -8,6 +8,7 @@ import Dashboard from '../views/Dashboard.vue'
 import Customers from '@/views/Customer/Customers.vue'
 import CustomerDetails from '@/views/Customer/CustomerDetails.vue'
 import Orders from '@/views/Orders.vue'
+import DeliveryLocations from '@/views/DeliveryLocations.vue'
 import Categories from '@/views/Category/Categories.vue'
 import Products from '@/views/Product/Products.vue'
 import AddCategory from '@/views/Category/AddCategory.vue'
@@ -56,6 +57,12 @@ const routes = [
     path: '/categories',
     name: 'Categories',
     component: Categories,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/delivery-locations',
+    name: 'DeliveryLocations',
+    component: DeliveryLocations,
     meta: { requiresAuth: true }
   },
   {
