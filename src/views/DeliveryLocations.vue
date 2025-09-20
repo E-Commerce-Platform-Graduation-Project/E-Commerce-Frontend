@@ -1,3 +1,4 @@
+
 <template>
   <div class="delivery-locations-container">
     <div
@@ -30,16 +31,20 @@
           <div class="form-header">
             <h3>إضافة مدينة جديدة</h3>
           </div>
-          <form @submit.prevent="submitCity" class="form-body">
+          <form @submit.prevent="submitCity" class="form-body" novalidate>
             <div class="form-group">
-              <label>اسم المدينة</label>
+              <label for="cityName">اسم المدينة</label>
               <input
+                id="cityName"
                 v-model="cityForm.name"
                 type="text"
                 class="form-control"
-                required
+                :class="{ error: errors.name }"
                 placeholder="أدخل اسم المدينة"
               />
+              <span v-if="errors.name" class="error-message">{{
+                errors.name
+              }}</span>
             </div>
             <div class="form-group">
               <div class="checkbox-container">
@@ -54,15 +59,19 @@
               </div>
             </div>
             <div v-if="cityForm.create_default_region" class="form-group">
-              <label>تكلفة التوصيل (د.ل)</label>
+              <label for="defaultShippingCost">تكلفة التوصيل (د.ل)</label>
               <input
+                id="defaultShippingCost"
                 v-model="cityForm.default_shipping_cost"
                 type="number"
                 step="0.01"
                 class="form-control"
-                required
+                :class="{ error: errors.default_shipping_cost }"
                 placeholder="0.00"
               />
+              <span v-if="errors.default_shipping_cost" class="error-message">{{
+                errors.default_shipping_cost
+              }}</span>
             </div>
             <div class="form-group">
               <div class="checkbox-container">
@@ -90,10 +99,7 @@
         </div>
       </Transition>
 
-      <div
-        v-if="loading && cities.length === 0"
-        class="loading-section"
-      >
+      <div v-if="loading && cities.length === 0" class="loading-section">
         <div class="loading-spinner-large"></div>
         <p class="loading-text">جاري تحميل المدن والمناطق...</p>
       </div>
@@ -105,20 +111,27 @@
           class="city-card"
           :class="{ 'inactive-item': !city.is_active }"
         >
-          <div v-if="editingCity && editingCity.id === city.id" class="edit-form">
+          <div
+            v-if="editingCity && editingCity.id === city.id"
+            class="edit-form"
+          >
             <div class="form-header">
               <h3>تعديل اسم المدينة</h3>
             </div>
-            <form @submit.prevent="submitEditCity" class="form-body">
+            <form @submit.prevent="submitEditCity" class="form-body" novalidate>
               <div class="form-group">
-                <label>اسم المدينة</label>
+                <label for="editCityName">اسم المدينة</label>
                 <input
+                  id="editCityName"
                   v-model="cityForm.name"
                   type="text"
                   class="form-control"
-                  required
+                  :class="{ error: errors.name }"
                   placeholder="أدخل اسم المدينة"
                 />
+                <span v-if="errors.name" class="error-message">{{
+                  errors.name
+                }}</span>
               </div>
 
               <div class="form-actions">
@@ -129,7 +142,11 @@
                 >
                   إلغاء
                 </button>
-                <button type="submit" class="btn btn-primary" :disabled="loading">
+                <button
+                  type="submit"
+                  class="btn btn-primary"
+                  :disabled="loading"
+                >
                   <span v-if="loading" class="loading-spinner"></span>
                   {{ loading ? "جاري الحفظ..." : "حفظ" }}
                 </button>
@@ -202,26 +219,42 @@
                   "
                   class="add-region-form"
                 >
-                  <form @submit.prevent="submitRegion" class="region-form">
+                  <form
+                    @submit.prevent="submitRegion"
+                    class="region-form"
+                    novalidate
+                  >
                     <div class="form-row">
                       <div class="form-group">
                         <input
+                          id="regionName"
                           v-model="regionForm.name"
                           type="text"
                           class="form-control"
-                          required
+                          :class="{ error: errors.regionName }"
                           placeholder="اسم المنطقة"
                         />
+                        <span
+                          v-if="errors.regionName"
+                          class="error-message region-error"
+                          >{{ errors.regionName }}</span
+                        >
                       </div>
                       <div class="form-group">
                         <input
+                          id="regionShippingCost"
                           v-model="regionForm.shipping_cost"
                           type="number"
                           step="0.01"
                           class="form-control"
-                          required
+                          :class="{ error: errors.regionShippingCost }"
                           placeholder="التكلفة"
                         />
+                        <span
+                          v-if="errors.regionShippingCost"
+                          class="error-message region-error"
+                          >{{ errors.regionShippingCost }}</span
+                        >
                       </div>
                       <div class="form-group">
                         <label class="checkbox-label"
@@ -265,26 +298,39 @@
                       <form
                         @submit.prevent="submitEditRegion"
                         class="region-form"
+                        novalidate
                       >
                         <div class="form-row">
                           <div class="form-group">
                             <input
+                              id="editRegionName"
                               v-model="regionForm.name"
                               type="text"
                               class="form-control"
-                              required
+                              :class="{ error: errors.regionName }"
                               placeholder="اسم المنطقة"
                             />
+                            <span
+                              v-if="errors.regionName"
+                              class="error-message region-error"
+                              >{{ errors.regionName }}</span
+                            >
                           </div>
                           <div class="form-group">
                             <input
+                              id="editRegionShippingCost"
                               v-model="regionForm.shipping_cost"
                               type="number"
                               step="0.01"
                               class="form-control"
-                              required
+                              :class="{ error: errors.regionShippingCost }"
                               placeholder="التكلفة"
                             />
+                            <span
+                              v-if="errors.regionShippingCost"
+                              class="error-message region-error"
+                              >{{ errors.regionShippingCost }}</span
+                            >
                           </div>
                           <div class="form-group">
                             <label class="checkbox-label"
@@ -300,7 +346,10 @@
                               class="btn btn-sm btn-primary"
                               :disabled="loading"
                             >
-                              <span v-if="loading" class="loading-spinner"></span>
+                              <span
+                                v-if="loading"
+                                class="loading-spinner"
+                              ></span>
                               {{ loading ? "حفظ..." : "حفظ" }}
                             </button>
                             <button
@@ -317,7 +366,9 @@
                     <div v-else class="region-display">
                       <div class="region-info">
                         <span class="region-name">{{ region.name }}</span>
-                        <span class="region-cost">{{ region.shipping_cost }} د.ل</span>
+                        <span class="region-cost"
+                          >{{ region.shipping_cost }} د.ل</span
+                        >
                       </div>
                       <div class="region-actions">
                         <div class="status-toggle-container">
@@ -365,7 +416,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, reactive, nextTick } from "vue";
 import { useCityStore } from "@/stores/cityStore";
 
 export default {
@@ -397,6 +448,9 @@ export default {
     const showErrorModal = ref(false);
     const modalErrorMessage = ref("");
 
+    // Add reactive errors object
+    const errors = reactive({});
+
     const cities = computed(() => cityStore.cities);
     const regions = computed(() => cityStore.regions);
 
@@ -421,6 +475,102 @@ export default {
       }
     };
 
+    // Clear all errors
+    const clearErrors = () => {
+      Object.keys(errors).forEach((key) => delete errors[key]);
+    };
+
+    // Validate city form
+    const validateCityForm = () => {
+      clearErrors();
+      let isValid = true;
+
+      if (!cityForm.value.name.trim()) {
+        errors.name = "اسم المدينة مطلوب";
+        isValid = false;
+      }
+
+      if (cityForm.value.create_default_region) {
+        if (
+          cityForm.value.default_shipping_cost === "" ||
+          cityForm.value.default_shipping_cost === null ||
+          cityForm.value.default_shipping_cost === undefined
+        ) {
+          errors.default_shipping_cost = "تكلفة التوصيل مطلوبة";
+          isValid = false;
+        } else if (
+          isNaN(cityForm.value.default_shipping_cost) ||
+          Number(cityForm.value.default_shipping_cost) < 0
+        ) {
+          errors.default_shipping_cost = "تكلفة التوصيل يجب أن تكون رقم موجب";
+          isValid = false;
+        }
+      }
+
+      return isValid;
+    };
+
+    // Validate region form
+    const validateRegionForm = () => {
+      // Clear region-specific errors
+      delete errors.regionName;
+      delete errors.regionShippingCost;
+      let isValid = true;
+
+      if (!regionForm.value.name.trim()) {
+        errors.regionName = "اسم المنطقة مطلوب";
+        isValid = false;
+      }
+
+      if (
+        regionForm.value.shipping_cost === "" ||
+        regionForm.value.shipping_cost === null ||
+        regionForm.value.shipping_cost === undefined
+      ) {
+        errors.regionShippingCost = "تكلفة التوصيل مطلوبة";
+        isValid = false;
+      } else if (
+        isNaN(regionForm.value.shipping_cost) ||
+        Number(regionForm.value.shipping_cost) < 0
+      ) {
+        errors.regionShippingCost = "تكلفة التوصيل يجب أن تكون رقم موجب";
+        isValid = false;
+      }
+
+      return isValid;
+    };
+
+    // Get field ID for scrolling to errors
+    const getFieldId = (fieldName) => {
+      const fieldIdMap = {
+        name: editingCity.value ? "editCityName" : "cityName",
+        default_shipping_cost: "defaultShippingCost",
+        regionName: editingRegion.value ? "editRegionName" : "regionName",
+        regionShippingCost: editingRegion.value
+          ? "editRegionShippingCost"
+          : "regionShippingCost",
+      };
+      return fieldIdMap[fieldName] || fieldName;
+    };
+
+    // Scroll to first error
+    const scrollToFirstError = async () => {
+      await nextTick();
+      const firstErrorKey = Object.keys(errors)[0];
+      if (firstErrorKey) {
+        const elementId = getFieldId(firstErrorKey);
+        const element = document.getElementById(elementId);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Add error highlight animation
+          element.classList.add("error-highlight");
+          setTimeout(() => {
+            element.classList.remove("error-highlight");
+          }, 2000);
+        }
+      }
+    };
+
     const showSuccessNotification = (message) => {
       notificationMessage.value = message;
       showNotification.value = true;
@@ -432,14 +582,17 @@ export default {
         }, 500);
       }, 4500);
     };
+
     const displayErrorModal = (errorMessage) => {
       modalErrorMessage.value = errorMessage;
       showErrorModal.value = true;
     };
+
     const closeErrorModal = () => {
       showErrorModal.value = false;
       modalErrorMessage.value = "";
     };
+
     const loadData = async () => {
       loading.value = true;
       try {
@@ -449,6 +602,7 @@ export default {
         loading.value = false;
       }
     };
+
     const resetCityForm = () => {
       cityForm.value = {
         name: "",
@@ -456,7 +610,9 @@ export default {
         default_shipping_cost: "",
         is_active: true,
       };
+      clearErrors();
     };
+
     const resetRegionForm = () => {
       regionForm.value = {
         name: "",
@@ -464,26 +620,38 @@ export default {
         is_active: true,
         city: null,
       };
+      // Clear region-specific errors
+      delete errors.regionName;
+      delete errors.regionShippingCost;
     };
+
     const cancelAddCity = () => {
       showAddCityForm.value = false;
       resetCityForm();
     };
+
     const cancelEdit = () => {
       editingCity.value = null;
       resetCityForm();
     };
+
     const cancelAddRegion = () => {
       showAddRegionForm.value = false;
       selectedCity.value = null;
       resetRegionForm();
     };
+
     const cancelEditRegion = () => {
       editingRegion.value = null;
       resetRegionForm();
     };
+
     const submitCity = async () => {
-      if (!cityForm.value.name.trim()) return;
+      if (!validateCityForm()) {
+        await scrollToFirstError();
+        return;
+      }
+
       loading.value = true;
       try {
         const result = await cityStore.addCity(cityForm.value);
@@ -501,8 +669,13 @@ export default {
         loading.value = false;
       }
     };
+
     const submitEditCity = async () => {
-      if (!cityForm.value.name.trim()) return;
+      if (!validateCityForm()) {
+        await scrollToFirstError();
+        return;
+      }
+
       loading.value = true;
       try {
         const result = await cityStore.editCity(
@@ -523,6 +696,7 @@ export default {
         loading.value = false;
       }
     };
+
     const editCity = (city) => {
       editingCity.value = city;
       cityForm.value = {
@@ -531,7 +705,9 @@ export default {
         default_shipping_cost: city.default_shipping_cost || "",
         is_active: city.is_active,
       };
+      clearErrors();
     };
+
     const toggleCity = async (cityId, isActive) => {
       const result = await cityStore.toggleCityStatus(cityId, isActive);
       if (result.success) {
@@ -544,6 +720,7 @@ export default {
         displayErrorModal(result.error || "حدث خطأ في تغيير الحالة.");
       }
     };
+
     const toggleAddRegionForm = (city) => {
       if (
         showAddRegionForm.value &&
@@ -557,10 +734,23 @@ export default {
         selectedCity.value = city;
         regionForm.value.city = city.id;
         showAddRegionForm.value = true;
+        resetRegionForm();
       }
     };
+
     const submitRegion = async () => {
-      if (!regionForm.value.name.trim()) return;
+      if (!validateRegionForm()) {
+        await scrollToFirstError();
+        return;
+      }
+
+      // Ensure city ID is properly set before submission
+      if (!regionForm.value.city && selectedCity.value) {
+        regionForm.value.city = selectedCity.value.id;
+      }
+
+      console.log("Region form before submission:", regionForm.value); // Debug line
+
       loading.value = true;
       try {
         const result = await cityStore.addRegion(regionForm.value);
@@ -576,8 +766,13 @@ export default {
         loading.value = false;
       }
     };
+
     const submitEditRegion = async () => {
-      if (!regionForm.value.name.trim()) return;
+      if (!validateRegionForm()) {
+        await scrollToFirstError();
+        return;
+      }
+
       loading.value = true;
       try {
         const result = await cityStore.editRegion(
@@ -595,6 +790,7 @@ export default {
         loading.value = false;
       }
     };
+
     const editRegion = (region) => {
       editingRegion.value = region;
       regionForm.value = {
@@ -603,7 +799,10 @@ export default {
         is_active: region.is_active,
         city: region.city,
       };
+      delete errors.regionName;
+      delete errors.regionShippingCost;
     };
+
     const toggleRegion = async (regionId, isActive) => {
       const result = await cityStore.toggleRegionStatus(regionId, isActive);
       if (result.success) {
@@ -628,6 +827,7 @@ export default {
       selectedCity,
       cities,
       regions,
+      errors,
       getRegionsByCity,
       cancelAddCity,
       cancelEdit,
@@ -816,6 +1016,58 @@ export default {
   font-family: "Cairo", sans-serif;
 }
 
+/* Error styling */
+.form-control.error {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 4px;
+  display: block;
+  animation: errorSlideIn 0.3s ease-out;
+  font-family: "Cairo", sans-serif;
+}
+
+.region-error {
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+@keyframes errorSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Error highlight animation */
+.error-highlight {
+  border-color: #e74c3c !important;
+  background-color: #fef2f2 !important;
+  box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.2) !important;
+  animation: errorPulse 0.5s ease-in-out;
+}
+
+@keyframes errorPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 /* Checkbox styling */
 .checkbox-container {
   display: flex;
@@ -884,7 +1136,7 @@ export default {
   animation-fill-mode: both;
 }
 
-.cities-container .city-card:nth-child(n+4) {
+.cities-container .city-card:nth-child(n + 4) {
   animation: slideInUp 0.6s ease-out;
   animation-delay: 0.7s;
   animation-fill-mode: both;
@@ -1071,6 +1323,7 @@ export default {
   flex: 1;
   min-width: 140px;
   margin-bottom: 0;
+  position: relative;
 }
 
 /* Regions list */
@@ -1409,40 +1662,40 @@ export default {
   .delivery-locations-container {
     padding: 20px 10px;
   }
-  
+
   .title {
     font-size: 24px;
   }
-  
+
   .content-container {
     padding: 20px;
   }
-  
+
   .city-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 15px;
   }
-  
+
   .city-actions {
     align-self: stretch;
     justify-content: space-between;
   }
-  
+
   .form-row {
     flex-direction: column;
   }
-  
+
   .form-row .form-group {
     min-width: auto;
     width: 100%;
   }
-  
+
   .form-actions-inline {
     width: 100%;
     justify-content: stretch;
   }
-  
+
   .form-actions-inline .btn {
     flex: 1;
   }

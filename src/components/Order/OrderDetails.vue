@@ -19,7 +19,26 @@
               </div>
               <div class="info-item">
                 <i class="fas fa-phone"></i>
-                <span>{{ customer?.phone_number || 'غير متوفر' }}</span>
+                <span>{{ order.customerPhone || customer?.phone_number || 'غير متوفر' }}</span>
+              </div>
+              <div class="info-item full-width">
+                <i class="fas fa-map-marker-alt"></i>
+                <span>{{ order.address || 'غير متوفر' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Payment and Delivery Info Section -->
+          <div class="payment-delivery-section mb-4">
+            <h6 class="section-title">معلومات الدفع والتوصيل</h6>
+            <div class="info-grid">
+              <div class="info-item">
+                <i class="fas fa-credit-card"></i>
+                <span>{{ getPaymentMethodText(order.paymentMethod) }}</span>
+              </div>
+              <div class="info-item">
+                <i class="fas fa-truck"></i>
+                <span>تكلفة التوصيل: {{ order.shippingCost }} دينار</span>
               </div>
             </div>
           </div>
@@ -36,7 +55,7 @@
               <div class="item-product">
                 <img :src="getVariantImage(item)" class="item-image" alt="Product Image" @error="onImageError">
                 <div class="product-name-wrapper">
-                  <span>{{ getProduct(item.productId)?.name || 'منتج غير معروف' }}</span>
+                  <span>{{ getProduct(item)?.name || 'منتج غير معروف' }}</span>
                 </div>
               </div>
               <div class="item-properties">
@@ -63,6 +82,14 @@
             <div class="summary-item">
               <span>الحالة</span>
               <span class="status-badge" :class="getStatusBadgeClass(order.status)">{{ order.status }}</span>
+            </div>
+            <div class="summary-item">
+              <span>مجموع المنتجات</span>
+              <span>{{ order.totalPrice || calculateSubtotal() }} دينار</span>
+            </div>
+            <div class="summary-item">
+              <span>تكلفة التوصيل</span>
+              <span>{{ order.shippingCost }} دينار</span>
             </div>
             <div class="summary-item total">
               <span>المجموع الكلي</span>
@@ -102,12 +129,48 @@ const customer = computed(() => {
   return customerStore.getCustomerById(props.order.customerId);
 });
 
-const getProduct = (productId) => {
-  return productStore.getProductById(productId);
+/**
+ * NEW: Finds a product by searching for its variant's properties (color/size).
+ * This is more robust than relying on a potentially incorrect productId.
+ * @param {object} item - The order item containing colorHex and size.
+ * @returns {object|null} The parent product object or null if not found.
+ */
+const findProductByVariantProps = (item) => {
+  if (!item) return null;
+  for (const product of productStore.getAllProducts) {
+    if (product.variants) {
+      const variantMatch = product.variants.some(variant => {
+        const colorMatch = variant.colorHex === item.colorHex;
+        // If the variant has a stock array, check for size match too
+        const sizeMatch = variant.stock ? variant.stock.some(stockItem => stockItem.size === item.size) : true;
+        return colorMatch && sizeMatch;
+      });
+      if (variantMatch) {
+        return product; // Return the parent product
+      }
+    }
+  }
+  return null;
+};
+
+/**
+ * MODIFIED: This function now takes the whole item and uses the robust lookup.
+ * @param {object} item - The order item.
+ * @returns {object|null} The parent product object.
+ */
+const getProduct = (item) => {
+  if (!item) return null;
+  // First, try the direct lookup in case the ID is correct
+  const directHit = productStore.getProductById(item.productId);
+  if (directHit) return directHit;
+
+  // If direct lookup fails, use the more reliable search method
+  return findProductByVariantProps(item);
 };
 
 const getVariantImage = (item) => {
-  const product = getProduct(item.productId);
+  // Pass the whole item object to getProduct
+  const product = getProduct(item);
   if (!product) return 'https://placehold.co/60x60/eee/ccc?text=?';
 
   // Find the variant by colorHex, which is now part of the order item
@@ -126,7 +189,8 @@ const getVariantImage = (item) => {
  * @returns {Array<object>} An array of property objects to be displayed.
  */
 const getFormattedProperties = (item) => {
-    const product = getProduct(item.productId);
+    // Pass the whole item object to getProduct
+    const product = getProduct(item);
     const props = [];
 
     // Add color from the specific order item
@@ -140,7 +204,6 @@ const getFormattedProperties = (item) => {
     // Add other properties from the main product definition (e.g., الخامة)
     if (product && product.properties) {
         Object.keys(product.properties).forEach(key => {
-            // Avoid adding المقاس again, as we have the specific one from the item
             if (key !== 'المقاس' && product.properties[key].legacy) {
                 props.push({ key: key, value: product.properties[key].legacy.join(', ') });
             }
@@ -149,10 +212,41 @@ const getFormattedProperties = (item) => {
     return props;
 };
 
+/**
+ * Convert payment method from English to Arabic
+ * @param {string} paymentMethod - The payment method in English
+ * @returns {string} The payment method in Arabic
+ */
+const getPaymentMethodText = (paymentMethod) => {
+    const paymentMethods = {
+        'Cash on Delivery': 'الدفع عند الاستلام',
+        'Credit Card': 'بطاقة ائتمان',
+        'Bank Transfer': 'تحويل بنكي',
+        'Mobile Payment': 'الدفع عبر الجوال',
+    };
+    return paymentMethods[paymentMethod] || paymentMethod || 'غير محدد';
+};
+
+/**
+ * Calculate subtotal if totalPrice is not available
+ * @returns {number} The calculated subtotal
+ */
+const calculateSubtotal = () => {
+    return props.order.items.reduce((sum, item) => {
+        return sum + (item.quantity * item.price);
+    }, 0).toFixed(2);
+};
 
 const formatDate = (dateString) => {
-  const options = { year: 'numeric', month: 'long', day: 'numeric' };
-  return new Date(dateString).toLocaleDateString('ar-EG', options);
+  const options = {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',   // Added hour
+    minute: '2-digit', // Added minute
+  };
+  // Use toLocaleString to include time
+  return new Date(dateString).toLocaleString('ar-EG-u-nu-latn', options);
 };
 
 const getStatusBadgeClass = (status) => {
@@ -192,7 +286,8 @@ const onImageError = (event) => {
 }
 
 /* Customer Info Section */
-.customer-info-section {
+.customer-info-section,
+.payment-delivery-section {
   background-color: #f8f9fa;
   border: 1px solid #e9ecef;
   padding: 1rem;
@@ -202,10 +297,12 @@ const onImageError = (event) => {
 .section-title {
   font-weight: 600;
   margin-bottom: 1rem;
+  color: #495057;
 }
 
 .info-grid {
   display: flex;
+  flex-wrap: wrap;
   gap: 1.5rem;
 }
 
@@ -213,10 +310,18 @@ const onImageError = (event) => {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.info-item.full-width {
+  flex-basis: 100%;
 }
 
 .info-item i {
   color: #0d6efd;
+  width: 16px;
+  text-align: center;
 }
 
 /* Item list styles */
@@ -230,7 +335,6 @@ const onImageError = (event) => {
 .item-header,
 .item-row {
   display: grid;
-  /* Updated grid: Product, Properties, Qty, Price, Total */
   grid-template-columns: 2.5fr 2fr 0.5fr 1fr 1fr;
   gap: 1rem;
   padding: 0.75rem 1rem;
@@ -304,7 +408,6 @@ const onImageError = (event) => {
     font-weight: 600;
 }
 
-
 /* Order Summary and Badge styles */
 .order-summary {
   border-top: 2px solid #dee2e6;
@@ -316,14 +419,16 @@ const onImageError = (event) => {
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .summary-item.total {
   font-weight: bold;
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   color: #0d6efd;
   margin-top: 0.5rem;
+  border-top: 1px solid #dee2e6;
+  padding-top: 1rem;
 }
 
 .status-badge {
@@ -346,5 +451,9 @@ const onImageError = (event) => {
   padding: 10px 20px;
   border-radius: 8px;
   font-weight: 600;
+}
+
+.btn-close-custom:hover {
+  background-color: #5a6268;
 }
 </style>

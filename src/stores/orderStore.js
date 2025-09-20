@@ -1,64 +1,7 @@
 import { defineStore } from 'pinia';
 import { useProductStore } from './productStore';
-
-// --- Mock Data for Orders ---
-// Added `comment` field to some items.
-// Ratings are now conceptually tied to the main product within an order.
-const mockOrders = [
-  {
-    id: 201,
-    customerId: 4,
-    orderDate: '2025-07-18',
-    status: 'مكتمل',
-    totalAmount: 420,
-    items: [
-      { productId: 2, quantity: 2, price: 140, purchasePrice: 80, rating: 5, comment: 'جودة ممتازة ومريح جداً.', colorHex: '#000000', size: '42' },
-      { productId: 2, quantity: 1, price: 140, purchasePrice: 80, rating: 5, comment: 'جودة ممتازة ومريح جداً.', colorHex: '#ffffff', size: '41' } // Note: Same rating and comment for the same product in one order
-    ]
-  },
-  {
-    id: 202,
-    customerId: 4,
-    orderDate: '2025-06-25',
-    status: 'قيد التجهيز',
-    totalAmount: 105,
-    items: [
-      { productId: 1, quantity: 3, price: 35, purchasePrice: 20, rating: 4, comment: 'قبعة جميلة لكن اللون مختلف قليلاً عن الصورة.', colorHex: '#dc2626', size: 'مقاس واحد' }
-    ]
-  },
-  {
-    id: 203,
-    customerId: 5,
-    orderDate: '2025-07-15',
-    status: 'مكتمل',
-    totalAmount: 440,
-    items: [
-        { productId: 4, quantity: 2, price: 220, purchasePrice: 150, rating: 5, comment: null, colorHex: '#2563eb', size: '32' }
-    ]
-  },
-  {
-    id: 204,
-    customerId: 18,
-    orderDate: '2025-05-10',
-    status: 'ملغي',
-    totalAmount: 540,
-    items: [
-        { productId: 3, quantity: 3, price: 180, purchasePrice: 110, rating: null, comment: null, colorHex: '#000000', size: 'L' }
-    ]
-  },
-  {
-    id: 205,
-    customerId: 18,
-    orderDate: '2025-04-22',
-    status: 'مكتمل',
-    totalAmount: 350,
-    items: [
-      { productId: 1, quantity: 2, price: 35, purchasePrice: 20, rating: 3, comment: 'وصلت في الوقت المحدد.', colorHex: '#2563eb', size: 'مقاس واحد' },
-      { productId: 2, quantity: 2, price: 140, purchasePrice: 80, rating: 4, comment: null, colorHex: '#000000', size: '43' }
-    ]
-  },
-];
-
+import { useCustomerStore } from './customerStore'; // Make sure this path is correct
+import api from '@/api'; // IMPORT YOUR CENTRALIZED API INSTANCE
 
 export const useOrderStore = defineStore('order', {
   state: () => ({
@@ -68,8 +11,8 @@ export const useOrderStore = defineStore('order', {
   }),
 
   getters: {
+    // No changes needed for the getters.
     getAllOrders: (state) => {
-        /* ... existing getter ... */
         const productStore = useProductStore();
         const sortedOrders = [...state.orders].sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
 
@@ -86,7 +29,6 @@ export const useOrderStore = defineStore('order', {
         }));
     },
     getOrderById: (state) => (orderId) => {
-        /* ... existing getter ... */
         const productStore = useProductStore();
         const order = state.orders.find(order => order.id === orderId);
         if (!order) return null;
@@ -107,7 +49,6 @@ export const useOrderStore = defineStore('order', {
         };
     },
     getOrdersByCustomerId: (state) => (customerId) => {
-      /* ... existing getter ... */
       const productStore = useProductStore();
       return state.orders
         .filter(order => order.customerId === customerId)
@@ -123,22 +64,16 @@ export const useOrderStore = defineStore('order', {
           }),
         }));
     },
-    
-    /**
-     * NEW GETTER: Aggregates all unique product ratings for a specific customer.
-     * It ensures each product is listed only once with its most recent rating and comment.
-     */
     getCustomerProductRatings: (state) => (customerId) => {
         const productStore = useProductStore();
         const customerOrders = state.orders
             .filter(o => o.customerId === customerId)
-            .sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate)); // Sort by most recent order
+            .sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate)); 
 
         const ratingsMap = new Map();
 
         customerOrders.forEach(order => {
             order.items.forEach(item => {
-                // Only consider items with a rating, and only add the most recent rating for each product
                 if (item.rating && !ratingsMap.has(item.productId)) {
                     const product = productStore.getProductById(item.productId);
                     if (product) {
@@ -146,7 +81,7 @@ export const useOrderStore = defineStore('order', {
                             productId: item.productId,
                             productName: product.name,
                             rating: item.rating,
-                            comment: item.comment || null, // Ensure comment is null if not present
+                            comment: item.comment || null,
                         });
                     }
                 }
@@ -165,9 +100,55 @@ export const useOrderStore = defineStore('order', {
         this.error = null;
         try {
             const productStore = useProductStore();
-            await productStore.fetchProducts();
-            await new Promise(resolve => setTimeout(resolve, 500));
-            this.orders = mockOrders;
+            const customerStore = useCustomerStore();
+            await Promise.all([
+                productStore.fetchProducts(),
+                customerStore.fetchCustomers()
+            ]);
+
+            // **MODIFIED**: Use the 'api' instance and a relative URL
+            const response = await api.get('products/staff-orders/');
+            const apiOrders = response.data;
+
+            const statusMap = {
+                'Pending': 'قيد الانتظار',
+                'Processing': 'قيد التجهيز',
+                'Shipped': 'في الطريق الى الزبون',
+                'Completed': 'مكتمل',
+                'Cancelled': 'ملغي',
+            };
+
+            this.orders = apiOrders.map(order => {
+                const customer = customerStore.customers.find(c => c.full_name === order.user);
+                return {
+                    id: order.id,
+                    customerId: customer ? customer.id : null,
+                    customerPhone: order.customer_phone, // Added customer phone
+                    orderDate: order.order_date,
+                    status: statusMap[order.status] || order.status,
+                    address: order.address, // Added address
+                    paymentMethod: order.payment_method, // Added payment method
+                    totalPrice: parseFloat(order.total_price), // Added total price (before shipping)
+                    shippingCost: parseFloat(order.shipping_cost), // Added shipping cost
+                    totalAmount: parseFloat(order.grand_total), // This is the grand total
+                    items: order.items.map(item => {
+                        const colorAttr = item.variant.attributes.find(attr => attr.name === 'اللون');
+                        const sizeAttr = item.variant.attributes.find(attr => attr.name === 'المقاس');
+
+                        return {
+                            productId: item.variant.product_variant_id, 
+                            quantity: item.quantity,
+                            price: parseFloat(item.price_per_unit),
+                            purchasePrice: 0,
+                            rating: null,
+                            comment: null,
+                            colorHex: colorAttr ? colorAttr.value : '#FFFFFF',
+                            size: sizeAttr ? sizeAttr.value : 'غير محدد',
+                        };
+                    }),
+                };
+            });
+            
             return { success: true };
         } catch (e) {
             this.error = 'فشل في جلب الطلبات.';
@@ -179,21 +160,73 @@ export const useOrderStore = defineStore('order', {
     },
 
     async updateOrderStatus(orderId, newStatus) {
-        /* ... existing action ... */
         this.isLoading = true;
         this.error = null;
         try {
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Map Arabic status back to English for API call
+            const statusMapReverse = {
+                'قيد الانتظار': 'Pending',
+                'قيد التجهيز': 'Processing',
+                'في الطريق الى الزبون': 'Shipped',
+                'مكتمل': 'Completed',
+                'ملغي': 'Cancelled',
+            };
+
+            const englishStatus = statusMapReverse[newStatus] || newStatus;
+            
+            // Make the actual API call to update the order status
+            await api.patch(`products/staff-orders/${orderId}/`, { status: englishStatus });
+            
+            // Update local state only after successful API call
             const order = this.orders.find(o => o.id === orderId);
             if (order) {
-            order.status = newStatus;
+                order.status = newStatus;
             } else {
-            throw new Error("لم يتم العثور على الطلب");
+                throw new Error("لم يتم العثور على الطلب");
             }
+            
             return { success: true, data: order };
-        } catch (e) {
-            this.error = e.message || 'فشل في تحديث حالة الطلب.';
-            return { success: false, error: this.error };
+        } catch (error) {
+            console.error('Error updating order status:', error);
+            
+            // Handle error messages consistently like cityStore
+            let errorMessage = 'فشل في تحديث حالة الطلب.';
+            
+            if (error.response) {
+                // Extract error message from different possible response formats
+                if (error.response.data) {
+                    if (error.response.data.non_field_errors && Array.isArray(error.response.data.non_field_errors)) {
+                        errorMessage = error.response.data.non_field_errors[0];
+                    } else if (error.response.data.status && Array.isArray(error.response.data.status)) {
+                        errorMessage = error.response.data.status[0];
+                    } else if (error.response.data.message) {
+                        errorMessage = error.response.data.message;
+                    } else if (error.response.data.error) {
+                        errorMessage = error.response.data.error;
+                    } else if (typeof error.response.data === 'string') {
+                        errorMessage = error.response.data;
+                    }
+                }
+                
+                // Handle specific HTTP status codes
+                if (error.response.status === 404) {
+                    errorMessage = 'الطلب غير موجود او حدث خطأ ما في التحديث.';
+                } else if (error.response.status === 403) {
+                    errorMessage = 'ليس لديك صلاحية لتعديل هذا الطلب.';
+                } else if (error.response.status >= 500) {
+                    errorMessage = 'خطأ في الخادم. يرجى المحاولة لاحقاً.';
+                } else if (error.response.status === 400) {
+                    errorMessage = 'بيانات الطلب غير صحيحة.';
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            // Set the error in store state
+            this.error = errorMessage;
+            
+            // Return consistent error format like cityStore
+            return { success: false, error: errorMessage };
         } finally {
             this.isLoading = false;
         }

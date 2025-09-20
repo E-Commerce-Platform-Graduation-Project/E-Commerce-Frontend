@@ -20,7 +20,7 @@ async function compressImage(file) {
   }
 }
 
-// NEW: Helper to identify the color attribute name from API data based on hex values.
+// Helper to identify the color attribute name from API data based on hex values.
 function findColorAttributeNameFromApi(availableAttributes) {
   const hexRegex = /^#[0-9A-F]{6}$/i;
   const defaultColorName = 'اللون'; // Fallback if not found
@@ -38,12 +38,11 @@ function findColorAttributeNameFromApi(availableAttributes) {
   return colorAttr ? colorAttr.attribute_name : defaultColorName;
 }
 
-// NEW: Helper to find the "secondary" attribute (like size) from a variant's attributes.
+// Helper to find the "secondary" attribute (like size) from a variant's attributes.
 function findSecondaryAttribute(variantAttributes, colorAttributeName) {
     if (!Array.isArray(variantAttributes)) return null;
     return variantAttributes.find(attr => attr.attribute_name !== colorAttributeName);
 }
-
 
 export const useProductStore = defineStore('product', {
   state: () => ({
@@ -93,7 +92,7 @@ export const useProductStore = defineStore('product', {
   },
 
   actions: {
-    async fetchAllProducts() { // تبحت بالصفحة
+    async fetchAllProducts() {
         this.isLoading = true;
         this.error = null;
         let allProducts = [];
@@ -289,13 +288,13 @@ export const useProductStore = defineStore('product', {
       const properties = {};
       const variants = [];
 
-      // NEW: Dynamically find the name of the attribute used for colors.
+      // Dynamically find the name of the attribute used for colors.
       const colorAttributeName = findColorAttributeNameFromApi(apiData.available_attributes);
 
       // Process available_attributes to build the generic properties structure
       if (Array.isArray(apiData.available_attributes)) {
         apiData.available_attributes.forEach(attr => {
-          // MODIFIED: Do not include the detected color attribute in the generic `properties` object.
+          // Do not include the detected color attribute in the generic `properties` object.
           if (attr.attribute_name !== colorAttributeName) {
             properties[attr.attribute_name] = {
               legacy: attr.values || [],
@@ -305,10 +304,8 @@ export const useProductStore = defineStore('product', {
         });
       }
 
-      // MODIFIED: Refactored the entire variant creation logic for robustness.
-      // It now correctly creates a variant for each color and then populates its images and stock.
-
-      // 1. Get all unique color hex values from the attributes. This is the source of truth for variants.
+      // Enhanced variant creation logic for robustness.
+      // 1. Get all unique color hex values from the attributes.
       const colorAttribute = apiData.available_attributes?.find(attr => attr.attribute_name === colorAttributeName);
       const colorHexValues = colorAttribute?.values || [];
 
@@ -319,6 +316,15 @@ export const useProductStore = defineStore('product', {
         const sortedImages = imageData
           .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
           .map(img => img.image.startsWith('http') ? img.image : `http://13.48.136.207${img.image}`);
+
+        // Store images with their IDs and metadata for editing purposes
+        const imagesWithIds = imageData
+          .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+          .map(img => ({
+            id: img.id,
+            url: img.image.startsWith('http') ? img.image : `http://13.48.136.207${img.image}`,
+            display_order: img.display_order || 0
+          }));
 
         // Find stock information for this color from the raw variants list.
         const stockForColor = [];
@@ -343,6 +349,7 @@ export const useProductStore = defineStore('product', {
         variants.push({
           colorHex,
           images: sortedImages,
+          imagesWithIds: imagesWithIds,
           stock: stockForColor,
           showColorPicker: false,
           error: null
@@ -424,79 +431,103 @@ export const useProductStore = defineStore('product', {
     },
 
     async updateProduct(productId, dataToUpdate, newMainImageFile = null, newVariantFiles = []) {
-        this.isLoading = true;
-        this.error = null;
-        try {
-            const hasFiles = newMainImageFile || newVariantFiles?.length > 0;
-    
-            if (hasFiles) {
-                const formData = new FormData();
-                formData.append('name', dataToUpdate.name);
-                formData.append('description', dataToUpdate.description || '');
-                formData.append('category', parseInt(dataToUpdate.categoryId));
-                formData.append('profit_margin', parseFloat(dataToUpdate.profitMargin));
-                formData.append('is_active', dataToUpdate.is_active ?? true);
-    
-                if (newMainImageFile) {
-                    const compressedMainImage = await compressImage(newMainImageFile);
-                    formData.append('main_image', compressedMainImage, compressedMainImage.name);
-                } else if (dataToUpdate.mainImage) {
-                    formData.append('main_image_url', dataToUpdate.mainImage);
-                }
-    
-                const apiPayloadForAttributes = this.convertToApiFormat({
-                    ...dataToUpdate,
-                    selectedProperties: dataToUpdate.properties,
-                });
-                const attributes = apiPayloadForAttributes.attributes || [];
-                formData.append('attributes', JSON.stringify(attributes));
+    this.isLoading = true;
+    this.error = null;
+    try {
+        const hasFiles = newMainImageFile || newVariantFiles?.length > 0;
 
-                const colorAttributeName = findColorAttributeNameFromApi({ available_attributes: attributes });
-    
-                if (newVariantFiles?.length > 0) {
-                    const variantImagesMetadata = [];
-                    for (const [index, imgData] of newVariantFiles.entries()) {
-                        const compressedFile = await compressImage(imgData.file);
-                        formData.append('variant_images', compressedFile, compressedFile.name);
-                        const variant = dataToUpdate.variants.find(v => v.colorHex.toLowerCase() === imgData.colorHex.toLowerCase());
-                        const existingImageCount = variant?.images?.length || 0;
-                        const newImagesForSameColorBefore = newVariantFiles.slice(0, index).filter(p => p.colorHex.toLowerCase() === imgData.colorHex.toLowerCase()).length;
-                        const displayOrder = existingImageCount + newImagesForSameColorBefore + 1;
-                        
-                        variantImagesMetadata.push({
-                            display_order: displayOrder,
-                            values: { [colorAttributeName]: imgData.colorHex }
-                        });
-                    }
-                    if (variantImagesMetadata.length > 0) {
-                        formData.append('variant_images_meta', JSON.stringify(variantImagesMetadata));
-                    }
+        if (hasFiles) {
+            const formData = new FormData();
+            formData.append('name', dataToUpdate.name);
+            formData.append('description', dataToUpdate.description || '');
+            formData.append('category', parseInt(dataToUpdate.categoryId));
+            formData.append('profit_margin', parseFloat(dataToUpdate.profitMargin));
+            formData.append('is_active', dataToUpdate.is_active ?? true);
+
+            if (newMainImageFile) {
+                const compressedMainImage = await compressImage(newMainImageFile);
+                formData.append('main_image', compressedMainImage, compressedMainImage.name);
+            } else if (dataToUpdate.mainImage) {
+                formData.append('main_image_url', dataToUpdate.mainImage);
+            }
+
+            const apiPayloadForAttributes = this.convertToApiFormat({
+                ...dataToUpdate,
+                selectedProperties: dataToUpdate.properties,
+            });
+            const attributes = apiPayloadForAttributes.attributes || [];
+
+            // ✅ START: ADDED LOGIC FROM YOUR WORKING FILE
+            const colorAttributeName = findColorAttributeNameFromApi({ available_attributes: attributes });
+            if (dataToUpdate.variants && dataToUpdate.variants.length > 0) {
+                const allColorValues = dataToUpdate.variants.map(v => v.colorHex);
+                let colorAttr = attributes.find(attr => attr.attribute === colorAttributeName);
+
+                if (!colorAttr) {
+                    colorAttr = { attribute: colorAttributeName, values: [] };
+                    attributes.push(colorAttr);
                 }
-    
-                await api.patch(`products/products/${productId}/`, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                });
-            } else {
-                const apiPayload = this.convertToApiFormat({
-                    ...dataToUpdate,
-                    selectedProperties: dataToUpdate.properties,
-                });
-                await api.patch(`products/products/${productId}/`, apiPayload);
+                colorAttr.values = [...new Set([...colorAttr.values, ...allColorValues])];
             }
-    
-            const freshDataResponse = await api.get(`products/products/${productId}/`);
-            const updatedProductInState = this.convertFromApiFormat(freshDataResponse.data);
-            const index = this.products.findIndex(p => p.id === productId);
-            if (index !== -1) {
-                this.products[index] = updatedProductInState;
+            // ✅ END: ADDED LOGIC
+
+            formData.append('attributes', JSON.stringify(attributes));
+
+            if (newVariantFiles?.length > 0) {
+                const variantImagesMetadata = [];
+                for (const [index, imgData] of newVariantFiles.entries()) {
+                    const compressedFile = await compressImage(imgData.file);
+                    formData.append('variant_images', compressedFile, compressedFile.name);
+                    const variant = dataToUpdate.variants.find(v => v.colorHex.toLowerCase() === imgData.colorHex.toLowerCase());
+                    const existingImageCount = variant?.images?.length || 0;
+                    const newImagesForSameColorBefore = newVariantFiles.slice(0, index).filter(p => p.colorHex.toLowerCase() === imgData.colorHex.toLowerCase()).length;
+                    const displayOrder = existingImageCount + newImagesForSameColorBefore + 1;
+                    variantImagesMetadata.push({
+                        display_order: displayOrder,
+                        values: { [colorAttributeName]: imgData.colorHex }
+                    });
+                }
+                if (variantImagesMetadata.length > 0) {
+                    formData.append('variant_images_meta', JSON.stringify(variantImagesMetadata));
+                }
             }
-            return { success: true, data: this.products[index] };
-        } catch (e) {
-            console.error("Failed to update product:", e.response?.data || e.message);
-            this.error = e.response?.data?.detail || 'فشل في تحديث المنتج.';
-            return { success: false, error: this.error };
-        } finally {
-            this.isLoading = false;
+
+            await api.patch(`products/products/${productId}/`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+        } else {
+            const apiPayload = this.convertToApiFormat({
+                ...dataToUpdate,
+                selectedProperties: dataToUpdate.properties,
+            });
+            await api.patch(`products/products/${productId}/`, apiPayload);
+        }
+
+        const freshDataResponse = await api.get(`products/products/${productId}/`);
+        const updatedProductInState = this.convertFromApiFormat(freshDataResponse.data);
+        const index = this.products.findIndex(p => p.id === productId);
+        if (index !== -1) {
+            this.products[index] = updatedProductInState;
+        }
+        return { success: true, data: this.products[index] };
+    } catch (e) {
+        console.error("Failed to update product:", e.response?.data || e.message);
+        this.error = e.response?.data?.detail || 'فشل في تحديث المنتج.';
+        return { success: false, error: this.error };
+    } finally {
+        this.isLoading = false;
+    }
+},
+
+    // Delete product image
+    async deleteProductImage(imageId) {
+        try {
+            await api.delete(`products/product-images/${imageId}/`);
+            return { success: true };
+        } catch (error) {
+            console.error(`Failed to delete image ${imageId}:`, error);
+            const errorMessage = error.response?.data?.detail || 'فشل في حذف الصورة.';
+            return { success: false, error: errorMessage };
         }
     },
 
@@ -604,4 +635,3 @@ export const useProductStore = defineStore('product', {
     },
   },
 });
-

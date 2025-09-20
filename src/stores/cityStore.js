@@ -195,7 +195,7 @@ export const useCityStore = defineStore('city', () => {
             return { success: true, data: newRegion };
         } catch (error) {
             console.error('Error adding region:', error);
-            const errorMessage = error.response?.data?.name?.[0] || 'خطأ في إضافة المنطقة';
+            const errorMessage = error.response?.data?.name?.[0] || error.response?.data?.non_field_errors || 'خطأ في إضافة المنطقة';
             return { success: false, error: errorMessage };
         }
     }
@@ -218,7 +218,7 @@ export const useCityStore = defineStore('city', () => {
             return { success: true };
         } catch (error) {
             console.error('Error editing region:', error);
-            const errorMessage = error.response?.data?.name?.[0] || 'خطأ في تعديل المنطقة';
+            const errorMessage = error.response?.data?.name?.[0] || error.response?.data?.non_field_errors?.[0] ||  'خطأ في تعديل المنطقة';
             return { success: false, error: errorMessage };
         }
     }
