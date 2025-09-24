@@ -90,19 +90,33 @@
                             <h5 class="mb-0"><i class="fas fa-star me-2"></i>تقييمات المنتجات</h5>
                         </div>
                         <div class="card-body scrollable-card-body">
-                            <div v-if="customerRatings.length > 0" class="ratings-list">
-                                <div v-for="rating in customerRatings" :key="rating.productId" 
+                            <div v-if="ratingsLoading" class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                <p class="mt-2 text-muted mb-0">جاري تحميل التقييمات...</p>
+                            </div>
+                            <div v-else-if="customerRatings.length > 0" class="ratings-list">
+                                <div v-for="rating in customerRatings" :key="rating.id" 
                                      class="rating-item" 
-                                     :class="{ 'has-comment': rating.comment }"
-                                     @click="rating.comment ? openCommentModal(rating) : null">
+                                     :class="{ 'has-comment': rating.comment && rating.comment.trim() }"
+                                     @click="rating.comment && rating.comment.trim() ? openCommentModal(rating) : null">
                                     <div class="rating-main-info">
-                                        <span class="rating-product-name">{{ rating.productName }}</span>
+                                        <div class="product-info">
+                                            <div class="product-image-container">
+                                                <img :src="rating.product_main_image" 
+                                                     :alt="rating.product_name"
+                                                     class="product-image"
+                                                     @error="handleImageError">
+                                            </div>
+                                            <span class="rating-product-name">{{ rating.product_name }}</span>
+                                        </div>
                                         <div class="rating-details">
                                             <div class="rating-stars">
                                                 <i v-for="i in 5" :key="i" class="fas fa-star"
                                                     :class="{ 'filled': i <= rating.rating }"></i>
                                             </div>
-                                            <span v-if="rating.comment" class="comment-status view-comment">
+                                            <span class="rating-date">{{ formatDate(rating.created_at) }}</span>
+                                            <span v-if="rating.comment && rating.comment.trim()" 
+                                                  class="comment-status view-comment">
                                                 عرض التعليق
                                             </span>
                                             <span v-else class="comment-status no-comment">
@@ -126,11 +140,18 @@
         <div v-if="isCommentModalVisible" class="comment-modal-backdrop" @click="closeCommentModal">
             <div class="comment-modal-content" @click.stop>
                 <div class="comment-modal-header">
-                    <h5 class="mb-0">تعليق على المنتج: {{ selectedComment.productName }}</h5>
+                    <h5 class="mb-0">تعليق على المنتج: {{ selectedComment.product_name }}</h5>
                     <button type="button" class="btn-close" @click="closeCommentModal"></button>
                 </div>
                 <div class="comment-modal-body">
-                    <textarea class="form-control" :value="selectedComment.comment" readonly rows="8"></textarea>
+                    <div class="rating-info mb-3">
+                        <div class="rating-stars">
+                            <i v-for="i in 5" :key="i" class="fas fa-star"
+                                :class="{ 'filled': i <= selectedComment.rating }"></i>
+                        </div>
+                        <span class="rating-value">{{ selectedComment.rating }}/5</span>
+                    </div>
+                    <textarea class="form-control" :value="selectedComment.comment" readonly rows="6"></textarea>
                 </div>
             </div>
         </div>
@@ -142,6 +163,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useCustomerStore } from '@/stores/customerStore';
 import { useOrderStore } from '@/stores/orderStore';
+import api from '@/api';
 import OrderDetails from '@/components/Order/OrderDetails.vue';
 
 const route = useRoute();
@@ -154,35 +176,62 @@ const error = ref(null);
 const isOrderDetailsVisible = ref(false);
 const selectedOrder = ref(null);
 
-// State for the new comment modal
+// State for ratings
+const customerRatings = ref([]);
+const ratingsLoading = ref(false);
+
+// State for the comment modal
 const isCommentModalVisible = ref(false);
 const selectedComment = ref(null);
 
 onMounted(async () => {
     const customerId = parseInt(route.params.id);
-    // Fetch all data concurrently
-    await Promise.all([
-        customerStore.fetchCustomers(),
-        orderStore.fetchOrders(),
-    ]);
-    customer.value = customerStore.getCustomerById(customerId);
-    if (!customer.value) {
-        error.value = `لم يتم العثور على عميل بالمعرف ${customerId}`;
+    
+    try {
+        // Fetch customer data and orders
+        await Promise.all([
+            customerStore.fetchCustomers(),
+            orderStore.fetchOrders(),
+        ]);
+        
+        customer.value = customerStore.getCustomerById(customerId);
+        
+        if (!customer.value) {
+            error.value = `لم يتم العثور على عميل بالمعرف ${customerId}`;
+            isLoading.value = false;
+            return;
+        }
+
+        // Fetch ratings for this customer
+        await fetchCustomerRatings(customerId);
+        
+    } catch (err) {
+        error.value = 'حدث خطأ أثناء تحميل بيانات العميل';
+        console.error('Error loading customer details:', err);
+    } finally {
+        isLoading.value = false;
     }
-    isLoading.value = false;
 });
+
+const fetchCustomerRatings = async (userId) => {
+    ratingsLoading.value = true;
+    try {
+        const response = await api.get(`/products/staff-ratings/?user=${userId}`);
+        customerRatings.value = response.data || [];
+    } catch (error) {
+        console.error('Error fetching customer ratings:', error);
+        customerRatings.value = [];
+    } finally {
+        ratingsLoading.value = false;
+    }
+};
 
 const customerOrders = computed(() => {
     if (!customer.value) return [];
     return orderStore.getOrdersByCustomerId(customer.value.id);
 });
 
-const customerRatings = computed(() => {
-    if (!customer.value) return [];
-    return orderStore.getCustomerProductRatings(customer.value.id);
-});
-
-// --- New Modal Functions ---
+// Modal functions
 const openCommentModal = (rating) => {
     selectedComment.value = rating;
     isCommentModalVisible.value = true;
@@ -192,7 +241,6 @@ const closeCommentModal = () => {
     isCommentModalVisible.value = false;
     selectedComment.value = null;
 };
-// --- End New Modal Functions ---
 
 const openOrderDetailsModal = (order) => {
     selectedOrder.value = order;
@@ -218,6 +266,11 @@ const getStatusBadgeClass = (status) => {
 const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString('ar-EG', options);
+};
+
+const handleImageError = (event) => {
+    event.target.src = '/placeholder-product.png'; // Add a placeholder image
+    event.target.onerror = null; // Prevent infinite loop
 };
 </script>
 
@@ -312,7 +365,7 @@ const formatDate = (dateString) => {
 .order-date { font-size: 0.9rem; color: #6c757d; }
 .order-total { font-weight: bold; font-size: 1.1rem; }
 
-/* --- Updated Rating Item Styles --- */
+/* Rating Item Styles */
 .rating-item {
     padding: 1rem;
     background-color: #f8f9fa;
@@ -331,20 +384,49 @@ const formatDate = (dateString) => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-}
-.rating-product-name { font-weight: 500; }
-.rating-details {
-    display: flex;
-    align-items: center;
     gap: 1rem;
 }
-.rating-stars { color: #ffc107; }
+.product-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+}
+.product-image-container {
+    flex-shrink: 0;
+}
+.product-image {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    object-fit: cover;
+    border: 1px solid #e9ecef;
+}
+.rating-product-name { 
+    font-weight: 500; 
+    flex: 1;
+    font-size: 0.95rem;
+}
+.rating-details {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+.rating-stars { 
+    color: #ffc107; 
+    font-size: 0.9rem;
+}
 .rating-stars .fa-star:not(.filled) { color: #e0e0e0; }
+.rating-date {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
 .comment-status {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 500;
-    padding: 4px 10px;
-    border-radius: 20px;
+    padding: 3px 8px;
+    border-radius: 12px;
     white-space: nowrap;
 }
 .view-comment {
@@ -356,7 +438,7 @@ const formatDate = (dateString) => {
     color: #6c757d;
 }
 
-/* --- New Comment Modal Styles --- */
+/* Comment Modal Styles */
 .comment-modal-backdrop {
     position: fixed;
     top: 0;
@@ -392,6 +474,18 @@ const formatDate = (dateString) => {
     background-color: #f8f9fa;
     border: 1px solid #ced4da;
 }
+.rating-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.rating-info .rating-stars {
+    font-size: 1.1rem;
+}
+.rating-value {
+    font-weight: 600;
+    color: #495057;
+}
 @keyframes modal-fade-in {
     from { opacity: 0; transform: translateY(-20px); }
     to { opacity: 1; transform: translateY(0); }
@@ -409,4 +503,21 @@ const formatDate = (dateString) => {
 .status-shipped { background-color: #f3e5f5; color: #a855f7; }
 .status-completed { background-color: #e8f5e9; color: #22c55e; }
 .status-cancelled { background-color: #ffebee; color: #ef4444; }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .rating-main-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    .rating-details {
+        align-items: flex-start;
+        flex-direction: row;
+        gap: 0.75rem;
+    }
+    .product-info {
+        width: 100%;
+    }
+}
 </style>

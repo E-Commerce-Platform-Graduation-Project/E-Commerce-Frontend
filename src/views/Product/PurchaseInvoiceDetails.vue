@@ -17,7 +17,7 @@
                     </p>
                 </div>
                 <router-link to="/purchase-invoices" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-right ms-2"></i> العودة إلى السجل
+                   العودة إلى السجل <i class="fas fa-arrow-left ms-2"></i> 
                 </router-link>
             </div>
 

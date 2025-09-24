@@ -11,6 +11,7 @@ import Orders from '@/views/Orders.vue'
 import DeliveryLocations from '@/views/DeliveryLocations.vue'
 import Categories from '@/views/Category/Categories.vue'
 import Products from '@/views/Product/Products.vue'
+import ProductRatings from '@/views/Product/ProductRatings.vue'
 import AddCategory from '@/views/Category/AddCategory.vue'
 import AddProduct from '@/views/Product/AddProduct.vue'
 import ProductProp from '@/views/Product/ProductProp.vue'
@@ -77,6 +78,13 @@ const routes = [
     component: Products,
     meta: { requiresAuth: true }
   },
+  {
+    path: '/product-ratings/:id',
+    name: 'ProductRatings',
+    component: ProductRatings,
+    props: true,
+    meta: { requiresAuth: true }
+  }, 
   {
     path: '/purchase-invoices/:id',
     name: 'PurchaseInvoiceDetails',

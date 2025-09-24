@@ -9,22 +9,18 @@
     'overflow-hidden',
     { 'sidebar-expanded': is_expanded }
   ]">
-    <!-- Logo Section (Fixed) -->
     <div class="sidebar-header p-3 text-center">
       <img :src="logoURL" alt="Vue" class="logo-img" />
       <p class="fw-bold">Flaww Store</p>
     </div>
 
-    <!-- Menu Toggle (Fixed) -->
     <div class="sidebar-toggle d-flex justify-content-end px-3 mb-3">
       <button class="btn btn-link p-0 menu-toggle-btn" @click="ToggleMenu" type="button">
         <span class="material-icons fs-2 text-secondary">keyboard_double_arrow_right</span>
       </button>
     </div>
 
-    <!-- Scrollable Content Area -->
     <div class="sidebar-content flex-grow-1 px-2">
-      <!-- Main Menu -->
       <div class="menu-section">
         <h6 class="sidebar-heading text-uppercase text-muted small fw-bold px-2 mb-2">
           القائمة الرئيسية
@@ -40,11 +36,18 @@
             <span class="material-icons me-3">group</span>
             <span class="sidebar-text">العملاء</span>
           </router-link>
+          
           <router-link to="/orders"
-            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded"
+            @click="resetOrderCount"
+            >
             <span class="material-icons me-3">shopping_basket</span>
             <span class="sidebar-text">الطلبات</span>
+            <span v-if="newOrderCount > 0" class="notification-badge ms-auto">
+              {{ newOrderCount }}
+            </span>
           </router-link>
+
           <router-link to="/delivery-locations"
             class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
             <span class="material-icons me-3">local_shipping</span>
@@ -53,7 +56,6 @@
         </nav>
       </div>
 
-      <!-- Categories -->
       <div class="menu-section">
         <h6 class="sidebar-heading text-uppercase text-muted small fw-bold px-2 mb-2">
           ادارة الفئات
@@ -106,7 +108,6 @@
       </div>
       
 
-      <!-- Employee Management (Admin Only) -->
       <div v-if="isAdmin" class="menu-section">
         <h6 class="sidebar-heading text-uppercase text-muted small fw-bold px-2 mb-2">
           ادارة الموظفين
@@ -125,7 +126,6 @@
         </nav>
       </div>
 
-      <!-- Settings -->
       <div class="menu-section">
         <h6 class="sidebar-heading text-uppercase text-muted small fw-bold px-2 mb-2">
           الاعدادات
@@ -140,7 +140,6 @@
       </div>
     </div>
 
-    <!-- User Profile Section (Fixed at bottom) -->
     <UserProfile :sidebar-expanded="is_expanded" />
   </aside>
 </template>
@@ -151,6 +150,7 @@ import { useRouter } from "vue-router";
 import logoURL from "../assets/icons/e-commerce-logo3.png";
 import { useAuthStore } from "../stores/authStore";
 import UserProfile from "./UserProfile.vue";
+import { useNotificationStore } from "../stores/notificationStore"; // Import notification store
 
 export default {
   components: {
@@ -160,6 +160,14 @@ export default {
     const is_expanded = ref(localStorage.getItem("is_expanded") === "true");
     const router = useRouter();
     const authStore = useAuthStore();
+    
+    // --- Notification Logic ---
+    const notificationStore = useNotificationStore();
+    const newOrderCount = computed(() => notificationStore.getNewOrderCount);
+    const resetOrderCount = () => {
+      notificationStore.resetNewOrderCount();
+    };
+    // -------------------------
 
     const ToggleMenu = () => {
       is_expanded.value = !is_expanded.value;
@@ -179,6 +187,9 @@ export default {
       is_expanded,
       logoURL,
       isAdmin,
+      // --- Expose to template ---
+      newOrderCount,
+      resetOrderCount,
     };
   },
 };
@@ -286,6 +297,7 @@ export default {
     color: var(--grey) !important;
     transition: all 0.2s ease-in-out;
     margin-bottom: 0.25rem;
+    position: relative; // Needed for badge positioning
 
     .material-icons {
       font-size: 1.5rem;
@@ -315,6 +327,23 @@ export default {
     }
   }
 
+  // --- ADDED: Styles for the notification badge ---
+  .notification-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: #dc3545; // Bootstrap danger red
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0; // Hidden by default
+    transition: opacity 0.3s ease-in-out;
+  }
+  // ------------------------------------------
+
   // Expanded state
   &.sidebar-expanded {
     width: var(--sidebar-width);
@@ -324,7 +353,8 @@ export default {
     }
 
     .sidebar-heading,
-    .sidebar-text {
+    .sidebar-text,
+    .notification-badge { // Make badge visible when expanded
       opacity: 1;
     }
   }

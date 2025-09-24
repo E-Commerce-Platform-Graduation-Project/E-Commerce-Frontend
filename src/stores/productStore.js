@@ -51,6 +51,7 @@ export const useProductStore = defineStore('product', {
     nextPageUrl: null,
     previousPageUrl: null,
     purchaseInvoices: [],
+    productRatings: {}, // Store ratings by product ID
     isLoading: false,
     error: null,
   }),
@@ -89,6 +90,30 @@ export const useProductStore = defineStore('product', {
     },
     getIsLoading: (state) => state.isLoading,
     getError: (state) => state.error,
+    
+    // NEW RATINGS GETTERS
+    getProductRatings: (state) => (productId) => {
+      return state.productRatings[productId] || [];
+    },
+    getProductAverageRating: (state) => (productId) => {
+      const ratings = state.productRatings[productId] || [];
+      if (ratings.length === 0) return 0;
+      const sum = ratings.reduce((acc, rating) => acc + rating.rating, 0);
+      return sum / ratings.length;
+    },
+    getProductRatingsCount: (state) => (productId) => {
+      return state.productRatings[productId]?.length || 0;
+    },
+    getProductRatingDistribution: (state) => (productId) => {
+      const ratings = state.productRatings[productId] || [];
+      const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      ratings.forEach(rating => {
+        if (distribution.hasOwnProperty(rating.rating)) {
+          distribution[rating.rating]++;
+        }
+      });
+      return distribution;
+    },
   },
 
   actions: {
@@ -190,6 +215,113 @@ export const useProductStore = defineStore('product', {
           const errorMessage = error.response?.data?.detail || 'فشل في جلب البيانات.';
           this.error = errorMessage;
           return { success: false };
+        } finally {
+          this.isLoading = false;
+        }
+    },
+
+    // NEW RATINGS ACTIONS
+    async fetchProductRatings(productId) {
+        if (!productId) return { success: false, error: 'معرف المنتج مطلوب' };
+        
+        try {
+          const response = await api.get(`products/staff-ratings/?product=${productId}`);
+          this.productRatings[productId] = response.data;
+          return { success: true, data: response.data };
+        } catch (error) {
+          console.error(`Error fetching ratings for product ${productId}:`, error);
+          const errorMessage = error.response?.data?.detail || 'فشل في جلب تقييمات المنتج.';
+          this.error = errorMessage;
+          this.productRatings[productId] = [];
+          return { success: false, error: errorMessage };
+        }
+    },
+
+    async submitProductRating(productId, ratingData) {
+        if (!productId || !ratingData) return { success: false, error: 'بيانات غير مكتملة' };
+        
+        this.isLoading = true;
+        this.error = null;
+        
+        try {
+          const payload = {
+            product: productId,
+            rating: ratingData.rating,
+            comment: ratingData.comment || ''
+          };
+          
+          const response = await api.post('products/staff-ratings/', payload);
+          
+          // Update local ratings cache
+          if (!this.productRatings[productId]) {
+            this.productRatings[productId] = [];
+          }
+          this.productRatings[productId].unshift(response.data);
+          
+          return { success: true, data: response.data };
+        } catch (error) {
+          console.error(`Error submitting rating for product ${productId}:`, error);
+          const errorMessage = error.response?.data?.detail || 'فشل في إرسال التقييم.';
+          this.error = errorMessage;
+          return { success: false, error: errorMessage };
+        } finally {
+          this.isLoading = false;
+        }
+    },
+
+    async updateProductRating(ratingId, ratingData) {
+        if (!ratingId || !ratingData) return { success: false, error: 'بيانات غير مكتملة' };
+        
+        this.isLoading = true;
+        this.error = null;
+        
+        try {
+          const response = await api.patch(`products/staff-ratings/${ratingId}/`, ratingData);
+          
+          // Update local ratings cache
+          Object.keys(this.productRatings).forEach(productId => {
+            const ratings = this.productRatings[productId];
+            const index = ratings.findIndex(r => r.id === ratingId);
+            if (index !== -1) {
+              this.productRatings[productId][index] = response.data;
+            }
+          });
+          
+          return { success: true, data: response.data };
+        } catch (error) {
+          console.error(`Error updating rating ${ratingId}:`, error);
+          const errorMessage = error.response?.data?.detail || 'فشل في تحديث التقييم.';
+          this.error = errorMessage;
+          return { success: false, error: errorMessage };
+        } finally {
+          this.isLoading = false;
+        }
+    },
+
+    async deleteProductRating(ratingId) {
+        if (!ratingId) return { success: false, error: 'معرف التقييم مطلوب' };
+        
+        this.isLoading = true;
+        this.error = null;
+        
+        try {
+          await api.delete(`products/staff-ratings/${ratingId}/`);
+          
+          // Remove from local ratings cache
+          Object.keys(this.productRatings).forEach(productId => {
+            const ratings = this.productRatings[productId];
+            const index = ratings.findIndex(r => r.id === ratingId);
+            if (index !== -1) {
+              this.productRatings[productId].splice(index, 1);
+            }
+          });
+          
+          return { success: true };
+        } catch (error) {
+          console.error(`Error deleting rating ${ratingId}:`, error);
+          const errorMessage = error.response?.data?.detail || 'فشل في حذف التقييم.';
+          this.error = errorMessage;
+          return { success: false, error: errorMessage };
         } finally {
           this.isLoading = false;
         }

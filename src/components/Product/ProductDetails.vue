@@ -85,41 +85,39 @@
                         </div>
                     </div>
 
+                    <!-- Simplified Ratings Section -->
                     <div class="border-top pt-4 mt-2">
-                        <h5 class="mb-3 text-success"><i class="fas fa-receipt me-2"></i>سجل فواتير الشراء</h5>
-                        <div v-if="purchaseHistoryItems.length > 0" class="invoice-list">
-                            <div class="invoice-item header">
-                                <div class="invoice-date">التاريخ</div>
-                                <div class="invoice-properties">الخواص</div>
-                                <div class="invoice-qty">الكمية</div>
-                                <div class="invoice-price">سعر الشراء</div>
-                            </div>
-                            <div v-for="item in purchaseHistoryItems"
-                                :key="`${item.invoiceId}-${JSON.stringify(item.properties)}`" class="invoice-item">
-                                <div class="invoice-date">{{ formatDate(item.date) }}</div>
-                                <div class="invoice-properties">
-                                    <div class="props-display">
-                                        <!-- MODIFIED: Logic now uses a helper to identify color properties -->
-                                        <span v-for="(value, propName) in item.properties" :key="propName" class="prop-chip">
-                                            <span v-if="isHexColor(value)" class="prop-color-dot" :style="{ backgroundColor: value }"></span>
-                                            <strong class="prop-name">{{ propName }}:</strong>
-                                            {{ value }}
-                                        </span>
+                        <h5 class="mb-3 text-success">
+                            <i class="fas fa-star me-2"></i>تقييمات المنتج
+                        </h5>
+                        
+                        <!-- Simple link to ratings page -->
+                        <router-link 
+                            :to="{ name: 'ProductRatings', params: { id: product.id } }" 
+                            class="rating-summary-card text-decoration-none"
+                            @click="handleClose"
+                        >
+                            <div class="p-4 bg-light rounded border rating-hover-effect">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <h6 class="mb-2 text-dark">عرض تقييمات المنتج</h6>
+                                        <p class="text-muted mb-0">
+                                            <i class="fas fa-comments me-2"></i>
+                                            اضغط لعرض جميع التقييمات والتعليقات
+                                        </p>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <i class="fas fa-chevron-left fs-3 text-muted"></i>
+                                        <div class="small text-muted mt-1">عرض التقييمات</div>
                                     </div>
                                 </div>
-                                <div class="invoice-qty">+{{ item.quantityAdded }}</div>
-                                <div class="invoice-price purchase">{{ item.purchasePrice }} دينار</div>
                             </div>
-                        </div>
-                        <div v-else class="text-center text-muted p-3 bg-light rounded">
-                            <p class="mb-0">لا يوجد سجل فواتير شراء لهذا المنتج.</p>
-                        </div>
+                        </router-link>
                     </div>
                 </div>
 
                 <div class="modal-footer bg-light">
-                    <!-- ... (modal footer is unchanged) ... -->
-                    <button type="button" class="btn btn-secondary" @click="$emit('close')">
+                    <button type="button" class="btn btn-secondary" @click="handleClose">
                         إغلاق<i class="fas fa-times me-2"></i>
                     </button>
                     <button type="button" class="btn btn-warning" @click="$emit('edit-product', product)">
@@ -132,15 +130,18 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { useProductStore } from '@/stores/productStore';
+import { useRoute, useRouter } from 'vue-router';
 
 const props = defineProps({ product: { type: Object, required: true } });
-defineEmits(['close', 'edit-product']);
+const emit = defineEmits(['close', 'edit-product']);
 
 const categoryStore = useCategoryStore();
 const productStore = useProductStore();
+const route = useRoute();
+const router = useRouter();
 const activeImage = ref('');
 
 const allImages = computed(() => {
@@ -161,56 +162,11 @@ const setActiveImage = (image) => {
     activeImage.value = image;
 };
 
-// NEW: Helper to check if a string is a hex color code.
+// Helper to check if a string is a hex color code.
 const isHexColor = (value) => {
   if (typeof value !== 'string') return false;
   return /^#[0-9A-F]{6}$/i.test(value);
 };
-
-// MODIFIED: Simplified SKU parsing logic, which was already format-based and robust.
-const purchaseHistoryItems = computed(() => {
-  const invoices = productStore.getInvoicesByProductId(props.product.id);
-  const allItems = [];
-  
-  invoices.forEach(invoice => {
-    const productItems = invoice.items?.filter(item => 
-      item.productName === props.product.name || item.productId === props.product.id
-    ) || [];
-
-    productItems.forEach(item => {
-      let properties = {};
-      
-      if (item.variantSku) {
-          // This logic is based on SKU format, which is fine.
-          const skuParts = item.variantSku.split('-');
-          const colorPart = skuParts.find(part => isHexColor(part));
-          if (colorPart) properties.color = colorPart;
-
-          // Find other attributes by excluding known parts
-          const nonProductParts = skuParts.slice(1); // Exclude product code
-          const otherAttrs = nonProductParts.filter(p => !isHexColor(p));
-          
-          // A simple assumption: last non-color part is size/dimension
-          if (otherAttrs.length > 0) {
-              properties['المقاس'] = otherAttrs[otherAttrs.length - 1];
-          }
-
-      } else if (item.properties) {
-        properties = item.properties;
-      }
-
-      allItems.push({
-        invoiceId: invoice.id,
-        date: invoice.date,
-        properties: properties,
-        quantityAdded: item.quantity || item.quantityToAdd || 0,
-        purchasePrice: item.costPerUnit || item.purchasePrice || 0
-      });
-    });
-  });
-  
-  return allItems.sort((a, b) => new Date(b.date) - new Date(a.date));
-});
 
 const calculatedProfit = computed(() => {
     if (props.product.sellingPrice > 0 && props.product.purchasePrice > 0) {
@@ -234,6 +190,25 @@ const getCategoryHierarchyDisplay = (categoryId) => {
 const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString('ar-EG', options);
+};
+
+// Handle closing modal and clean up URL parameters
+const handleClose = () => {
+    // Check if we came from ratings (has openProduct query parameter)
+    if (route.query.openProduct) {
+        // Remove the query parameter from URL without reloading
+        const newQuery = { ...route.query };
+        delete newQuery.openProduct;
+        
+        router.replace({
+            name: route.name,
+            params: route.params,
+            query: newQuery
+        });
+    }
+    
+    // Emit the close event
+    emit('close');
 };
 </script>
 
@@ -312,75 +287,32 @@ p {
     font-size: 1.05rem;
 }
 
-.invoice-list {
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    overflow: hidden;
+/* --- RATINGS STYLES --- */
+.rating-summary-card {
+    display: block;
+    cursor: pointer;
 }
 
-.invoice-item {
-    display: grid;
-    grid-template-columns: 1.5fr 2fr 0.8fr 1.2fr;
-    gap: 1rem;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #e9ecef;
-    text-align: right;
-    align-items: center;
+.rating-hover-effect {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
 }
 
-.invoice-item:last-child {
-    border-bottom: none;
+.rating-hover-effect:hover {
+    border-color: #198754;
+    box-shadow: 0 4px 12px rgba(25, 135, 84, 0.2);
+    transform: translateY(-2px);
 }
 
-.invoice-item.header {
-    background-color: #f8f9fa;
-    font-weight: 600;
-    color: #495057;
-    font-size: 0.9rem;
+.rating-stars {
+    font-size: 1.2rem;
 }
 
-.invoice-qty {
-    font-weight: bold;
-    color: #198754;
-}
-
-.invoice-price.purchase {
-    color: #6c757d;
+.rating-stars i {
+    margin-right: 2px;
 }
 
 .text-primary { color: #0d6efd !important; }
 .text-warning { color: #ffc107 !important; }
 .text-info { color: #0dcaf0 !important; }
-
-/* --- NEW STYLES FOR PROPERTIES DISPLAY --- */
-.props-display {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: center;
-    justify-content: flex-start;
-}
-
-.prop-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background-color: #eef2ff;
-    color: #4338ca;
-    padding: 4px 10px;
-    border-radius: 16px;
-    font-size: 13px;
-    font-weight: 500;
-}
-
-.prop-color-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.prop-name {
-    color: #64748b;
-}
 </style>

@@ -109,7 +109,6 @@
           </div>
           <div class="customer-details">
             <div class="customer-name">{{ customer.full_name }}</div>
-            <div class="customer-role">{{ customer.role === 'CUSTOMER' ? 'عميل' : customer.role }}</div>
           </div>
         </div>
 
@@ -611,14 +610,6 @@ const getEmptyStateMessage = () => {
   margin-bottom: 4px;
 }
 
-.customer-role {
-  font-size: 12px;
-  color: #6c757d;
-  background-color: #f8f9fa;
-  padding: 2px 8px;
-  border-radius: 12px;
-  display: inline-block;
-}
 
 .customer-phone,
 .customer-email,

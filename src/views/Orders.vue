@@ -121,13 +121,20 @@ import { useProductStore } from '@/stores/productStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { useOrderStore } from '@/stores/orderStore';
 import { useCustomerStore } from '@/stores/customerStore';
+import { useNotificationStore } from '@/stores/notificationStore';
 import OrdersList from '@/components/Order/OrdersList.vue';
 import OrderDetails from '@/components/Order/OrderDetails.vue';
 
+// --- Import Firestore functions ---
+import { db } from '@/firebase';
+import { collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
+
+// Store instances
 const productStore = useProductStore();
 const categoryStore = useCategoryStore();
 const orderStore = useOrderStore();
 const customerStore = useCustomerStore();
+const notificationStore = useNotificationStore();
 
 // State for filters and modals
 const searchQuery = ref('');
@@ -165,6 +172,36 @@ const filteredOrders = computed(() => {
   return orders;
 });
 
+// --- NEW FUNCTION: Mark all notifications as read ---
+const markAllNotificationsAsRead = async () => {
+  console.log("Marking unread notifications as read...");
+  
+  // 1. Find all unread notifications
+  const unreadQuery = query(collection(db, 'notifications'), where('is_read', '==', false));
+  const querySnapshot = await getDocs(unreadQuery);
+
+  if (querySnapshot.empty) {
+    console.log("No unread notifications to mark.");
+    // Still reset the count in case it's out of sync
+    notificationStore.resetNewOrderCount();
+    return;
+  }
+
+  // 2. Use a batched write to update them all at once
+  const batch = writeBatch(db);
+  querySnapshot.forEach(doc => {
+    batch.update(doc.ref, { is_read: true });
+  });
+
+  // 3. Commit the batch
+  await batch.commit();
+  console.log(`Successfully marked ${querySnapshot.size} notifications as read.`);
+  
+  // 4. Reset the count in the store
+  notificationStore.resetNewOrderCount();
+};
+
+
 // Methods
 const getStatusBadgeClass = (status) => {
     const statusClasses = {
@@ -172,7 +209,7 @@ const getStatusBadgeClass = (status) => {
         'قيد التجهيز': 'status-processing',
         'في الطريق الى الزبون': 'status-shipped',
         'ملغي': 'status-cancelled',
-        'قيد الانتظار': 'status-pending',
+        'قيد الانتظार': 'status-pending',
     };
     return statusClasses[status] || 'status-default';
 };
@@ -186,7 +223,6 @@ const closeErrorModal = () => {
   showErrorModal.value = false;
   modalErrorMessage.value = '';
   
-  // Ensure the confirmation modal is also closed when error modal is closed
   if (showConfirmModal.value) {
     cancelStatusUpdate();
   }
@@ -194,7 +230,6 @@ const closeErrorModal = () => {
 
 const displaySuccessModal = () => {
   showSuccessModal.value = true;
-  // Auto close after 2 seconds
   setTimeout(() => {
     closeSuccessModal();
   }, 2000);
@@ -205,6 +240,9 @@ const closeSuccessModal = () => {
 };
 
 onMounted(async () => {
+  // Call the new function when the page loads
+  markAllNotificationsAsRead();
+
   try {
     await Promise.all([
       orderStore.fetchOrders(),
@@ -249,35 +287,23 @@ const confirmStatusUpdate = async () => {
   updating.value = true;
   
   try {
-    // Call the store action and handle the response like cityStore pattern
     const result = await orderStore.updateOrderStatus(selectedOrder.value.id, newStatus.value);
     
-    // Handle the response based on the success property (like cityStore pattern)
     if (result.success) {
-      // Success case - close the confirmation modal and show success
       cancelStatusUpdate();
       displaySuccessModal();
     } else {
-      // Handle error case - close confirmation modal first, then show error
-      cancelStatusUpdate(); // Close the confirmation modal
-      
-      // Handle error case using the error property from result
+      cancelStatusUpdate();
       const errorMessage = result.error || 'فشل في تحديث حالة الطلب.';
       displayErrorModal(errorMessage);
     }
   } catch (error) {
     console.error('Error updating order status:', error);
-    
-    // Close confirmation modal first, then show error
     cancelStatusUpdate();
     
-    // Handle different types of errors (similar to cityStore pattern)
     let errorMessage = 'حدث خطأ أثناء تحديث حالة الطلب.';
-    
     if (error.response) {
-      // API error response
       if (error.response.data) {
-        // Check for different error message formats
         if (error.response.data.non_field_errors) {
           errorMessage = error.response.data.non_field_errors[0];
         } else if (error.response.data.message) {
@@ -289,7 +315,6 @@ const confirmStatusUpdate = async () => {
         }
       }
       
-      // Handle specific HTTP status codes
       if (error.response.status === 404) {
         errorMessage = 'الطلب غير موجود.';
       } else if (error.response.status === 403) {

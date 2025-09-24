@@ -139,6 +139,9 @@ import { useCategoryStore } from '@/stores/categoryStore';
 import EditProduct from '@/components/Product/EditProduct.vue';
 import ProductDetails from '@/components/Product/ProductDetails.vue';
 import ProductsList from '@/components/Product/ProductsList.vue';
+import { useRoute } from 'vue-router';
+
+const route = useRoute();
 
 const productStore = useProductStore();
 const categoryStore = useCategoryStore();
@@ -274,6 +277,11 @@ watch(searchQuery, (newQuery) => {
 onMounted(() => {
   productStore.fetchProducts(); // Fetch initial data for page 1
   categoryStore.fetchCategories();
+  const openProductId = route.query.openProduct;
+  if (openProductId) {
+    // Fetch the product details and open the modal
+    openDetailsModal({ id: parseInt(openProductId) });
+  }
 });
 
 // --- NEW: Method to change pages ---
