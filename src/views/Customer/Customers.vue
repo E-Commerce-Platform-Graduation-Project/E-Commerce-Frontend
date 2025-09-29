@@ -45,7 +45,7 @@
       <div class="col-md-8">
         <div class="search-filter-container">
           <div class="search-container">
-            <input v-model="searchQuery" type="text" placeholder="البحث برقم الهاتف ..."
+            <input v-model="searchQuery" type="text" placeholder="البحث بالاسم او برقم الهاتف ..."
               class="form-control search-input" />
             <i class="fas fa-search search-icon"></i>
           </div>
@@ -85,7 +85,7 @@
           <strong>خطأ!</strong> {{ customerStore.getError }}
         </div>
       </div>
-      <button @click="customerStore.fetchCustomers(searchQuery)" class="btn btn-danger btn-sm mt-2">
+      <button @click="customerStore.fetchCustomers({ page: currentPage, search: searchQuery })" class="btn btn-danger btn-sm mt-2">
         <i class="fas fa-redo mr-1"></i>
         إعادة المحاولة
       </button>
@@ -100,7 +100,7 @@
         <div class="header-item">الحالة</div>
       </div>
 
-      <div v-for="customer in paginatedCustomers" :key="customer.id"
+      <div v-for="customer in filteredCustomers" :key="customer.id"
         :class="['customer-row', { 'disabled-customer': !customer.is_active }]" @click="viewCustomerDetails(customer)">
         <div class="customer-info">
           <div class="customer-avatar">
@@ -124,7 +124,7 @@
 
         <div class="registration-date">
           <i class="fas fa-calendar-alt"></i>
-          {{ formatDate(customer.registration_date) }}
+          {{ formatDate(customer.last_login) }}
         </div>
 
         <div @click.stop>
@@ -137,7 +137,7 @@
         </div>
       </div>
 
-      <div v-if="paginatedCustomers.length === 0" class="empty-state">
+      <div v-if="filteredCustomers.length === 0" class="empty-state">
         <i class="fas fa-users"></i>
         <p>لا يوجد عملاء {{ getEmptyStateMessage() }}</p>
       </div>
@@ -168,9 +168,8 @@
 
       <div class="page-size-selector">
         <label for="pageSize">عدد العملاء في الصفحة:</label>
-        <select id="pageSize" v-model="itemsPerPage" @change="onPageSizeChange" class="page-size-select">
+        <select id="pageSize" v-model="itemsPerPage" class="page-size-select" disabled>
           <option value="10">10</option>
-          <option value="20">20</option>
         </select>
       </div>
     </div>
@@ -219,6 +218,7 @@ const modalMessage = ref('');
 const filteredCustomers = computed(() => {
   let customers = customerStore.getAllCustomers;
 
+  // Apply client-side status filter
   if (statusFilter.value === 'active') {
     customers = customers.filter(customer => customer.is_active === true);
   } else if (statusFilter.value === 'inactive') {
@@ -228,7 +228,7 @@ const filteredCustomers = computed(() => {
   return customers;
 });
 
-const totalCustomers = computed(() => filteredCustomers.value.length);
+const totalCustomers = computed(() => customerStore.getCustomersCount);
 
 const totalPages = computed(() => {
   if (totalCustomers.value === 0) return 1;
@@ -240,10 +240,6 @@ const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value);
 const endIndex = computed(() => {
   const end = startIndex.value + itemsPerPage.value;
   return Math.min(end, totalCustomers.value);
-});
-
-const paginatedCustomers = computed(() => {
-  return filteredCustomers.value.slice(startIndex.value, endIndex.value);
 });
 
 const visiblePages = computed(() => {
@@ -278,7 +274,7 @@ watch(searchQuery, (newQuery) => {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
     currentPage.value = 1;
-    customerStore.fetchCustomers(newQuery);
+    customerStore.fetchCustomers({ page: 1, search: newQuery });
   }, 500);
 });
 
@@ -291,17 +287,14 @@ watch(totalPages, (newTotalPages) => {
 });
 
 onMounted(() => {
-  customerStore.fetchCustomers();
+  customerStore.fetchCustomers({ page: 1 });
 });
 
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value && typeof page === 'number') {
     currentPage.value = page;
+    customerStore.fetchCustomers({ page: page, search: searchQuery.value });
   }
-};
-
-const onPageSizeChange = () => {
-  currentPage.value = 1;
 };
 
 const viewCustomerDetails = (customer) => {
@@ -329,7 +322,7 @@ const confirmToggleStatus = async () => {
   const result = await customerStore.toggleCustomerStatus(customer.id, !customer.is_active);
 
   if (result.success) {
-    await customerStore.fetchCustomers(searchQuery.value);
+    await customerStore.fetchCustomers({ page: currentPage.value, search: searchQuery.value });
     closeModal();
   } else {
     alert(`حدث خطأ أثناء تحديث حالة العميل`);
@@ -339,6 +332,7 @@ const confirmToggleStatus = async () => {
 };
 
 const formatDate = (dateString) => {
+  if (!dateString) return 'لم يسجل الدخول بعد';
   const date = new Date(dateString);
   return date.toLocaleDateString('ar-EG', {
     year: 'numeric', month: 'long', day: 'numeric'

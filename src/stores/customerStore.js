@@ -1,70 +1,71 @@
 import { defineStore } from 'pinia'
-import api from '@/api' // Import the centralized api
+import api from '@/api'
 
 export const useCustomerStore = defineStore('customer', {
   state: () => ({
     customers: [],
     isLoading: false,
     error: null,
+    totalCount: 0,
+    nextPage: null,
+    previousPage: null,
   }),
 
   getters: {
-    // Get all customers (this list is now the result of the last API fetch/search)
     getAllCustomers: (state) => state.customers,
-
-    // Get active customers only
+    
     getActiveCustomers: (state) => state.customers.filter(customer => customer.is_active === true),
-
-    // Get disabled customers only
+    
     getDisabledCustomers: (state) => state.customers.filter(customer => customer.is_active === false),
-
-    // Get customer by ID
+    
     getCustomerById: (state) => (id) => state.customers.find(customer => customer.id === id),
-
-    // Get loading state
+    
     getIsLoading: (state) => state.isLoading,
-
-    // Get error message
+    
     getError: (state) => state.error,
     
-    // Get customers count
-    getCustomersCount: (state) => state.customers.length,
-
-    // Get active customers count
+    getCustomersCount: (state) => state.totalCount,
+    
     getActiveCustomersCount: (state) => state.customers.filter(customer => customer.is_active === true).length,
-
-    // Get disabled customers count
+    
     getDisabledCustomersCount: (state) => state.customers.filter(customer => customer.is_active === false).length,
   },
 
   actions: {
     /**
-     * Fetch customers from the API.
-     * Can be used for both fetching all customers and searching.
-     * @param {string} searchQuery - The search term to filter customers by on the backend.
+     * Fetch customers from the API with pagination support
+     * @param {Object} params - Query parameters
+     * @param {number} params.page - Page number (default: 1)
+     * @param {string} params.search - Search query
      */
-    async fetchCustomers(searchQuery = '') {
+    async fetchCustomers({ page = 1, search = '' } = {}) {
       this.isLoading = true
       this.error = null
 
-      // Use the search API endpoint if a query is provided
-      let endpoint = '/users/customers/';
-      if (searchQuery && searchQuery.trim() !== '') {
-        endpoint += `?search=${encodeURIComponent(searchQuery.trim())}`;
-      }
+      const params = new URLSearchParams()
+      if (page) params.append('page', page)
+      if (search && search.trim() !== '') params.append('search', search.trim())
+
+      const endpoint = `/users/customers/?${params.toString()}`
 
       try {
         const response = await api.get(endpoint)
-        this.customers = response.data
+        
+        // Extract paginated data
+        this.customers = response.data.results || []
+        this.totalCount = response.data.count || 0
+        this.nextPage = response.data.next
+        this.previousPage = response.data.previous
         
         return {
           success: true,
           data: this.customers,
-          count: this.customers.length
+          count: this.totalCount
         }
       } catch (error) {
         this.error = 'حدث خطأ أثناء تحميل بيانات العملاء'
-        this.customers = [] // Clear data on error
+        this.customers = []
+        this.totalCount = 0
         console.error('Fetch customers error:', error)
         return {
           success: false,
@@ -75,7 +76,6 @@ export const useCustomerStore = defineStore('customer', {
       }
     },
 
-    // Toggle customer active status
     async toggleCustomerStatus(customerId, newStatus) {
       this.isLoading = true
       this.error = null
@@ -85,7 +85,6 @@ export const useCustomerStore = defineStore('customer', {
           is_active: newStatus
         })
 
-        // Update customer in local state
         const customerIndex = this.customers.findIndex(c => c.id === customerId)
         if (customerIndex !== -1) {
           this.customers[customerIndex] = response.data
@@ -107,7 +106,6 @@ export const useCustomerStore = defineStore('customer', {
       }
     },
 
-    // Clear error
     clearError() {
       this.error = null
     },

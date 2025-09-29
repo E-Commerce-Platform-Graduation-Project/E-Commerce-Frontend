@@ -14,7 +14,6 @@
               class="form-control search-input" />
             <i class="fas fa-search search-icon"></i>
           </div>
-          <!-- Product Filters -->
           <div class="filter-container">
             <select v-model="statusFilter" class="form-control status-filter">
               <option value="all">كل الحالات</option>
@@ -22,6 +21,17 @@
             </select>
             <i class="fas fa-chevron-down filter-icon"></i>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pagination Info Display -->
+    <div v-if="!isLoading && !error && totalOrders > 0" class="row mb-3">
+      <div class="col-12">
+        <div class="pagination-info">
+          <span class="info-text">
+            عرض {{ totalOrders > 0 ? startIndex + 1 : 0 }} - {{ endIndex }} من {{ totalOrders }} طلب
+          </span>
         </div>
       </div>
     </div>
@@ -41,6 +51,37 @@
     <div v-else class="text-center py-5">
       <i class="fas fa-file-invoice fa-4x text-muted mb-3"></i>
       <h4 class="text-muted">لا توجد طلبات تطابق الفلتر</h4>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div v-if="!isLoading && !error && totalOrders > 0" class="pagination-container">
+      <div class="pagination-wrapper">
+        <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="pagination-btn prev-btn">
+          <i class="fas fa-chevron-right"></i>
+          السابق
+        </button>
+
+        <div class="page-numbers">
+          <button v-for="page in visiblePages" :key="page" @click="goToPage(page)"
+            :class="['page-number', { 'active': page === currentPage, 'disabled': typeof page !== 'number' }]"
+            :disabled="typeof page !== 'number'">
+            {{ page }}
+          </button>
+        </div>
+
+        <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages"
+          class="pagination-btn next-btn">
+          التالي
+          <i class="fas fa-chevron-left"></i>
+        </button>
+      </div>
+
+      <div class="page-size-selector">
+        <label for="pageSize">عدد الطلبات في الصفحة:</label>
+        <select id="pageSize" v-model="itemsPerPage" class="page-size-select" disabled>
+          <option value="10">10</option>
+        </select>
+      </div>
     </div>
 
     <!-- Order Details Modal -->
@@ -116,7 +157,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useProductStore } from '@/stores/productStore';
 import { useCategoryStore } from '@/stores/categoryStore';
 import { useOrderStore } from '@/stores/orderStore';
@@ -125,7 +166,7 @@ import { useNotificationStore } from '@/stores/notificationStore';
 import OrdersList from '@/components/Order/OrdersList.vue';
 import OrderDetails from '@/components/Order/OrderDetails.vue';
 
-// --- Import Firestore functions ---
+// Import Firestore functions
 import { db } from '@/firebase';
 import { collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 
@@ -155,16 +196,55 @@ const modalErrorMessage = ref('');
 // Success modal state
 const showSuccessModal = ref(false);
 
+// Pagination state
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+
 // Computed properties
 const isLoading = computed(() => orderStore.isLoading || customerStore.isLoading);
 const error = computed(() => orderStore.error || customerStore.error);
 
+const totalOrders = computed(() => orderStore.getOrdersCount);
+
+const totalPages = computed(() => {
+  if (totalOrders.value === 0) return 1;
+  return Math.ceil(totalOrders.value / itemsPerPage.value);
+});
+
+const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value);
+
+const endIndex = computed(() => {
+  const end = startIndex.value + itemsPerPage.value;
+  return Math.min(end, totalOrders.value);
+});
+
+const visiblePages = computed(() => {
+  const pages = [];
+  const total = totalPages.value;
+  const current = currentPage.value;
+
+  if (total <= 1) return [];
+
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (current > 4) pages.push('...');
+    const start = Math.max(2, current - 2);
+    const end = Math.min(total - 1, current + 2);
+    for (let i = start; i <= end; i++) {
+      if (i > 1 && !pages.includes(i)) pages.push(i);
+    }
+    if (current < total - 3) pages.push('...');
+    if (!pages.includes(total)) pages.push(total);
+  }
+  return pages;
+});
+
+// Apply client-side filters to paginated data
 const filteredOrders = computed(() => {
   let orders = orderStore.getAllOrders;
 
-  if (searchQuery.value) {
-    orders = orders.filter(order => order.id.toString().includes(searchQuery.value));
-  }
   if (statusFilter.value !== 'all') {
     orders = orders.filter(order => order.status === statusFilter.value);
   }
@@ -172,35 +252,38 @@ const filteredOrders = computed(() => {
   return orders;
 });
 
-// --- NEW FUNCTION: Mark all notifications as read ---
+// Watcher for search query with debounce
+let debounceTimer = null;
+watch(searchQuery, (newQuery) => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    currentPage.value = 1;
+    orderStore.fetchOrders({ page: 1, search: newQuery });
+  }, 500);
+});
+
+// Mark all notifications as read
 const markAllNotificationsAsRead = async () => {
   console.log("Marking unread notifications as read...");
   
-  // 1. Find all unread notifications
   const unreadQuery = query(collection(db, 'notifications'), where('is_read', '==', false));
   const querySnapshot = await getDocs(unreadQuery);
 
   if (querySnapshot.empty) {
     console.log("No unread notifications to mark.");
-    // Still reset the count in case it's out of sync
     notificationStore.resetNewOrderCount();
     return;
   }
 
-  // 2. Use a batched write to update them all at once
   const batch = writeBatch(db);
   querySnapshot.forEach(doc => {
     batch.update(doc.ref, { is_read: true });
   });
 
-  // 3. Commit the batch
   await batch.commit();
   console.log(`Successfully marked ${querySnapshot.size} notifications as read.`);
-  
-  // 4. Reset the count in the store
   notificationStore.resetNewOrderCount();
 };
-
 
 // Methods
 const getStatusBadgeClass = (status) => {
@@ -209,7 +292,7 @@ const getStatusBadgeClass = (status) => {
         'قيد التجهيز': 'status-processing',
         'في الطريق الى الزبون': 'status-shipped',
         'ملغي': 'status-cancelled',
-        'قيد الانتظार': 'status-pending',
+        'قيد الانتظار': 'status-pending',
     };
     return statusClasses[status] || 'status-default';
 };
@@ -239,8 +322,14 @@ const closeSuccessModal = () => {
   showSuccessModal.value = false;
 };
 
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value && typeof page === 'number') {
+    currentPage.value = page;
+    orderStore.fetchOrders({ page: page, search: searchQuery.value });
+  }
+};
+
 onMounted(async () => {
-  // Call the new function when the page loads
   markAllNotificationsAsRead();
 
   try {
@@ -348,12 +437,12 @@ const confirmStatusUpdate = async () => {
 
 .search-input,
 .status-filter {
-  padding: 12px 45px 12px 20px;
+  padding: 18px 50px 18px 20px;
   border: 2px solid #e9ecef;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 18px;
   background-color: white;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   text-align: right;
   direction: rtl;
@@ -364,20 +453,21 @@ const confirmStatusUpdate = async () => {
 .status-filter:focus {
   outline: none;
   border-color: #007bff;
-  box-shadow: 0 2px 10px rgba(0, 123, 255, 0.15);
+  box-shadow: 0 4px 20px rgba(0, 123, 255, 0.2);
 }
 
 .search-icon {
   position: absolute;
-  right: 18px;
+  right: 20px;
   top: 50%;
   transform: translateY(-50%);
   color: #6c757d;
+  font-size: 18px;
 }
 
 .filter-container {
   position: relative;
-  flex-basis: 220px;
+  min-width: 220px;
 }
 
 .status-filter {
@@ -393,6 +483,132 @@ const confirmStatusUpdate = async () => {
   transform: translateY(-50%);
   color: #6c757d;
   pointer-events: none;
+}
+
+/* Pagination Info */
+.pagination-info {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.info-text {
+  color: #6c757d;
+  font-size: 14px;
+  background-color: #f8f9fa;
+  padding: 8px 16px;
+  border-radius: 20px;
+  display: inline-block;
+}
+
+/* Pagination Controls */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 30px;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.pagination-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pagination-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #007bff;
+  color: #007bff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 5px;
+  margin: 0 15px;
+}
+
+.page-number {
+  min-width: 40px;
+  height: 40px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-number:hover:not(.disabled) {
+  border-color: #007bff;
+  color: #007bff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+}
+
+.page-number.active {
+  border-color: #007bff;
+  background: #007bff;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+}
+
+.page-number.disabled {
+  cursor: default;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #495057;
+}
+
+.page-size-select {
+  padding: 8px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.page-size-select:focus {
+  outline: none;
+  border-color: #007bff;
 }
 
 /* Modal Status Styling */

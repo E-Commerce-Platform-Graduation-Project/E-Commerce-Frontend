@@ -1,17 +1,17 @@
 import { defineStore } from 'pinia';
 import { useProductStore } from './productStore';
-import { useCustomerStore } from './customerStore'; // Make sure this path is correct
-import api from '@/api'; // IMPORT YOUR CENTRALIZED API INSTANCE
+import { useCustomerStore } from './customerStore';
+import api from '@/api';
 
 export const useOrderStore = defineStore('order', {
   state: () => ({
     orders: [],
+    ordersCount: 0, // Total count from API
     isLoading: false,
     error: null,
   }),
 
   getters: {
-    // No changes needed for the getters.
     getAllOrders: (state) => {
         const productStore = useProductStore();
         const sortedOrders = [...state.orders].sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
@@ -28,6 +28,7 @@ export const useOrderStore = defineStore('order', {
             }),
         }));
     },
+    
     getOrderById: (state) => (orderId) => {
         const productStore = useProductStore();
         const order = state.orders.find(order => order.id === orderId);
@@ -48,6 +49,7 @@ export const useOrderStore = defineStore('order', {
             }),
         };
     },
+    
     getOrdersByCustomerId: (state) => (customerId) => {
       const productStore = useProductStore();
       return state.orders
@@ -64,6 +66,7 @@ export const useOrderStore = defineStore('order', {
           }),
         }));
     },
+    
     getCustomerProductRatings: (state) => (customerId) => {
         const productStore = useProductStore();
         const customerOrders = state.orders
@@ -90,12 +93,13 @@ export const useOrderStore = defineStore('order', {
         return Array.from(ratingsMap.values());
     },
 
+    getOrdersCount: (state) => state.ordersCount,
     getIsLoading: (state) => state.isLoading,
     getError: (state) => state.error,
   },
 
   actions: {
-    async fetchOrders() {
+    async fetchOrders({ page = 1, search = '' } = {}) {
         this.isLoading = true;
         this.error = null;
         try {
@@ -106,9 +110,13 @@ export const useOrderStore = defineStore('order', {
                 customerStore.fetchCustomers()
             ]);
 
-            // **MODIFIED**: Use the 'api' instance and a relative URL
-            const response = await api.get('products/staff-orders/');
-            const apiOrders = response.data;
+            // Build query parameters
+            const params = { page };
+            if (search) params.search = search;
+
+            // Use the 'api' instance with pagination params
+            const response = await api.get('products/staff-orders/', { params });
+            const { results: apiOrders, count } = response.data;
 
             const statusMap = {
                 'Pending': 'قيد الانتظار',
@@ -123,14 +131,14 @@ export const useOrderStore = defineStore('order', {
                 return {
                     id: order.id,
                     customerId: customer ? customer.id : null,
-                    customerPhone: order.customer_phone, // Added customer phone
+                    customerPhone: order.customer_phone,
                     orderDate: order.order_date,
                     status: statusMap[order.status] || order.status,
-                    address: order.address, // Added address
-                    paymentMethod: order.payment_method, // Added payment method
-                    totalPrice: parseFloat(order.total_price), // Added total price (before shipping)
-                    shippingCost: parseFloat(order.shipping_cost), // Added shipping cost
-                    totalAmount: parseFloat(order.grand_total), // This is the grand total
+                    address: order.address,
+                    paymentMethod: order.payment_method,
+                    totalPrice: parseFloat(order.total_price),
+                    shippingCost: parseFloat(order.shipping_cost),
+                    totalAmount: parseFloat(order.grand_total),
                     items: order.items.map(item => {
                         const colorAttr = item.variant.attributes.find(attr => attr.name === 'اللون');
                         const sizeAttr = item.variant.attributes.find(attr => attr.name === 'المقاس');
@@ -149,6 +157,7 @@ export const useOrderStore = defineStore('order', {
                 };
             });
             
+            this.ordersCount = count;
             return { success: true };
         } catch (e) {
             this.error = 'فشل في جلب الطلبات.';
@@ -163,7 +172,6 @@ export const useOrderStore = defineStore('order', {
         this.isLoading = true;
         this.error = null;
         try {
-            // Map Arabic status back to English for API call
             const statusMapReverse = {
                 'قيد الانتظار': 'Pending',
                 'قيد التجهيز': 'Processing',
@@ -174,10 +182,8 @@ export const useOrderStore = defineStore('order', {
 
             const englishStatus = statusMapReverse[newStatus] || newStatus;
             
-            // Make the actual API call to update the order status
             await api.patch(`products/staff-orders/${orderId}/`, { status: englishStatus });
             
-            // Update local state only after successful API call
             const order = this.orders.find(o => o.id === orderId);
             if (order) {
                 order.status = newStatus;
@@ -189,11 +195,9 @@ export const useOrderStore = defineStore('order', {
         } catch (error) {
             console.error('Error updating order status:', error);
             
-            // Handle error messages consistently like cityStore
             let errorMessage = 'فشل في تحديث حالة الطلب.';
             
             if (error.response) {
-                // Extract error message from different possible response formats
                 if (error.response.data) {
                     if (error.response.data.non_field_errors && Array.isArray(error.response.data.non_field_errors)) {
                         errorMessage = error.response.data.non_field_errors[0];
@@ -208,7 +212,6 @@ export const useOrderStore = defineStore('order', {
                     }
                 }
                 
-                // Handle specific HTTP status codes
                 if (error.response.status === 404) {
                     errorMessage = 'الطلب غير موجود او حدث خطأ ما في التحديث.';
                 } else if (error.response.status === 403) {
@@ -222,10 +225,7 @@ export const useOrderStore = defineStore('order', {
                 errorMessage = error.message;
             }
             
-            // Set the error in store state
             this.error = errorMessage;
-            
-            // Return consistent error format like cityStore
             return { success: false, error: errorMessage };
         } finally {
             this.isLoading = false;
