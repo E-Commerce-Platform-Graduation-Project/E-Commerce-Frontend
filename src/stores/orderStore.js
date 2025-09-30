@@ -1,96 +1,27 @@
 import { defineStore } from 'pinia';
-import { useProductStore } from './productStore';
-import { useCustomerStore } from './customerStore';
 import api from '@/api';
 
 export const useOrderStore = defineStore('order', {
   state: () => ({
     orders: [],
-    ordersCount: 0, // Total count from API
+    ordersCount: 0,
     isLoading: false,
     error: null,
   }),
 
   getters: {
     getAllOrders: (state) => {
-        const productStore = useProductStore();
-        const sortedOrders = [...state.orders].sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
-
-        return sortedOrders.map(order => ({
-            ...order,
-            items: order.items.map(item => {
-            const product = productStore.getProductById(item.productId);
-            return {
-                ...item,
-                productName: product ? product.name : 'منتج غير معروف',
-                productImage: product ? product.mainImage : '/images-for-test/placeholder.jpg',
-            };
-            }),
-        }));
+        return [...state.orders].sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
     },
     
     getOrderById: (state) => (orderId) => {
-        const productStore = useProductStore();
-        const order = state.orders.find(order => order.id === orderId);
-        if (!order) return null;
-
-        return {
-            ...order,
-            items: order.items.map(item => {
-                const product = productStore.getProductById(item.productId);
-                const variant = product?.variants.find(v => v.colorHex === item.colorHex);
-                const variantImage = variant?.images?.[0];
-
-                return {
-                    ...item,
-                    productName: product ? product.name : 'منتج غير معروف',
-                    productImage: variantImage || (product ? product.mainImage : '/images-for-test/placeholder.jpg'),
-                };
-            }),
-        };
+        return state.orders.find(order => order.id === orderId);
     },
     
     getOrdersByCustomerId: (state) => (customerId) => {
-      const productStore = useProductStore();
       return state.orders
         .filter(order => order.customerId === customerId)
-        .sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate))
-        .map(order => ({
-          ...order,
-          items: order.items.map(item => {
-            const product = productStore.getProductById(item.productId);
-            return {
-              ...item,
-              productName: product ? product.name : 'منتج غير معروف',
-            };
-          }),
-        }));
-    },
-    
-    getCustomerProductRatings: (state) => (customerId) => {
-        const productStore = useProductStore();
-        const customerOrders = state.orders
-            .filter(o => o.customerId === customerId)
-            .sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate)); 
-
-        const ratingsMap = new Map();
-
-        customerOrders.forEach(order => {
-            order.items.forEach(item => {
-                if (item.rating && !ratingsMap.has(item.productId)) {
-                    const product = productStore.getProductById(item.productId);
-                    if (product) {
-                        ratingsMap.set(item.productId, {
-                            productId: item.productId,
-                            productName: product.name,
-                            rating: item.rating,
-                            comment: item.comment || null,
-                        });
-                    }
-                }
-            });
-        });
-        return Array.from(ratingsMap.values());
+        .sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
     },
 
     getOrdersCount: (state) => state.ordersCount,
@@ -103,18 +34,9 @@ export const useOrderStore = defineStore('order', {
         this.isLoading = true;
         this.error = null;
         try {
-            const productStore = useProductStore();
-            const customerStore = useCustomerStore();
-            await Promise.all([
-                productStore.fetchProducts(),
-                customerStore.fetchCustomers()
-            ]);
-
-            // Build query parameters
             const params = { page };
             if (search) params.search = search;
 
-            // Use the 'api' instance with pagination params
             const response = await api.get('products/staff-orders/', { params });
             const { results: apiOrders, count } = response.data;
 
@@ -126,36 +48,35 @@ export const useOrderStore = defineStore('order', {
                 'Cancelled': 'ملغي',
             };
 
-            this.orders = apiOrders.map(order => {
-                const customer = customerStore.customers.find(c => c.full_name === order.user);
-                return {
-                    id: order.id,
-                    customerId: customer ? customer.id : null,
-                    customerPhone: order.customer_phone,
-                    orderDate: order.order_date,
-                    status: statusMap[order.status] || order.status,
-                    address: order.address,
-                    paymentMethod: order.payment_method,
-                    totalPrice: parseFloat(order.total_price),
-                    shippingCost: parseFloat(order.shipping_cost),
-                    totalAmount: parseFloat(order.grand_total),
-                    items: order.items.map(item => {
-                        const colorAttr = item.variant.attributes.find(attr => attr.name === 'اللون');
-                        const sizeAttr = item.variant.attributes.find(attr => attr.name === 'المقاس');
+            this.orders = apiOrders.map(order => ({
+                id: order.id,
+                customerName: order.user,
+                customerPhone: order.customer_phone,
+                orderDate: order.order_date,
+                status: statusMap[order.status] || order.status,
+                address: order.address,
+                paymentMethod: order.payment_method,
+                totalPrice: parseFloat(order.total_price),
+                shippingCost: parseFloat(order.shipping_cost),
+                totalAmount: parseFloat(order.grand_total),
+                items: order.items.map(item => {
+                    const colorAttr = item.variant.attributes.find(attr => attr.name === 'اللون');
+                    const sizeAttr = item.variant.attributes.find(attr => attr.name === 'المقاس');
 
-                        return {
-                            productId: item.variant.product_variant_id, 
-                            quantity: item.quantity,
-                            price: parseFloat(item.price_per_unit),
-                            purchasePrice: 0,
-                            rating: null,
-                            comment: null,
-                            colorHex: colorAttr ? colorAttr.value : '#FFFFFF',
-                            size: sizeAttr ? sizeAttr.value : 'غير محدد',
-                        };
-                    }),
-                };
-            });
+                    return {
+                        productId: item.product_id,
+                        productName: item.product_name,
+                        productMainImage: item.product_main_image,
+                        variantId: item.variant.product_variant_id,
+                        sku: item.variant.sku,
+                        quantity: item.quantity,
+                        price: parseFloat(item.price_per_unit),
+                        colorHex: colorAttr ? colorAttr.value : '#FFFFFF',
+                        size: sizeAttr ? sizeAttr.value : 'غير محدد',
+                        images: item.images.map(img => img.image),
+                    };
+                }),
+            }));
             
             this.ordersCount = count;
             return { success: true };

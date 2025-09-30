@@ -39,11 +39,18 @@
                                 <tr v-for="(item, index) in invoice.items" :key="index">
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <img :src="getProductImage(item.productName, item.variantSku)"
-                                                class="product-img me-3" :alt="item.productName">
+                                            <!-- Display actual product image from API -->
+                                            <img v-if="getItemImage(item)" 
+                                                :src="getItemImage(item)" 
+                                                :alt="item.productName"
+                                                class="product-img me-3"
+                                                @error="handleImageError">
+                                            <div v-else class="product-placeholder me-3">
+                                                <i class="fas fa-box"></i>
+                                            </div>
                                             <div>
                                                 <div class="fw-bold">{{ item.productName }}</div>
-                                                <small class="text-muted">{{ getProductByName(item.productName)?.id || 'غير معروف' }}</small>
+                                                <small class="text-muted">SKU: {{ item.variantSku }}</small>
                                             </div>
                                         </div>
                                     </td>
@@ -95,65 +102,43 @@ const isLoading = ref(true);
 const invoiceId = computed(() => parseInt(route.params.id));
 const invoice = computed(() => productStore.getInvoiceById(invoiceId.value));
 
-// In PurchaseInvoiceDetails.vue
-
 onMounted(async () => {
     isLoading.value = true;
-    // Fetch both all product data and the specific invoice details concurrently
-    await Promise.all([
-        // Use the new, correct function to get ALL products
-        productStore.fetchAllProducts(), 
-        
-        productStore.fetchPurchaseInvoiceDetails(invoiceId.value) // For invoice items
-    ]);
+    // Only fetch the invoice details - images are included in the response
+    await productStore.fetchPurchaseInvoiceDetails(invoiceId.value);
     isLoading.value = false;
 });
 
-const getProductByName = (productName) => {
-    return productStore.getAllProducts.find(p => p.name === productName);
+// Get the first image from the item's images array
+const getItemImage = (item) => {
+    if (item.images && item.images.length > 0) {
+        // Sort by display_order and return the first image
+        const sortedImages = [...item.images].sort((a, b) => 
+            (a.display_order || 0) - (b.display_order || 0)
+        );
+        return sortedImages[0].image;
+    }
+    return null;
 };
 
-// REPLACE the old getProductImage function with this new one
-const getProductImage = (productName, variantSku) => {
-    const product = productStore.getProductByName(productName);
-    if (!product || !product.variants) {
-        return 'https://placehold.co/60x60/eee/ccc?text=?';
-    }
-
-    // Loop through each color group in the product's variants
-    for (const colorVariant of product.variants) {
-        // Check if the stock array for this color exists
-        if (colorVariant.stock) {
-            // Find the specific size variant within the stock by matching the SKU
-            const stockItem = colorVariant.stock.find(s => s.sku === variantSku);
-            
-            // If we found the exact variant by its SKU...
-            if (stockItem) {
-                // ...and this color group has images, return the first one.
-                if (colorVariant.images && colorVariant.images.length > 0) {
-                    return colorVariant.images[0];
-                }
-            }
-        }
-    }
-
-    // If no specific variant image was found, fall back to the product's main image.
-    if (product.mainImage) {
-        return product.mainImage;
-    }
-    
-    // If no images are available at all, show a placeholder.
-    return 'https://placehold.co/60x60/eee/ccc?text=N/A';
+const handleImageError = (event) => {
+    // Replace broken image with placeholder
+    event.target.style.display = 'none';
+    const placeholder = document.createElement('div');
+    placeholder.className = 'product-placeholder me-3';
+    placeholder.innerHTML = '<i class="fas fa-box"></i>';
+    event.target.parentNode.insertBefore(placeholder, event.target);
 };
+
 const extractColorFromSku = (variantSku) => {
-    // Extract color from SKU format: "SPEDRO0-#21BA40-40"
+    // Extract color from SKU format: "SOPHNET.HOODED-#613F32-S"
     const parts = variantSku.split('-');
     for (const part of parts) {
         if (part.startsWith('#') && part.length === 7) {
             return part;
         }
     }
-    return '#000000'; // Default color if not found
+    return null;
 };
 
 const extractSizeFromSku = (variantSku) => {
@@ -161,7 +146,7 @@ const extractSizeFromSku = (variantSku) => {
     const parts = variantSku.split('-');
     const lastPart = parts[parts.length - 1];
     
-    // Skip color codes
+    // Skip if it's a color code
     if (lastPart.startsWith('#')) {
         return parts[parts.length - 2] || '';
     }
@@ -171,11 +156,18 @@ const extractSizeFromSku = (variantSku) => {
 
 const formatDate = (dateString) => {
     if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('ar-LY', { year: 'numeric', month: 'long', day: 'numeric' });
+    return new Date(dateString).toLocaleDateString('ar-LY', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
 };
 
 const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ar-LY', { style: 'currency', currency: 'LYD' }).format(amount);
+    return new Intl.NumberFormat('ar-LY', { 
+        style: 'currency', 
+        currency: 'LYD' 
+    }).format(amount);
 };
 </script>
 
@@ -194,6 +186,18 @@ const formatCurrency = (amount) => {
     object-fit: cover;
     border-radius: 0.5rem;
     border: 1px solid #dee2e6;
+}
+
+.product-placeholder {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 0.5rem;
+    font-size: 1.5rem;
 }
 
 .table tfoot tr {

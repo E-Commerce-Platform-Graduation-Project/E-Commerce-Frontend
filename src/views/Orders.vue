@@ -10,7 +10,7 @@
       <div class="col-lg-12">
         <div class="search-filter-container">
           <div class="search-container">
-            <input v-model="searchQuery" type="text" placeholder="البحث برقم الطلب..."
+            <input v-model="searchQuery" type="text" placeholder="البحث برقم الطلب او باسم العميل..."
               class="form-control search-input" />
             <i class="fas fa-search search-icon"></i>
           </div>
@@ -158,10 +158,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { useProductStore } from '@/stores/productStore';
-import { useCategoryStore } from '@/stores/categoryStore';
 import { useOrderStore } from '@/stores/orderStore';
-import { useCustomerStore } from '@/stores/customerStore';
 import { useNotificationStore } from '@/stores/notificationStore';
 import OrdersList from '@/components/Order/OrdersList.vue';
 import OrderDetails from '@/components/Order/OrderDetails.vue';
@@ -171,10 +168,7 @@ import { db } from '@/firebase';
 import { collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 
 // Store instances
-const productStore = useProductStore();
-const categoryStore = useCategoryStore();
 const orderStore = useOrderStore();
-const customerStore = useCustomerStore();
 const notificationStore = useNotificationStore();
 
 // State for filters and modals
@@ -201,8 +195,8 @@ const currentPage = ref(1);
 const itemsPerPage = ref(10);
 
 // Computed properties
-const isLoading = computed(() => orderStore.isLoading || customerStore.isLoading);
-const error = computed(() => orderStore.error || customerStore.error);
+const isLoading = computed(() => orderStore.isLoading);
+const error = computed(() => orderStore.error);
 
 const totalOrders = computed(() => orderStore.getOrdersCount);
 
@@ -333,11 +327,7 @@ onMounted(async () => {
   markAllNotificationsAsRead();
 
   try {
-    await Promise.all([
-      orderStore.fetchOrders(),
-      customerStore.fetchCustomers(),
-      productStore.fetchProducts()
-    ]);
+    await orderStore.fetchOrders();
   } catch (error) {
     console.error('Error loading data:', error);
     displayErrorModal('فشل في تحميل البيانات. يرجى إعادة تحميل الصفحة.');
@@ -389,33 +379,7 @@ const confirmStatusUpdate = async () => {
   } catch (error) {
     console.error('Error updating order status:', error);
     cancelStatusUpdate();
-    
-    let errorMessage = 'حدث خطأ أثناء تحديث حالة الطلب.';
-    if (error.response) {
-      if (error.response.data) {
-        if (error.response.data.non_field_errors) {
-          errorMessage = error.response.data.non_field_errors[0];
-        } else if (error.response.data.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.response.data.error) {
-          errorMessage = error.response.data.error;
-        } else if (error.response.data.status) {
-          errorMessage = error.response.data.status[0];
-        }
-      }
-      
-      if (error.response.status === 404) {
-        errorMessage = 'الطلب غير موجود.';
-      } else if (error.response.status === 403) {
-        errorMessage = 'ليس لديك صلاحية لتعديل هذا الطلب.';
-      } else if (error.response.status >= 500) {
-        errorMessage = 'خطأ في الخادم. يرجى المحاولة لاحقاً.';
-      }
-    } else if (error.message) {
-      errorMessage = error.message;
-    }
-    
-    displayErrorModal(errorMessage);
+    displayErrorModal('حدث خطأ أثناء تحديث حالة الطلب.');
   } finally {
     updating.value = false;
   }

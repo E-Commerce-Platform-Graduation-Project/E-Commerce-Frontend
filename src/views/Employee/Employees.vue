@@ -24,6 +24,17 @@
       </div>
     </div>
 
+    <!-- Pagination Info Display -->
+    <div v-if="!isLoading && !error && totalEmployees > 0" class="row mb-3">
+      <div class="col-12">
+        <div class="pagination-info">
+          <span class="info-text">
+            عرض {{ totalEmployees > 0 ? startIndex + 1 : 0 }} - {{ endIndex }} من {{ totalEmployees }} موظف
+          </span>
+        </div>
+      </div>
+    </div>
+
     <div v-if="isLoading" class="d-flex flex-column align-items-center justify-content-center py-5 text-muted">
       <div class="spinner-border text-primary mb-3" role="status">
         <span class="visually-hidden">Loading...</span>
@@ -39,12 +50,12 @@
     <div v-else>
       <div class="bg-white rounded-3 shadow-sm overflow-hidden">
         <EmployeesList 
-          :employees="paginatedEmployees"
+          :employees="displayedEmployees"
           @employee-updated="handleEmployeeUpdated"
           @employee-deleted="handleEmployeeDeleted"
           @view-employee="handleViewEmployee"
         />
-        <div v-if="filteredEmployees.length === 0" class="text-center py-5 text-muted">
+        <div v-if="displayedEmployees.length === 0" class="text-center py-5 text-muted">
             <i class="fas fa-user-friends fa-3x mb-3"></i>
             <p class="fs-5">
                 {{ searchQuery ? 'لم يتم العثور على موظفين يطابقون البحث.' : 'لا يوجد موظفين لعرضهم.' }}
@@ -90,11 +101,10 @@
           <select 
             id="pageSize"
             v-model="itemsPerPage" 
-            @change="onPageSizeChange"
             class="page-size-select"
+            disabled
           >
             <option value="10">10</option>
-            <option value="20">20</option>
           </select>
         </div>
       </div>
@@ -126,7 +136,7 @@ export default {
     const authStore = useAuthStore()
     
     // State
-    const employees = ref([])
+    const employeesData = ref({ count: 0, results: [] })
     const searchQuery = ref('')
     const isLoading = ref(false)
     const error = ref(null)
@@ -137,23 +147,28 @@ export default {
     const currentPage = ref(1)
     const itemsPerPage = ref(10)
 
-    // Computed: Filter out current user from the server-filtered list
-    const filteredEmployees = computed(() => {
-      if (!employees.value) return []
-      return employees.value.filter(employee => employee.id !== authStore.user?.id)
+    // Computed: Get total count from API response
+    const totalEmployees = computed(() => employeesData.value.count || 0)
+
+    // Computed: Filter out current user from results
+    const displayedEmployees = computed(() => {
+      if (!employeesData.value.results) return []
+      return employeesData.value.results.filter(
+        employee => employee.id !== authStore.user?.id
+      )
     })
 
     // Pagination Computed Properties
-    const totalEmployees = computed(() => filteredEmployees.value.length)
     const totalPages = computed(() => {
       if (totalEmployees.value === 0) return 1
       return Math.ceil(totalEmployees.value / itemsPerPage.value)
     })
-    const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value)
-    const endIndex = computed(() => Math.min(startIndex.value + itemsPerPage.value, totalEmployees.value))
 
-    const paginatedEmployees = computed(() => {
-      return filteredEmployees.value.slice(startIndex.value, endIndex.value)
+    const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage.value)
+    
+    const endIndex = computed(() => {
+      const end = startIndex.value + itemsPerPage.value
+      return Math.min(end, totalEmployees.value)
     })
     
     const visiblePages = computed(() => {
@@ -185,8 +200,12 @@ export default {
       error.value = null
       
       try {
-        const allUsers = await authStore.getAllUsers(searchQuery.value)
-        employees.value = allUsers
+        const response = await authStore.getAllUsers({
+          page: currentPage.value,
+          search: searchQuery.value
+        })
+        // Store the entire paginated response
+        employeesData.value = response
       } catch (err) {
         error.value = 'حدث خطأ أثناء تحميل الموظفين'
         console.error('Error fetching employees:', err)
@@ -198,11 +217,8 @@ export default {
     const goToPage = (page) => {
       if (page >= 1 && page <= totalPages.value && typeof page === 'number') {
         currentPage.value = page
+        fetchEmployees()
       }
-    }
-
-    const onPageSizeChange = () => {
-      currentPage.value = 1
     }
 
     // Watchers
@@ -210,32 +226,39 @@ export default {
     watch(searchQuery, () => {
       clearTimeout(debounceTimer)
       debounceTimer = setTimeout(() => {
-        currentPage.value = 1 // Reset to first page on new search
+        currentPage.value = 1
         fetchEmployees()
       }, 500)
     })
 
     watch(totalPages, (newTotalPages) => {
-        if (currentPage.value > newTotalPages && newTotalPages > 0) {
-            currentPage.value = newTotalPages;
-        } else if (newTotalPages === 0) {
-            currentPage.value = 1;
-        }
-    });
+      if (currentPage.value > newTotalPages && newTotalPages > 0) {
+        currentPage.value = newTotalPages
+      } else if (newTotalPages === 0) {
+        currentPage.value = 1
+      }
+    })
 
     // Event Handlers
     const handleEmployeeUpdated = (updatedEmployee) => {
-      const index = employees.value.findIndex(emp => emp.id === updatedEmployee.id)
+      const index = employeesData.value.results.findIndex(emp => emp.id === updatedEmployee.id)
       if (index !== -1) {
-        employees.value[index] = { ...employees.value[index], ...updatedEmployee };
+        employeesData.value.results[index] = { 
+          ...employeesData.value.results[index], 
+          ...updatedEmployee 
+        }
       }
       if (selectedEmployee.value && selectedEmployee.value.id === updatedEmployee.id) {
-        selectedEmployee.value = { ...selectedEmployee.value, ...updatedEmployee };
+        selectedEmployee.value = { ...selectedEmployee.value, ...updatedEmployee }
       }
     }
 
     const handleEmployeeDeleted = (deletedEmployeeId) => {
-      employees.value = employees.value.filter(emp => emp.id !== deletedEmployeeId)
+      employeesData.value.results = employeesData.value.results.filter(
+        emp => emp.id !== deletedEmployeeId
+      )
+      employeesData.value.count = Math.max(0, employeesData.value.count - 1)
+      
       if (selectedEmployee.value && selectedEmployee.value.id === deletedEmployeeId) {
         closeEmployeeDetails()
       }
@@ -257,33 +280,31 @@ export default {
     })
 
     return {
-      employees,
       searchQuery,
       isLoading,
       error,
       selectedEmployee,
       showEmployeeDetails,
-      filteredEmployees,
-      paginatedEmployees,
+      displayedEmployees,
       totalEmployees,
       totalPages,
       currentPage,
       itemsPerPage,
       visiblePages,
+      startIndex,
+      endIndex,
       fetchEmployees,
       handleEmployeeUpdated,
       handleEmployeeDeleted,
       handleViewEmployee,
       closeEmployeeDetails,
-      goToPage,
-      onPageSizeChange
+      goToPage
     }
   }
 }
 </script>
 
 <style scoped>
-/* Custom enhancements for Bootstrap components */
 .add-btn-custom {
   background: linear-gradient(135deg, #198754, #157347) !important;
   border: none !important;
@@ -314,7 +335,20 @@ export default {
   font-size: 16px;
 }
 
-/* Pagination Styles */
+.pagination-info {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.info-text {
+  color: #6c757d;
+  font-size: 14px;
+  background-color: #f8f9fa;
+  padding: 8px 16px;
+  border-radius: 20px;
+  display: inline-block;
+}
+
 .pagination-container {
   display: flex;
   justify-content: space-between;
@@ -431,7 +465,6 @@ export default {
   box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
   .container-fluid {
     padding-left: 1rem !important;

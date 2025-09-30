@@ -5,7 +5,7 @@ import axios from 'axios';
 const api = axios.create({
   // Use relative URL - Vite proxy will forward to the backend
   baseURL: '/api/',
-  timeout: 20000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

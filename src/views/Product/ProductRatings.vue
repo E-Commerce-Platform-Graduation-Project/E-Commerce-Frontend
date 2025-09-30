@@ -202,9 +202,6 @@
                             <p class="text-muted mb-4">
                                 لم يقم أي عميل بتقييم هذا المنتج حتى الآن.
                             </p>
-                            <button @click="$router.go(-1)" class="btn btn-outline-primary">
-                                <i class="fas fa-arrow-right me-2"></i>العودة للمنتج
-                            </button>
                         </div>
                     </div>
                 </div>

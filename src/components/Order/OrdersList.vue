@@ -21,7 +21,7 @@
       <div class="order-id">#{{ order.id }}</div>
 
       <!-- Customer Name -->
-      <div class="order-customer">{{ getCustomerName(order.customerId) }}</div>
+      <div class="order-customer">{{ order.customerName || 'عميل غير معروف' }}</div>
 
       <!-- Product Cost (Total Price before shipping) -->
       <div class="order-product-cost">{{ order.totalPrice }} دينار</div>
@@ -74,7 +74,6 @@
 
 <script setup>
 import { ref } from 'vue';
-import { useCustomerStore } from '@/stores/customerStore';
 
 defineProps({
   orders: {
@@ -85,15 +84,9 @@ defineProps({
 
 const emit = defineEmits(['view-details', 'update-status']);
 
-const customerStore = useCustomerStore();
 const activeDropdown = ref(null);
 
 const availableStatuses = ['قيد الانتظار', 'قيد التجهيز', 'في الطريق الى الزبون', 'مكتمل', 'ملغي'];
-
-const getCustomerName = (customerId) => {
-    const customer = customerStore.getCustomerById(customerId);
-    return customer ? customer.full_name : 'عميل غير معروف';
-};
 
 const getStatusBadgeClass = (status) => {
     const statusClasses = {
@@ -209,7 +202,7 @@ document.addEventListener('click', (event) => {
   position: relative;
 }
 
-/* New Status Button Styling */
+/* Status Button Styling */
 .status-btn {
     border-radius: 8px;
     padding: 8px 16px;

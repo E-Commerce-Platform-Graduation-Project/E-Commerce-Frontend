@@ -41,8 +41,8 @@
                             <p>{{ customer.email }}</p>
                         </div>
                         <div class="info-item">
-                            <label><i class="fas fa-calendar-alt"></i> تاريخ التسجيل</label>
-                            <p>{{ formatDate(customer.registration_date) }}</p>
+                            <label><i class="fas fa-calendar-alt"></i> آخر تسجيل دخول</label>
+                            <p>{{ formatDate(customer.last_login) }}</p>
                         </div>
                     </div>
                 </div>
@@ -52,29 +52,58 @@
                 <div class="col-lg-7">
                     <div class="card shadow-sm">
                         <div class="card-header">
-                            <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>سجل الطلبات</h5>
+                            <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>سجل الطلبات ({{ totalOrders }})</h5>
                         </div>
                         <div class="card-body p-0">
-                            <div v-if="customerOrders.length > 0" class="orders-container">
-                                <div class="order-item header sticky-header">
+                            <div v-if="paginatedOrders.length > 0" class="orders-container">
+                                <div class="order-item header">
                                     <div class="order-info">الطلب</div>
                                     <div class="order-total">المجموع</div>
                                     <div class="order-status">الحالة</div>
                                 </div>
-                                <div class="scrollable-orders-body">
-                                    <div class="orders-list">
-                                        <div v-for="order in customerOrders" :key="order.id" class="order-item clickable"
-                                             @click="openOrderDetailsModal(order)">
-                                            <div class="order-info">
-                                                <span class="order-id">#{{ order.id }}</span>
-                                                <span class="order-date">{{ formatDate(order.orderDate) }}</span>
-                                            </div>
-                                            <div class="order-total">{{ order.totalAmount }} دينار</div>
-                                            <div class="order-status">
-                                                <span class="status-badge" :class="getStatusBadgeClass(order.status)">{{ order.status }}</span>
-                                            </div>
+                                
+                                <!-- Loading Spinner Overlay -->
+                                <div v-if="ordersLoading" class="orders-loading-overlay">
+                                    <div class="spinner-border text-primary" role="status"></div>
+                                    <p class="mt-2 text-muted mb-0">جاري التحميل...</p>
+                                </div>
+                                
+                                <div class="orders-list-fixed" :class="{ 'loading-blur': ordersLoading }">
+                                    <div v-for="order in paginatedOrders" :key="order.id" class="order-item clickable"
+                                         @click="!ordersLoading && openOrderDetailsModal(order)">
+                                        <div class="order-info">
+                                            <span class="order-id">#{{ order.id }}</span>
+                                            <span class="order-date">{{ formatDate(order.order_date) }}</span>
+                                        </div>
+                                        <div class="order-total">{{ order.grand_total }} دينار</div>
+                                        <div class="order-status">
+                                            <span class="status-badge" :class="getStatusBadgeClass(order.status)">{{ order.status }}</span>
                                         </div>
                                     </div>
+                                </div>
+                                
+                                <!-- Orders Pagination -->
+                                <div v-if="totalOrderPages > 1" class="orders-pagination">
+                                    <button @click="goToOrderPage(currentOrderPage - 1)" 
+                                            :disabled="currentOrderPage === 1 || ordersLoading" 
+                                            class="pagination-btn">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                    
+                                    <div class="page-numbers-small">
+                                        <button v-for="page in visibleOrderPages" :key="page" 
+                                                @click="goToOrderPage(page)"
+                                                :class="['page-number-small', { 'active': page === currentOrderPage, 'disabled': typeof page !== 'number' }]"
+                                                :disabled="typeof page !== 'number' || ordersLoading">
+                                            {{ page }}
+                                        </button>
+                                    </div>
+                                    
+                                    <button @click="goToOrderPage(currentOrderPage + 1)" 
+                                            :disabled="currentOrderPage === totalOrderPages || ordersLoading"
+                                            class="pagination-btn">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </button>
                                 </div>
                             </div>
                             <div v-else class="text-center text-muted p-3">
@@ -161,17 +190,16 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { useCustomerStore } from '@/stores/customerStore';
-import { useOrderStore } from '@/stores/orderStore';
 import api from '@/api';
 import OrderDetails from '@/components/Order/OrderDetails.vue';
 
 const route = useRoute();
-const customerStore = useCustomerStore();
-const orderStore = useOrderStore();
 
 const customer = ref(null);
+const allOrders = ref([]);
+const totalOrdersCount = ref(0);
 const isLoading = ref(true);
+const ordersLoading = ref(false);
 const error = ref(null);
 const isOrderDetailsVisible = ref(false);
 const selectedOrder = ref(null);
@@ -184,23 +212,16 @@ const ratingsLoading = ref(false);
 const isCommentModalVisible = ref(false);
 const selectedComment = ref(null);
 
+// Pagination state for orders
+const currentOrderPage = ref(1);
+const ordersPerPage = 5;
+
 onMounted(async () => {
     const customerId = parseInt(route.params.id);
     
     try {
-        // Fetch customer data and orders
-        await Promise.all([
-            customerStore.fetchCustomers(),
-            orderStore.fetchOrders(),
-        ]);
-        
-        customer.value = customerStore.getCustomerById(customerId);
-        
-        if (!customer.value) {
-            error.value = `لم يتم العثور على عميل بالمعرف ${customerId}`;
-            isLoading.value = false;
-            return;
-        }
+        // Fetch customer data with first page of orders
+        await fetchCustomerData(customerId);
 
         // Fetch ratings for this customer
         await fetchCustomerRatings(customerId);
@@ -212,6 +233,35 @@ onMounted(async () => {
         isLoading.value = false;
     }
 });
+
+const fetchCustomerData = async (customerId, ordersPage = 1) => {
+    if (ordersPage > 1) {
+        ordersLoading.value = true;
+    }
+    try {
+        const response = await api.get(`/users/customers/${customerId}/?orders_page=${ordersPage}`);
+        
+        // Store customer info
+        customer.value = {
+            id: response.data.id,
+            full_name: response.data.full_name,
+            phone_number: response.data.phone_number,
+            email: response.data.email,
+            is_active: response.data.is_active,
+            last_login: response.data.last_login
+        };
+        
+        // Store orders and pagination info
+        allOrders.value = response.data.orders.results || [];
+        totalOrdersCount.value = response.data.orders.count || 0;
+        
+    } catch (err) {
+        console.error('Error fetching customer data:', err);
+        throw err;
+    } finally {
+        ordersLoading.value = false;
+    }
+};
 
 const fetchCustomerRatings = async (userId) => {
     ratingsLoading.value = true;
@@ -226,10 +276,46 @@ const fetchCustomerRatings = async (userId) => {
     }
 };
 
-const customerOrders = computed(() => {
-    if (!customer.value) return [];
-    return orderStore.getOrdersByCustomerId(customer.value.id);
+// Orders pagination computed properties
+const totalOrders = computed(() => totalOrdersCount.value);
+
+const totalOrderPages = computed(() => {
+    if (totalOrders.value === 0) return 1;
+    return Math.ceil(totalOrders.value / ordersPerPage);
 });
+
+const paginatedOrders = computed(() => allOrders.value);
+
+const visibleOrderPages = computed(() => {
+    const pages = [];
+    const total = totalOrderPages.value;
+    const current = currentOrderPage.value;
+
+    if (total <= 1) return [];
+
+    if (total <= 7) {
+        for (let i = 1; i <= total; i++) pages.push(i);
+    } else {
+        pages.push(1);
+        if (current > 4) pages.push('...');
+        const start = Math.max(2, current - 2);
+        const end = Math.min(total - 1, current + 2);
+        for (let i = start; i <= end; i++) {
+            if (i > 1 && !pages.includes(i)) pages.push(i);
+        }
+        if (current < total - 3) pages.push('...');
+        if (!pages.includes(total)) pages.push(total);
+    }
+    return pages;
+});
+
+const goToOrderPage = (page) => {
+    if (page >= 1 && page <= totalOrderPages.value && typeof page === 'number') {
+        currentOrderPage.value = page;
+        const customerId = parseInt(route.params.id);
+        fetchCustomerData(customerId, page);
+    }
+};
 
 // Modal functions
 const openCommentModal = (rating) => {
@@ -243,7 +329,29 @@ const closeCommentModal = () => {
 };
 
 const openOrderDetailsModal = (order) => {
-    selectedOrder.value = order;
+    // Transform order to match the expected format for OrderDetails component
+    selectedOrder.value = {
+        id: order.id,
+        orderDate: order.order_date,
+        status: order.status,
+        totalAmount: order.grand_total,
+        totalPrice: order.total_price,
+        shippingCost: order.shipping_cost,
+        customerName: order.user,
+        customerPhone: order.customer_phone,
+        address: order.address,
+        paymentMethod: order.payment_method,
+        items: order.items.map(item => ({
+            productId: item.product_id,
+            productName: item.product_name,
+            productMainImage: item.product_main_image,
+            quantity: item.quantity,
+            price: item.price_per_unit,
+            colorHex: item.variant?.attributes?.find(attr => attr.name === 'اللون')?.value || '#000000',
+            size: item.variant?.attributes?.find(attr => attr.name === 'المقاس')?.value || 'N/A',
+            images: item.images?.map(img => img.image) || []
+        }))
+    };
     isOrderDetailsVisible.value = true;
 };
 
@@ -269,8 +377,8 @@ const formatDate = (dateString) => {
 };
 
 const handleImageError = (event) => {
-    event.target.src = '/placeholder-product.png'; // Add a placeholder image
-    event.target.onerror = null; // Prevent infinite loop
+    event.target.src = '/placeholder-product.png';
+    event.target.onerror = null;
 };
 </script>
 
@@ -319,22 +427,37 @@ const handleImageError = (event) => {
     max-height: 500px;
     overflow-y: auto;
 }
-.orders-container { position: relative; }
-.sticky-header {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    border-bottom: 2px solid #dee2e6;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.orders-container { 
+    position: relative;
 }
-.scrollable-orders-body {
+.orders-list-fixed {
     max-height: 400px;
-    overflow-y: auto;
-}
-.orders-list {
     display: flex;
     flex-direction: column;
-    padding: 0;
+    position: relative;
+    transition: opacity 0.3s ease;
+}
+
+.orders-loading-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    text-align: center;
+}
+
+.loading-blur {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.orders-list-fixed .order-item.clickable {
+    cursor: pointer;
+}
+
+.orders-list-fixed.loading-blur .order-item.clickable {
+    cursor: not-allowed;
 }
 .ratings-list {
     display: flex;
@@ -364,6 +487,81 @@ const handleImageError = (event) => {
 .order-id { font-weight: bold; }
 .order-date { font-size: 0.9rem; color: #6c757d; }
 .order-total { font-weight: bold; font-size: 1.1rem; }
+
+/* Orders Pagination Styles */
+.orders-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-top: 2px solid #dee2e6;
+}
+
+.pagination-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: white;
+    color: #495057;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    border-color: #007bff;
+    color: #007bff;
+    background-color: #e7f1ff;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.page-numbers-small {
+    display: flex;
+    gap: 4px;
+}
+
+.page-number-small {
+    min-width: 32px;
+    height: 32px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: white;
+    color: #495057;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.page-number-small:hover:not(.disabled) {
+    border-color: #007bff;
+    color: #007bff;
+    background-color: #e7f1ff;
+}
+
+.page-number-small.active {
+    border-color: #007bff;
+    background: #007bff;
+    color: white;
+}
+
+.page-number-small.disabled {
+    cursor: default;
+    border: none;
+    background: transparent;
+}
 
 /* Rating Item Styles */
 .rating-item {

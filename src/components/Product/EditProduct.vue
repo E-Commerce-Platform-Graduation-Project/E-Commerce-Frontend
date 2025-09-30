@@ -96,6 +96,13 @@
                     >
                       &times;
                     </button>
+                    <!-- ADDED: Progress Overlay for New Main Image -->
+                    <div v-if="newMainImageFile && newMainImageFile.compressing" class="compression-overlay">
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" :style="{ width: newMainImageFile.progress + '%' }"></div>
+                        </div>
+                        <span class="progress-text">جاري الضغط... {{ newMainImageFile.progress }}%</span>
+                    </div>
                   </div>
                   <div v-else class="upload-prompt">
                     <i class="fas fa-camera"></i>
@@ -699,6 +706,13 @@
                           </button>
                         </div>
                         <div class="new-image-badge">جديد</div>
+                        <!-- ADDED: Progress Overlay for New Variant Images -->
+                        <div v-if="newImg.compressing" class="compression-overlay">
+                          <div class="progress-bar-container">
+                            <div class="progress-bar" :style="{ width: newImg.progress + '%' }"></div>
+                          </div>
+                          <span class="progress-text">{{ newImg.progress }}%</span>
+                        </div>
                       </div>
                       <div class="upload-prompt"><span>+</span></div>
                     </div>
@@ -804,7 +818,7 @@
 
 <script setup>
 import { reactive, computed, ref, onMounted, nextTick, onBeforeUnmount } from "vue";
-import { useProductStore } from "@/stores/productStore";
+import { useProductStore, compressImage } from "@/stores/productStore";
 import { useCategoryStore } from "@/stores/categoryStore";
 import { usePropStore } from "@/stores/propStore";
 import { storeToRefs } from "pinia";
@@ -830,16 +844,15 @@ const showSuccessModal = ref(false);
 const showErrorModal = ref(false);
 const modalErrorMessage = ref("");
 const mainImageInput = ref(null);
-const newMainImageFile = ref(null);
+const newMainImageFile = ref(null); // Will hold a reactive object: { file, url, compressing, progress }
 const newMainImageURL = ref(null);
-const newVariantImages = ref([]);
+const newVariantImages = ref([]); // Will hold an array of reactive objects
 const variantImageInputs = reactive({});
 const variantRefs = ref([]);
 
 const deletingImages = ref(new Set());
 const originalProperties = ref({});
 
-// ADDED: New reactive variables for delete confirmation
 const showDeleteConfirmModal = ref(false);
 const deleteConfirmData = ref({
   variantIndex: null,
@@ -936,7 +949,6 @@ const openErrorModal = (error) => {
   showErrorModal.value = true;
 };
 
-// ADDED: New methods for delete confirmation
 const showDeleteConfirmation = (variantIndex, imageIndex, isNewImage = false) => {
   const variant = form.variants[variantIndex];
   let imageUrl = null;
@@ -972,7 +984,6 @@ const closeDeleteConfirmModal = () => {
 };
 
 const confirmDeleteImage = async () => {
-  console.log("تم ضغط حدف الصوة")
   const { variantIndex, imageIndex, isNewImage } = deleteConfirmData.value;
   if (isNewImage) {
     removeImageFromVariant(variantIndex, imageIndex, true);
@@ -1054,14 +1065,45 @@ const initializeFormProperties = async () => {
   }
 };
 
-const handleMainImageUpload = (event) => {
+// REVISED: Logic to show progress bar correctly
+const handleMainImageUpload = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
-  if (newMainImageURL.value) URL.revokeObjectURL(newMainImageURL.value);
-  newMainImageFile.value = file;
-  newMainImageURL.value = URL.createObjectURL(file);
-  event.target.value = "";
+
+  if (newMainImageURL.value) {
+    URL.revokeObjectURL(newMainImageURL.value);
+  }
+
+  // 1. Create the reactive object and add it to state immediately
+  const imageObject = reactive({
+    file: file,
+    url: URL.createObjectURL(file),
+    compressing: true,
+    progress: 0,
+  });
+  
+  newMainImageFile.value = imageObject;
+  newMainImageURL.value = imageObject.url;
+  
+  // Define the progress callback
+  const onProgress = (p) => {
+    imageObject.progress = p;
+  };
+
+  // 2. Start compression and update the object in place
+  try {
+    const compressedFile = await compressImage(file, onProgress);
+    imageObject.file = compressedFile; // Update the file property
+  } catch (error) {
+    console.error("Compression failed for main image:", error);
+    // Keep original file if compression fails
+  } finally {
+    imageObject.compressing = false; // Hide progress bar
+  }
+  
+  event.target.value = ""; // Reset file input
 };
+
 
 const removeMainImage = () => {
   if (newMainImageURL.value) {
@@ -1272,7 +1314,6 @@ const removeColorVariation = (index) => {
   }
 };
 
-// UPDATED: This function is now called from the confirmation modal
 const deleteExistingImage = async (variantIndex, imageIndex) => {
   const variant = form.variants[variantIndex];
   const image = variant.imagesWithIds[imageIndex];
@@ -1298,19 +1339,44 @@ const getNewImagesForVariant = (colorHex) => {
   );
 };
 
-const addImagesToVariant = (event, variantIndex) => {
+// REVISED: Logic to show progress bar correctly
+const addImagesToVariant = (event, variantIndex) => { // No longer async
   const files = Array.from(event.target.files);
   const variant = form.variants[variantIndex];
   if (!variant) return;
-  files.forEach((file) =>
-    newVariantImages.value.push({
-      colorHex: variant.colorHex,
-      file,
+
+  files.forEach(file => {
+    // 1. Create reactive object and add to state
+    const imageObject = reactive({
+      file: file,
       url: URL.createObjectURL(file),
-    })
-  );
+      compressing: true,
+      progress: 0,
+      colorHex: variant.colorHex
+    });
+
+    newVariantImages.value.push(imageObject);
+
+    const onProgress = (p) => {
+      imageObject.progress = p;
+    };
+    
+    // 2. Start compression in the background
+    compressImage(file, onProgress)
+      .then(compressedFile => {
+        imageObject.file = compressedFile;
+      })
+      .catch(error => {
+        console.error("Compression failed for variant image:", error);
+      })
+      .finally(() => {
+        imageObject.compressing = false;
+      });
+  });
+
   event.target.value = "";
 };
+
 
 const removeImageFromVariant = (variantIndex, imageIndex, isNew) => {
   const variant = form.variants[variantIndex];
@@ -1320,7 +1386,7 @@ const removeImageFromVariant = (variantIndex, imageIndex, isNew) => {
     if (imageIndex < newImagesForColor.length) {
       const targetImage = newImagesForColor[imageIndex];
       const overallIndex = newVariantImages.value.findIndex(
-        (img) => img === targetImage
+        (img) => img.url === targetImage.url
       );
       if (overallIndex > -1) {
         URL.revokeObjectURL(newVariantImages.value[overallIndex].url);
@@ -1328,6 +1394,7 @@ const removeImageFromVariant = (variantIndex, imageIndex, isNew) => {
       }
     }
   } else {
+    // This part is for existing images and remains unchanged
     if (variant.imagesWithIds?.[imageIndex]) {
       variant.imagesWithIds.splice(imageIndex, 1);
     }
@@ -1413,6 +1480,7 @@ const scrollToFirstError = async () => {
   }
 };
 
+// MODIFIED: handleSubmit to extract compressed files
 const handleSubmit = async () => {
   if (!validateForm()) {
     await scrollToFirstError();
@@ -1422,15 +1490,19 @@ const handleSubmit = async () => {
   const updateData = { ...form, properties: form.selectedProperties };
   delete updateData.selectedProperties;
 
-  const variantFiles = newVariantImages.value.map((img) => ({
-    file: img.file,
-    colorHex: img.colorHex,
+  // Extract the compressed file from the object
+  const variantFiles = newVariantImages.value.map((imgObj) => ({
+    file: imgObj.file,
+    colorHex: imgObj.colorHex,
   }));
+
+  // Extract the compressed file from the object
+  const mainImageFile = newMainImageFile.value ? newMainImageFile.value.file : null;
 
   const result = await productStore.updateProduct(
     form.id,
     updateData,
-    newMainImageFile.value,
+    mainImageFile, // Pass the file, not the object
     variantFiles
   );
 
@@ -1446,6 +1518,48 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
+/* ADDED: CSS for compression progress overlay */
+.image-preview {
+  position: relative; 
+}
+.compression-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  border-radius: 6px;
+  z-index: 10;
+  pointer-events: none;
+}
+.progress-bar-container {
+  width: 80%;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.progress-bar {
+  height: 100%;
+  background-color: #ffc107; /* Warning/edit color */
+  border-radius: 4px;
+  transition: width 0.2s ease-in-out;
+}
+.progress-text {
+  font-size: 12px;
+  font-weight: 500;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* --- Other styles remain unchanged --- */
+
 /* Modal and General Styles */
 .main-image-uploader.is-invalid {
   border-color: #dc3545;
@@ -1741,7 +1855,7 @@ const handleSubmit = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
+  z-index: 20;
   transition: all 0.2s ease;
 }
 
@@ -2699,3 +2813,4 @@ const handleSubmit = async () => {
   }
 }
 </style>
+

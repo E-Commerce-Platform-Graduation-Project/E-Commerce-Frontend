@@ -28,8 +28,8 @@
         <nav class="nav flex-column mb-4">
           <router-link to="/dashboard"
             class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
-            <span class="material-icons me-3">home</span>
-            <span class="sidebar-text">لوحة التحكم</span>
+            <span class="material-icons me-3">dashboard</span>
+            <span class="sidebar-text">لوحة البيانات</span>
           </router-link>
           <router-link to="/customers"
             class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">

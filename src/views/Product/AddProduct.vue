@@ -31,6 +31,13 @@
             <div v-if="productData.mainImage" class="image-preview main-image-preview">
               <img :src="productData.mainImage.url" />
               <button @click="removeMainImage" class="remove-btn" type="button">&times;</button>
+              <!-- ADDED: Progress Overlay -->
+              <div v-if="productData.mainImage.compressing" class="compression-overlay">
+                <div class="progress-bar-container">
+                  <div class="progress-bar" :style="{ width: productData.mainImage.progress + '%' }"></div>
+                </div>
+                <span class="progress-text">جاري الضغط... {{ productData.mainImage.progress }}%</span>
+              </div>
             </div>
           </div>
           <span v-if="errors.mainImage" class="error-message">{{ errors.mainImage }}</span>
@@ -197,6 +204,13 @@
                   <div v-for="(image, imgIndex) in variation.images" :key="imgIndex" class="image-preview">
                     <img :src="image.url" />
                     <button @click="removeImage(index, imgIndex)" class="remove-btn" type="button">&times;</button>
+                     <!-- ADDED: Progress Overlay -->
+                    <div v-if="image.compressing" class="compression-overlay">
+                      <div class="progress-bar-container">
+                        <div class="progress-bar" :style="{ width: image.progress + '%' }"></div>
+                      </div>
+                      <span class="progress-text">{{ image.progress }}%</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -247,7 +261,7 @@
 import { ref, reactive, computed, watch, onMounted, nextTick, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCategoryStore } from '@/stores/categoryStore';
-import { useProductStore } from '@/stores/productStore';
+import { useProductStore, compressImage } from '@/stores/productStore'; // Import compressImage
 import { usePropStore } from '@/stores/propStore';
 import { storeToRefs } from 'pinia';
 
@@ -259,11 +273,11 @@ const propStore = usePropStore();
 const getInitialProductData = () => ({
   name: '',
   description: '',
-  mainImage: null,
+  mainImage: null, // Will now be an object: { file, url, compressing, progress }
   categoryId: '',
   profitMargin: null,
   selectedProperties: {},
-  colorVariations: [],
+  colorVariations: [], // Images inside will be objects too
 });
 
 const productData = reactive(getInitialProductData());
@@ -280,19 +294,15 @@ const subCategories = computed(() => selectedMainCategory.value ? categoryStore.
 
 const { properties: allProperties } = storeToRefs(propStore);
 
-// NEW: Helper function to check for hex color format
 const isHexColorValue = (value) => /^#[0-9A-F]{6}$/i.test(value);
 
-// MODIFIED: Filter out properties that are used for colors dynamically.
 const availableProperties = computed(() => {
   return allProperties.value.filter(prop => {
-    // A property is considered a "color" property if any of its values is a hex code.
     const isColorProp = prop.values?.some(v => isHexColorValue(v.value));
     return !isColorProp;
   });
 });
 
-// MODIFIED: Find the color property dynamically to populate available colors.
 const availableColors = computed(() => {
     const colorProp = allProperties.value.find(p => p.values?.some(v => isHexColorValue(v.value)));
     return colorProp && Array.isArray(colorProp.values) 
@@ -331,13 +341,117 @@ onBeforeUnmount(() => {
   document.removeEventListener('click', handleClickOutside);
 });
 
+// REVISED: Logic to show progress bar correctly
+const handleMainImageUpload = (event) => { // No longer async
+  const file = event.target.files[0];
+  if (file) {
+    if (productData.mainImage && productData.mainImage.url) {
+      URL.revokeObjectURL(productData.mainImage.url);
+    }
+    
+    // 1. Create reactive object and set state immediately
+    const imageObject = reactive({
+      file: file,
+      url: URL.createObjectURL(file),
+      compressing: true,
+      progress: 0,
+    });
+    productData.mainImage = imageObject;
+
+    if (errors.mainImage) delete errors.mainImage;
+
+    const onProgress = (p) => {
+      imageObject.progress = p;
+    };
+
+    // 2. Start compression in background
+    compressImage(file, onProgress)
+      .then(compressedFile => {
+        imageObject.file = compressedFile;
+      })
+      .catch(error => {
+        console.error("Compression failed for main image:", error);
+      })
+      .finally(() => {
+        imageObject.compressing = false;
+      });
+  }
+};
+
+const removeMainImage = () => {
+  if (productData.mainImage) {
+    URL.revokeObjectURL(productData.mainImage.url);
+    productData.mainImage = null;
+  }
+};
+
+// REVISED: Logic to show progress bar correctly
+const handleImageUpload = (event, variationIndex) => { // No longer async
+  const files = Array.from(event.target.files);
+  const variation = productData.colorVariations[variationIndex];
+  if (variation) {
+    files.forEach(file => {
+      // 1. Create reactive object and add to state
+      const imageObject = reactive({
+        file: file,
+        url: URL.createObjectURL(file),
+        compressing: true,
+        progress: 0,
+      });
+      variation.images.push(imageObject);
+
+      const onProgress = (p) => {
+        imageObject.progress = p;
+      };
+
+      // 2. Start compression in background
+      compressImage(file, onProgress)
+        .then(compressedFile => {
+          imageObject.file = compressedFile;
+        })
+        .catch(error => {
+          console.error("Compression failed for variant image:", error);
+        })
+        .finally(() => {
+          imageObject.compressing = false;
+        });
+    });
+    
+    if (errors[`color_${variationIndex}_images`]) delete errors[`color_${variationIndex}_images`];
+  }
+};
+
+
+const removeImage = (variationIndex, imageIndex) => {
+  const variation = productData.colorVariations[variationIndex];
+  if (variation && variation.images[imageIndex]) {
+    URL.revokeObjectURL(variation.images[imageIndex].url);
+    variation.images.splice(imageIndex, 1);
+  }
+};
+
+const addColorVariation = () => {
+  productData.colorVariations.push({
+    id: Date.now(),
+    colorHex: '#000000',
+    images: [], // Images will be objects
+    showColorPicker: false,
+    error: null,
+  });
+};
+
+const removeColorVariation = (index) => {
+  productData.colorVariations[index].images.forEach(img => URL.revokeObjectURL(img.url));
+  productData.colorVariations.splice(index, 1);
+  validateForm(); // Re-validate after removing
+};
+
+// --- Form logic and other methods (unchanged unless specified) ---
 
 const toggleComboBox = (propId) => {
   openComboBox.value = openComboBox.value === propId ? null : propId;
 };
-
 const isLegacyValueSelected = (propName, value) => productData.selectedProperties[propName]?.legacy?.includes(value) || false;
-
 const getSelectedCountForProperty = (propName) => {
   const propData = productData.selectedProperties[propName];
   if (!propData) return 0;
@@ -346,25 +460,21 @@ const getSelectedCountForProperty = (propName) => {
   if (propData.subtitles) { Object.values(propData.subtitles).forEach(values => { count += values.length; }); }
   return count;
 };
-
 const areAllLegacyValuesSelected = (propName, values) => {
   const selected = productData.selectedProperties[propName]?.legacy || [];
   return values.length > 0 && values.every(v => selected.includes(v));
 };
-
 const initializeProperty = (propName) => {
   if (!productData.selectedProperties[propName]) {
     productData.selectedProperties[propName] = { legacy: [], subtitles: {} };
   }
 };
-
 const toggleSelectAllLegacy = (propName, values) => {
   initializeProperty(propName);
   const areAllSelected = areAllLegacyValuesSelected(propName, values);
   productData.selectedProperties[propName].legacy = areAllSelected ? [] : [...values];
   cleanupPropertyData(propName);
 };
-
 const handleLegacyPropertyChange = (propName, value, event) => {
   initializeProperty(propName);
   const legacyValues = productData.selectedProperties[propName].legacy;
@@ -376,7 +486,6 @@ const handleLegacyPropertyChange = (propName, value, event) => {
   }
   cleanupPropertyData(propName);
 };
-
 const cleanupPropertyData = (propName) => {
   const prop = productData.selectedProperties[propName];
   if (!prop) return;
@@ -389,39 +498,6 @@ const cleanupPropertyData = (propName) => {
   }
   if (Object.keys(prop).length === 0) delete productData.selectedProperties[propName];
 };
-
-const handleMainImageUpload = (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    if (productData.mainImage) {
-      URL.revokeObjectURL(productData.mainImage.url);
-    }
-    productData.mainImage = { file, url: URL.createObjectURL(file) };
-  }
-};
-const removeMainImage = () => {
-  if (productData.mainImage) {
-    URL.revokeObjectURL(productData.mainImage.url);
-    productData.mainImage = null;
-  }
-};
-
-const addColorVariation = () => {
-  productData.colorVariations.push({
-    id: Date.now(),
-    colorHex: '#000000',
-    images: [],
-    showColorPicker: false,
-    error: null,
-  });
-};
-
-const removeColorVariation = (index) => {
-  productData.colorVariations[index].images.forEach(img => URL.revokeObjectURL(img.url));
-  productData.colorVariations.splice(index, 1);
-  validateForm();
-};
-
 const toggleColorPicker = (index) => {
   productData.colorVariations.forEach((variation, i) => {
     if (i !== index) {
@@ -430,58 +506,32 @@ const toggleColorPicker = (index) => {
   });
   productData.colorVariations[index].showColorPicker = !productData.colorVariations[index].showColorPicker;
 };
-
 const selectUsedColor = (index, colorHex) => {
   productData.colorVariations[index].colorHex = colorHex;
   handleHexColorChange(index, true);
 };
-
 const closeColorPicker = (index) => {
   productData.colorVariations[index].showColorPicker = false;
 };
-
 const handleHexColorChange = (index, shouldClosePicker) => {
   const variation = productData.colorVariations[index];
-
   let color = variation.colorHex.toLowerCase();
   if (!color.startsWith('#')) {
     color = '#' + color;
   }
   variation.colorHex = color;
-
   const isDuplicate = productData.colorVariations.some(
     (v, i) => i !== index && v.colorHex.toLowerCase() === variation.colorHex.toLowerCase()
   );
-
   if (isDuplicate) {
     variation.error = 'هذا اللون تم اختياره بالفعل.';
   } else {
     variation.error = null;
   }
-  
   if (shouldClosePicker) {
     variation.showColorPicker = false;
   }
 };
-
-const handleImageUpload = (event, variationIndex) => {
-  const files = Array.from(event.target.files);
-  const variation = productData.colorVariations[variationIndex];
-  if (variation) {
-    files.forEach(file => {
-      variation.images.push({ file, url: URL.createObjectURL(file) });
-    });
-  }
-};
-
-const removeImage = (variationIndex, imageIndex) => {
-  const variation = productData.colorVariations[variationIndex];
-  if (variation) {
-    URL.revokeObjectURL(variation.images[imageIndex].url);
-    variation.images.splice(imageIndex, 1);
-  }
-};
-
 const validateForm = () => {
   Object.keys(errors).forEach(key => delete errors[key]);
   let isValid = true;
@@ -526,7 +576,6 @@ const validateForm = () => {
   }
   return isValid;
 };
-
 const getFieldId = (fieldName) => {
   if (fieldName.startsWith('color_')) {
     const index = fieldName.split('_')[1];
@@ -538,7 +587,6 @@ const getFieldId = (fieldName) => {
   };
   return fieldIdMap[fieldName] || fieldName;
 };
-
 const scrollToFirstError = async () => {
   await nextTick();
   const firstErrorKey = Object.keys(errors)[0];
@@ -557,6 +605,7 @@ const handleSubmit = async () => {
     return;
   }
 
+  // The productData object now contains the compressed files, so it's ready to be sent.
   const result = await productStore.addProduct(productData);
   if (result.success) {
     showSuccessModal.value = true;
@@ -574,7 +623,52 @@ const closeErrorModal = () => { showErrorModal.value = false; };
 </script>
 
 <style scoped>
-/* ... (all styles remain the same) ... */
+/* ADDED: Styles for compression progress overlay */
+.image-preview {
+  position: relative; /* Ensure the preview container is a positioning context */
+}
+
+.compression-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  border-radius: 8px; /* Match the image preview border-radius */
+  z-index: 10;
+  pointer-events: none; /* Make it non-interactive */
+}
+
+.progress-bar-container {
+  width: 80%;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: #3b82f6; /* Use your primary color */
+  border-radius: 4px;
+  transition: width 0.2s ease-in-out;
+}
+
+.progress-text {
+  font-size: 12px;
+  font-weight: 500;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+
+/* --- Other styles remain unchanged --- */
 .color-selection-container {
   position: relative;
 }
@@ -793,9 +887,6 @@ const closeErrorModal = () => { showErrorModal.value = false; };
   gap: 10px;
   margin-top: 10px;
 }
-.image-preview {
-  position: relative;
-}
 .remove-btn {
   position: absolute;
   top: 5px;
@@ -810,6 +901,7 @@ const closeErrorModal = () => { showErrorModal.value = false; };
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 20; /* Ensure it's above the overlay */
 }
 .form-actions {
   display: flex;
@@ -1296,3 +1388,4 @@ const closeErrorModal = () => { showErrorModal.value = false; };
   .btn { width: 100%; }
 }
 </style>
+

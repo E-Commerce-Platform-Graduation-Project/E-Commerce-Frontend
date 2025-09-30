@@ -1,9 +1,9 @@
 <template>
-  <div class="employee-row" :class="{ 'inactive': !employee.is_active }" >
+  <div class="employee-row" :class="{ 'inactive': !employee.is_active }" @click="$emit('view-employee', employee)">
     <!-- Employee Info -->
     <div class="employee-info">
       <!-- Avatar -->
-      <div class="employee-avatar" @click="$emit('view-employee', employee)">
+      <div class="employee-avatar" >
         <div class="avatar-circle" :class="employee.role.toLowerCase()">
           <i class="fas fa-user"></i>
         </div>
@@ -54,7 +54,7 @@
       <!-- Toggle Status Button -->
       <div class="status-toggle-container">
         <button 
-          @click="$emit('toggle-activate', employee)"
+          @click.stop="$emit('toggle-activate', employee)"
           :class="['status-toggle', { 'active': employee.is_active }]"
           :title="employee.is_active ? 'إلغاء التفعيل' : 'تفعيل'"
         >
@@ -338,6 +338,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 10px;
+  z-index: 150;
 }
 
 .status-toggle {

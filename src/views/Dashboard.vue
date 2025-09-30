@@ -1,5 +1,5 @@
 <template>
-  <h3>لوحة التحكم</h3>
+  <h3>لوحة البيانات</h3>
 </template>
 
 <script>

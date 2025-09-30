@@ -15,11 +15,11 @@
             <div class="info-grid">
               <div class="info-item">
                 <i class="fas fa-user"></i>
-                <span>{{ customer?.full_name || 'غير متوفر' }}</span>
+                <span>{{ order.customerName || 'غير متوفر' }}</span>
               </div>
               <div class="info-item">
                 <i class="fas fa-phone"></i>
-                <span>{{ order.customerPhone || customer?.phone_number || 'غير متوفر' }}</span>
+                <span>{{ order.customerPhone || 'غير متوفر' }}</span>
               </div>
               <div class="info-item full-width">
                 <i class="fas fa-map-marker-alt"></i>
@@ -53,24 +53,21 @@
             </div>
             <div v-for="item in order.items" :key="`${item.productId}-${item.colorHex}-${item.size}`" class="item-row">
               <div class="item-product">
-                <img :src="getVariantImage(item)" class="item-image" alt="Product Image" @error="onImageError">
+                <img :src="getItemImage(item)" class="item-image" alt="Product Image" @error="onImageError">
                 <div class="product-name-wrapper">
-                  <span>{{ getProduct(item)?.name || 'منتج غير معروف' }}</span>
+                  <span>{{ item.productName || 'منتج غير معروف' }}</span>
                 </div>
               </div>
               <div class="item-properties">
-                  <template v-for="prop in getFormattedProperties(item)" :key="prop.key">
-                      <span class="property-tag">
-                          {{ prop.key }}:
-                          <template v-if="prop.isColor">
-                              <span class="color-swatch" :style="{ backgroundColor: prop.value }"></span>
-                              <span class="prop-value">{{ prop.value }}</span>
-                          </template>
-                          <template v-else>
-                              <span class="prop-value">{{ prop.value }}</span>
-                          </template>
-                      </span>
-                  </template>
+                  <span class="property-tag">
+                      اللون:
+                      <span class="color-swatch" :style="{ backgroundColor: item.colorHex }"></span>
+                      <span class="prop-value">{{ item.colorHex }}</span>
+                  </span>
+                  <span class="property-tag">
+                      المقاس:
+                      <span class="prop-value">{{ item.size }}</span>
+                  </span>
               </div>
               <div class="item-qty">{{ item.quantity }}x</div>
               <div class="item-price">{{ item.price }} دينار</div>
@@ -85,7 +82,7 @@
             </div>
             <div class="summary-item">
               <span>مجموع المنتجات</span>
-              <span>{{ order.totalPrice || calculateSubtotal() }} دينار</span>
+              <span>{{ order.totalPrice }} دينار</span>
             </div>
             <div class="summary-item">
               <span>تكلفة التوصيل</span>
@@ -109,10 +106,6 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useProductStore } from '@/stores/productStore';
-import { useCustomerStore } from '@/stores/customerStore';
-
 const props = defineProps({
   order: {
     type: Object,
@@ -122,119 +115,40 @@ const props = defineProps({
 
 defineEmits(['close']);
 
-const productStore = useProductStore();
-const customerStore = useCustomerStore();
-
-const customer = computed(() => {
-  return customerStore.getCustomerById(props.order.customerId);
-});
-
 /**
- * NEW: Finds a product by searching for its variant's properties (color/size).
- * This is more robust than relying on a potentially incorrect productId.
- * @param {object} item - The order item containing colorHex and size.
- * @returns {object|null} The parent product object or null if not found.
+ * Get the image for an order item
+ * Priority: variant images > product main image > placeholder
  */
-const findProductByVariantProps = (item) => {
-  if (!item) return null;
-  for (const product of productStore.getAllProducts) {
-    if (product.variants) {
-      const variantMatch = product.variants.some(variant => {
-        const colorMatch = variant.colorHex === item.colorHex;
-        // If the variant has a stock array, check for size match too
-        const sizeMatch = variant.stock ? variant.stock.some(stockItem => stockItem.size === item.size) : true;
-        return colorMatch && sizeMatch;
-      });
-      if (variantMatch) {
-        return product; // Return the parent product
-      }
-    }
+const getItemImage = (item) => {
+  // First, try to use variant images from the API
+  if (item.images && item.images.length > 0) {
+    return item.images[0];
   }
-  return null;
-};
-
-/**
- * MODIFIED: This function now takes the whole item and uses the robust lookup.
- * @param {object} item - The order item.
- * @returns {object|null} The parent product object.
- */
-const getProduct = (item) => {
-  if (!item) return null;
-  // First, try the direct lookup in case the ID is correct
-  const directHit = productStore.getProductById(item.productId);
-  if (directHit) return directHit;
-
-  // If direct lookup fails, use the more reliable search method
-  return findProductByVariantProps(item);
-};
-
-const getVariantImage = (item) => {
-  // Pass the whole item object to getProduct
-  const product = getProduct(item);
-  if (!product) return 'https://placehold.co/60x60/eee/ccc?text=?';
-
-  // Find the variant by colorHex, which is now part of the order item
-  const variant = product.variants.find(v => v.colorHex === item.colorHex);
-  if (variant && variant.images && variant.images.length > 0) {
-    return variant.images[0];
+  
+  // Then try the product main image
+  if (item.productMainImage) {
+    return item.productMainImage;
   }
-
-  // Fallback to the product's main image if no specific variant image is found
-  return product.mainImage || 'https://placehold.co/60x60/eee/ccc?text=?';
-};
-
-/**
- * Gathers and formats all relevant properties for an order item for display.
- * @param {object} item - The order item.
- * @returns {Array<object>} An array of property objects to be displayed.
- */
-const getFormattedProperties = (item) => {
-    // Pass the whole item object to getProduct
-    const product = getProduct(item);
-    const props = [];
-
-    // Add color from the specific order item
-    if (item.colorHex) {
-        props.push({ key: 'اللون', value: item.colorHex, isColor: true });
-    }
-    // Add size from the specific order item
-    if (item.size) {
-        props.push({ key: 'المقاس', value: item.size });
-    }
-    // Add other properties from the main product definition (e.g., الخامة)
-    if (product && product.properties) {
-        Object.keys(product.properties).forEach(key => {
-            if (key !== 'المقاس' && product.properties[key].legacy) {
-                props.push({ key: key, value: product.properties[key].legacy.join(', ') });
-            }
-        });
-    }
-    return props;
+  
+  // Fallback to placeholder
+  return 'https://placehold.co/60x60/eee/ccc?text=?';
 };
 
 /**
  * Convert payment method from English to Arabic
- * @param {string} paymentMethod - The payment method in English
- * @returns {string} The payment method in Arabic
  */
 const getPaymentMethodText = (paymentMethod) => {
     const paymentMethods = {
         'Cash on Delivery': 'الدفع عند الاستلام',
+        'cash': 'الدفع عند الاستلام',
         'Credit Card': 'بطاقة ائتمان',
+        'card': 'بطاقة ائتمان',
         'Bank Transfer': 'تحويل بنكي',
+        'bank_transfer': 'تحويل بنكي',
         'Mobile Payment': 'الدفع عبر الجوال',
+        'wallet': 'محفظة إلكترونية',
     };
     return paymentMethods[paymentMethod] || paymentMethod || 'غير محدد';
-};
-
-/**
- * Calculate subtotal if totalPrice is not available
- * @returns {number} The calculated subtotal
- */
-const calculateSubtotal = () => {
-    return props.order.items.reduce((sum, item) => {
-        return sum + (item.quantity * item.price);
-    }, 0).toFixed(2);
 };
 
 const formatDate = (dateString) => {
@@ -242,10 +156,9 @@ const formatDate = (dateString) => {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    hour: '2-digit',   // Added hour
-    minute: '2-digit', // Added minute
+    hour: '2-digit',
+    minute: '2-digit',
   };
-  // Use toLocaleString to include time
   return new Date(dateString).toLocaleString('ar-EG-u-nu-latn', options);
 };
 
@@ -374,7 +287,7 @@ const onImageError = (event) => {
   font-weight: bold;
 }
 
-/* New styles for properties column */
+/* Properties column */
 .item-properties {
   display: flex;
   flex-direction: column;
@@ -383,9 +296,9 @@ const onImageError = (event) => {
 }
 
 .property-tag {
-  background-color: #eef2ff; /* Light indigo background */
+  background-color: #eef2ff;
   border: 1px solid #e0e7ff;
-  color: #4338ca; /* Indigo text */
+  color: #4338ca;
   padding: 4px 10px;
   border-radius: 16px;
   font-size: 0.8rem;
