@@ -3,8 +3,11 @@ import axios from 'axios';
 // It should be used by all Pinia stores.
 
 const api = axios.create({
-  // Use relative URL - Vite proxy will forward to the backend
-  baseURL: '/api/',
+  // BEFORE:
+  // baseURL: '/api/',
+
+  // AFTER:
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
