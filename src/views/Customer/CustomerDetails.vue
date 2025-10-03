@@ -10,7 +10,7 @@
         <div v-else-if="customer" class="customer-details-page">
             <div class="details-header mb-4">
                 <div class="d-flex align-items-center">
-                    <div class="customer-avatar me-3">
+                    <div class="customer-avatar me-3 bg-white text-dark">
                         <i class="fas fa-user"></i>
                     </div>
                     <div>
@@ -20,14 +20,14 @@
                         </span>
                     </div>
                 </div>
-                <router-link to="/customers" class="btn btn-outline-secondary">
+                <div class="btn btn-outline-secondary" @click="router.back()">
                     <i class="fas fa-arrow-right me-2"></i>
-                    العودة إلى العملاء
-                </router-link>
+                    العودة
+                </div>
             </div>
 
             <div class="card shadow-sm mb-4">
-                <div class="card-header">
+                <div class="card-header bg-dark text-white">
                     <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>معلومات العميل</h5>
                 </div>
                 <div class="card-body">
@@ -51,57 +51,54 @@
             <div class="row">
                 <div class="col-lg-7">
                     <div class="card shadow-sm">
-                        <div class="card-header">
+                        <div class="card-header bg-dark text-white">
                             <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>سجل الطلبات ({{ totalOrders }})</h5>
                         </div>
                         <div class="card-body p-0">
-                            <div v-if="paginatedOrders.length > 0" class="orders-container">
-                                <div class="order-item header">
-                                    <div class="order-info">الطلب</div>
-                                    <div class="order-total">المجموع</div>
-                                    <div class="order-status">الحالة</div>
-                                </div>
-                                
-                                <!-- Loading Spinner Overlay -->
-                                <div v-if="ordersLoading" class="orders-loading-overlay">
-                                    <div class="spinner-border text-primary" role="status"></div>
-                                    <p class="mt-2 text-muted mb-0">جاري التحميل...</p>
-                                </div>
-                                
-                                <div class="orders-list-fixed" :class="{ 'loading-blur': ordersLoading }">
-                                    <div v-for="order in paginatedOrders" :key="order.id" class="order-item clickable"
-                                         @click="!ordersLoading && openOrderDetailsModal(order)">
-                                        <div class="order-info">
-                                            <span class="order-id">#{{ order.id }}</span>
-                                            <span class="order-date">{{ formatDate(order.order_date) }}</span>
-                                        </div>
-                                        <div class="order-total">{{ order.grand_total }} دينار</div>
-                                        <div class="order-status">
-                                            <span class="status-badge" :class="getStatusBadgeClass(order.status)">{{ order.status }}</span>
+                            <div v-if="paginatedOrders.length > 0">
+                                <div class="orders-container">
+                                    <div class="order-item header">
+                                        <div class="order-info">الطلب</div>
+                                        <div class="order-total">المجموع</div>
+                                        <div class="order-status">الحالة</div>
+                                    </div>
+
+                                    <div v-if="ordersLoading" class="orders-loading-overlay">
+                                        <div class="spinner-border text-primary" role="status"></div>
+                                        <p class="mt-2 text-muted mb-0">جاري التحميل...</p>
+                                    </div>
+
+                                    <div class="orders-list-fixed" :class="{ 'loading-blur': ordersLoading }">
+                                        <div v-for="order in paginatedOrders" :key="order.id" class="order-item clickable"
+                                            @click="!ordersLoading && openOrderDetailsModal(order)">
+                                            <div class="order-info">
+                                                <span class="order-id">#{{ order.id }}</span>
+                                                <span class="order-date">{{ formatDate(order.order_date) }}</span>
+                                            </div>
+                                            <div class="order-total">{{ order.grand_total }} دينار</div>
+                                            <div class="order-status">
+                                                <span class="status-badge" :class="getStatusBadgeClass(order.status)">{{ order.status }}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <!-- Orders Pagination -->
                                 <div v-if="totalOrderPages > 1" class="orders-pagination">
-                                    <button @click="goToOrderPage(currentOrderPage - 1)" 
-                                            :disabled="currentOrderPage === 1 || ordersLoading" 
-                                            class="pagination-btn">
+                                    <button @click="goToOrderPage(currentOrderPage - 1)"
+                                        :disabled="currentOrderPage === 1 || ordersLoading" class="pagination-btn">
                                         <i class="fas fa-chevron-right"></i>
                                     </button>
-                                    
+
                                     <div class="page-numbers-small">
-                                        <button v-for="page in visibleOrderPages" :key="page" 
-                                                @click="goToOrderPage(page)"
-                                                :class="['page-number-small', { 'active': page === currentOrderPage, 'disabled': typeof page !== 'number' }]"
-                                                :disabled="typeof page !== 'number' || ordersLoading">
+                                        <button v-for="page in visibleOrderPages" :key="page" @click="goToOrderPage(page)"
+                                            :class="['page-number-small', { 'active': page === currentOrderPage, 'disabled': typeof page !== 'number' }]"
+                                            :disabled="typeof page !== 'number' || ordersLoading">
                                             {{ page }}
                                         </button>
                                     </div>
-                                    
-                                    <button @click="goToOrderPage(currentOrderPage + 1)" 
-                                            :disabled="currentOrderPage === totalOrderPages || ordersLoading"
-                                            class="pagination-btn">
+
+                                    <button @click="goToOrderPage(currentOrderPage + 1)"
+                                        :disabled="currentOrderPage === totalOrderPages || ordersLoading"
+                                        class="pagination-btn">
                                         <i class="fas fa-chevron-left"></i>
                                     </button>
                                 </div>
@@ -115,44 +112,68 @@
 
                 <div class="col-lg-5">
                     <div class="card shadow-sm">
-                        <div class="card-header">
-                            <h5 class="mb-0"><i class="fas fa-star me-2"></i>تقييمات المنتجات</h5>
+                        <div class="card-header bg-dark text-white">
+                            <h5 class="mb-0"><i class="fas fa-star me-2"></i>تقييمات المنتجات ({{ totalRatingsCount }})</h5>
                         </div>
-                        <div class="card-body scrollable-card-body">
-                            <div v-if="ratingsLoading" class="text-center py-3">
-                                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-                                <p class="mt-2 text-muted mb-0">جاري تحميل التقييمات...</p>
-                            </div>
-                            <div v-else-if="customerRatings.length > 0" class="ratings-list">
-                                <div v-for="rating in customerRatings" :key="rating.id" 
-                                     class="rating-item" 
-                                     :class="{ 'has-comment': rating.comment && rating.comment.trim() }"
-                                     @click="rating.comment && rating.comment.trim() ? openCommentModal(rating) : null">
-                                    <div class="rating-main-info">
-                                        <div class="product-info">
-                                            <div class="product-image-container">
-                                                <img :src="rating.product_main_image" 
-                                                     :alt="rating.product_name"
-                                                     class="product-image"
-                                                     @error="handleImageError">
+                        <div class="card-body p-0">
+                             <div v-if="paginatedRatings.length > 0">
+                                <div class="ratings-container">
+                                     <div v-if="ratingsLoading" class="ratings-loading-overlay">
+                                        <div class="spinner-border text-primary" role="status"></div>
+                                        <p class="mt-2 text-muted mb-0">جاري التحميل...</p>
+                                    </div>
+                                    <div class="ratings-list" :class="{ 'loading-blur': ratingsLoading }">
+                                        <div v-for="rating in paginatedRatings" :key="rating.id" class="rating-item"
+                                            :class="{ 'has-comment': rating.comment && rating.comment.trim() }"
+                                            @click="!ratingsLoading && rating.comment && rating.comment.trim() ? openCommentModal(rating) : null">
+                                            <div class="rating-main-info">
+                                                <div class="product-info">
+                                                    <div class="product-image-container">
+                                                        <img :src="rating.product_main_image"
+                                                            :alt="rating.product_name" class="product-image"
+                                                            @error="handleImageError">
+                                                    </div>
+                                                    <span class="rating-product-name">{{ rating.product_name }}</span>
+                                                </div>
+                                                <div class="rating-details">
+                                                    <div class="rating-stars">
+                                                        <i v-for="i in 5" :key="i" class="fas fa-star"
+                                                            :class="{ 'filled': i <= rating.rating }"></i>
+                                                    </div>
+                                                    <span class="rating-date">{{ formatDate(rating.created_at) }}</span>
+                                                    <span v-if="rating.comment && rating.comment.trim()"
+                                                        class="comment-status view-comment">
+                                                        عرض التعليق
+                                                    </span>
+                                                    <span v-else class="comment-status no-comment">
+                                                        بدون تعليق
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <span class="rating-product-name">{{ rating.product_name }}</span>
-                                        </div>
-                                        <div class="rating-details">
-                                            <div class="rating-stars">
-                                                <i v-for="i in 5" :key="i" class="fas fa-star"
-                                                    :class="{ 'filled': i <= rating.rating }"></i>
-                                            </div>
-                                            <span class="rating-date">{{ formatDate(rating.created_at) }}</span>
-                                            <span v-if="rating.comment && rating.comment.trim()" 
-                                                  class="comment-status view-comment">
-                                                عرض التعليق
-                                            </span>
-                                            <span v-else class="comment-status no-comment">
-                                                بدون تعليق
-                                            </span>
                                         </div>
                                     </div>
+                                </div>
+                                <div v-if="totalRatingPages > 1" class="orders-pagination">
+                                    <button @click="goToRatingPage(currentRatingPage - 1)"
+                                        :disabled="currentRatingPage === 1 || ratingsLoading"
+                                        class="pagination-btn">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </button>
+
+                                    <div class="page-numbers-small">
+                                        <button v-for="page in visibleRatingPages" :key="page"
+                                            @click="goToRatingPage(page)"
+                                            :class="['page-number-small', { 'active': page === currentRatingPage, 'disabled': typeof page !== 'number' }]"
+                                            :disabled="typeof page !== 'number' || ratingsLoading">
+                                            {{ page }}
+                                        </button>
+                                    </div>
+
+                                    <button @click="goToRatingPage(currentRatingPage + 1)"
+                                        :disabled="currentRatingPage === totalRatingPages || ratingsLoading"
+                                        class="pagination-btn">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </button>
                                 </div>
                             </div>
                             <div v-else class="text-center text-muted p-3">
@@ -165,7 +186,7 @@
         </div>
 
         <OrderDetails v-if="isOrderDetailsVisible" :order="selectedOrder" @close="closeOrderDetailsModal" />
-        
+
         <div v-if="isCommentModalVisible" class="comment-modal-backdrop" @click="closeCommentModal">
             <div class="comment-modal-content" @click.stop>
                 <div class="comment-modal-header">
@@ -189,11 +210,12 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import api from '@/api';
 import OrderDetails from '@/components/Order/OrderDetails.vue';
 
 const route = useRoute();
+const router = useRouter();
 
 const customer = ref(null);
 const allOrders = ref([]);
@@ -206,6 +228,7 @@ const selectedOrder = ref(null);
 
 // State for ratings
 const customerRatings = ref([]);
+const totalRatingsCount = ref(0);
 const ratingsLoading = ref(false);
 
 // State for the comment modal
@@ -214,18 +237,23 @@ const selectedComment = ref(null);
 
 // Pagination state for orders
 const currentOrderPage = ref(1);
-const ordersPerPage = 5;
+const ordersPerPage = 5; // Changed from 5 to 10
+
+// Pagination state for ratings
+const currentRatingPage = ref(1);
+const ratingsPerPage = 10; // Changed from 5 to 10
+
 
 onMounted(async () => {
     const customerId = parseInt(route.params.id);
-    
+
     try {
         // Fetch customer data with first page of orders
         await fetchCustomerData(customerId);
 
-        // Fetch ratings for this customer
+        // Fetch first page of ratings for this customer
         await fetchCustomerRatings(customerId);
-        
+
     } catch (err) {
         error.value = 'حدث خطأ أثناء تحميل بيانات العميل';
         console.error('Error loading customer details:', err);
@@ -237,10 +265,13 @@ onMounted(async () => {
 const fetchCustomerData = async (customerId, ordersPage = 1) => {
     if (ordersPage > 1) {
         ordersLoading.value = true;
+    } else {
+        // Show main loader only on initial full page load
+        isLoading.value = true;
     }
     try {
         const response = await api.get(`/users/customers/${customerId}/?orders_page=${ordersPage}`);
-        
+
         // Store customer info
         customer.value = {
             id: response.data.id,
@@ -250,27 +281,30 @@ const fetchCustomerData = async (customerId, ordersPage = 1) => {
             is_active: response.data.is_active,
             last_login: response.data.last_login
         };
-        
+
         // Store orders and pagination info
         allOrders.value = response.data.orders.results || [];
         totalOrdersCount.value = response.data.orders.count || 0;
-        
+
     } catch (err) {
         console.error('Error fetching customer data:', err);
-        throw err;
+        if (ordersPage === 1) error.value = 'Failed to load customer data.';
     } finally {
         ordersLoading.value = false;
+        isLoading.value = false;
     }
 };
 
-const fetchCustomerRatings = async (userId) => {
+const fetchCustomerRatings = async (userId, page = 1) => {
     ratingsLoading.value = true;
     try {
-        const response = await api.get(`/products/staff-ratings/?user=${userId}`);
-        customerRatings.value = response.data || [];
+        const response = await api.get(`/products/staff-ratings/?user=${userId}&page=${page}`);
+        customerRatings.value = response.data.results || [];
+        totalRatingsCount.value = response.data.count || 0;
     } catch (error) {
         console.error('Error fetching customer ratings:', error);
         customerRatings.value = [];
+        totalRatingsCount.value = 0;
     } finally {
         ratingsLoading.value = false;
     }
@@ -310,10 +344,50 @@ const visibleOrderPages = computed(() => {
 });
 
 const goToOrderPage = (page) => {
-    if (page >= 1 && page <= totalOrderPages.value && typeof page === 'number') {
+    if (page >= 1 && page <= totalOrderPages.value && typeof page === 'number' && page !== currentOrderPage.value) {
         currentOrderPage.value = page;
         const customerId = parseInt(route.params.id);
         fetchCustomerData(customerId, page);
+    }
+};
+
+
+// Ratings pagination computed properties
+const totalRatingPages = computed(() => {
+    if (totalRatingsCount.value === 0) return 1;
+    return Math.ceil(totalRatingsCount.value / ratingsPerPage);
+});
+
+const paginatedRatings = computed(() => customerRatings.value);
+
+const visibleRatingPages = computed(() => {
+    const pages = [];
+    const total = totalRatingPages.value;
+    const current = currentRatingPage.value;
+
+    if (total <= 1) return [];
+
+    if (total <= 7) {
+        for (let i = 1; i <= total; i++) pages.push(i);
+    } else {
+        pages.push(1);
+        if (current > 4) pages.push('...');
+        const start = Math.max(2, current - 2);
+        const end = Math.min(total - 1, current + 2);
+        for (let i = start; i <= end; i++) {
+            if (i > 1 && !pages.includes(i)) pages.push(i);
+        }
+        if (current < total - 3) pages.push('...');
+        if (!pages.includes(total)) pages.push(total);
+    }
+    return pages;
+});
+
+const goToRatingPage = (page) => {
+    if (page >= 1 && page <= totalRatingPages.value && typeof page === 'number' && page !== currentRatingPage.value) {
+        currentRatingPage.value = page;
+        const customerId = parseInt(route.params.id);
+        fetchCustomerRatings(customerId, page);
     }
 };
 
@@ -396,8 +470,7 @@ const handleImageError = (event) => {
     width: 70px;
     height: 70px;
     border-radius: 50%;
-    background: #ea6666;
-    color: white;
+    box-shadow: 0 4px 15px rgba(26, 26, 26, 0.3);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -423,12 +496,12 @@ const handleImageError = (event) => {
     color: #212529;
     margin: 0;
 }
-.scrollable-card-body {
-    max-height: 500px;
-    overflow-y: auto;
-}
 .orders-container { 
     position: relative;
+}
+.ratings-container {
+    position: relative;
+    padding: 0.75rem;
 }
 .orders-list-fixed {
     max-height: 400px;
@@ -438,7 +511,7 @@ const handleImageError = (event) => {
     transition: opacity 0.3s ease;
 }
 
-.orders-loading-overlay {
+.orders-loading-overlay, .ratings-loading-overlay {
     position: absolute;
     top: 50%;
     left: 50%;
@@ -463,6 +536,9 @@ const handleImageError = (event) => {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    max-height: 380px; /* Adjusted for pagination */
+    overflow-y: auto;
+    padding-right: 5px;
 }
 .order-item {
     display: grid;
@@ -566,7 +642,7 @@ const handleImageError = (event) => {
 /* Rating Item Styles */
 .rating-item {
     padding: 1rem;
-    background-color: #f8f9fa;
+    background-color: #ffffff;
     border-radius: 8px;
     border: 1px solid #e9ecef;
     transition: box-shadow 0.2s ease;

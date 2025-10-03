@@ -53,6 +53,12 @@
             <span class="material-icons me-3">local_shipping</span>
             <span class="sidebar-text">إدارة المدن والمناطق</span>
           </router-link>
+
+          <router-link to="/support-tickets"
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
+            <span class="material-icons me-3">confirmation_number</span>
+            <span class="sidebar-text">إدارة تذاكر الدعم</span>
+          </router-link>
         </nav>
       </div>
 

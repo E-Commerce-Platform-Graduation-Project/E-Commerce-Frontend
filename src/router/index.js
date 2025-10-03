@@ -6,6 +6,8 @@ import { useAuthStore } from '@/stores/authStore'
 import Login from '../views/Login.vue'
 import Dashboard from '../views/Dashboard.vue'
 import Customers from '@/views/Customer/Customers.vue'
+import SupportTickets from '@/views/Customer/SupportTickets.vue'
+import SupportTicketDetails from '@/views/Customer/SupportTicketDetails.vue'
 import CustomerDetails from '@/views/Customer/CustomerDetails.vue'
 import Orders from '@/views/Orders.vue'
 import DeliveryLocations from '@/views/DeliveryLocations.vue'
@@ -39,6 +41,18 @@ const routes = [
     path: '/customers',
     name: 'Customers',
     component: Customers,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/support-tickets',
+    name: 'SupportTickets',
+    component: SupportTickets,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/support-tickets/:id',
+    name: 'SupportTicketDetails',
+    component: SupportTicketDetails,
     meta: { requiresAuth: true }
   },
   {

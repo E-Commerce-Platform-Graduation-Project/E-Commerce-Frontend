@@ -9,7 +9,7 @@
       <div class="col-md-12">
         <div class="stats-container">
           <div class="stat-card total-customers">
-            <div class="stat-icon">
+            <div class="stat-icon ">
               <i class="fas fa-users"></i>
             </div>
             <div class="stat-content">
@@ -92,7 +92,7 @@
     </div>
 
     <div v-if="!customerStore.getIsLoading && !customerStore.getError" class="customers-container">
-      <div class="customer-header">
+      <div class="customer-header bg-dark text-white">
         <div class="header-item">الاسم</div>
         <div class="header-item">رقم الهاتف</div>
         <div class="header-item">البريد الإلكتروني</div>
@@ -103,7 +103,7 @@
       <div v-for="customer in filteredCustomers" :key="customer.id"
         :class="['customer-row', { 'disabled-customer': !customer.is_active }]" @click="viewCustomerDetails(customer)">
         <div class="customer-info">
-          <div class="customer-avatar">
+          <div class="customer-avatar bg-white text-dark">
             <i class="fas fa-user"></i>
             <div class="status-indicator" :class="{ 'online': customer.is_active }"></div>
           </div>
@@ -392,7 +392,7 @@ const getEmptyStateMessage = () => {
   color: white;
 }
 
-.total-customers .stat-icon {
+ .total-customers .stat-icon {
   background: #007bff;
 }
 
@@ -402,7 +402,7 @@ const getEmptyStateMessage = () => {
 
 .disabled-customers .stat-icon {
   background: #e03b3b;
-}
+} 
 
 .stat-content {
   flex: 1;
@@ -511,10 +511,8 @@ const getEmptyStateMessage = () => {
   grid-template-columns: 2fr 1fr 1.5fr 1fr 0.5fr;
   gap: 20px;
   padding: 20px 25px;
-  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
   border-bottom: 2px solid #dee2e6;
   font-weight: 600;
-  color: #495057;
   text-align: right;
 }
 
@@ -568,13 +566,11 @@ const getEmptyStateMessage = () => {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: #ea6666;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
   font-size: 20px;
-  box-shadow: 0 4px 15px rgba(230, 102, 234, 0.3);
+  box-shadow: 0 4px 15px rgba(26, 26, 26, 0.3);
 }
 
 .status-indicator {

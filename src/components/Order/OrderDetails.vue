@@ -2,10 +2,10 @@
   <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.6); z-index: 1060;" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content order-details-modal">
-        <div class="modal-header">
+        <div class="modal-header bg-dark text-white">
           <div>
-            <h5 class="modal-title">تفاصيل الطلب <span class="text-primary">#{{ order.id }}</span></h5>
-            <small class="text-muted">{{ formatDate(order.orderDate) }}</small>
+            <h5 class="modal-title">تفاصيل الطلب <span >#{{ order.id }}</span></h5>
+            <small>{{ formatDate(order.orderDate) }}</small>
           </div>
         </div>
 
@@ -192,7 +192,10 @@ const onImageError = (event) => {
   to { transform: translateY(0); opacity: 1; }
 }
 
-.modal-header,
+.modal-header{
+
+  border-color: #dee2e6;
+}
 .modal-footer {
   background-color: #f8f9fa;
   border-color: #dee2e6;
@@ -367,6 +370,7 @@ const onImageError = (event) => {
 }
 
 .btn-close-custom:hover {
-  background-color: #5a6268;
+  transition: background-color 0.2s ease;
+  background-color: #0f0f0f;
 }
 </style>

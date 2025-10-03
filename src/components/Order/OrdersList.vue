@@ -1,7 +1,7 @@
 <template>
   <div class="orders-container">
     <!-- List Header -->
-    <div class="order-header">
+    <div class="order-header bg-dark text-white">
       <div class="header-item">معرف الطلب</div>
       <div class="header-item customer">العميل</div>
       <div class="header-item">تكلفة المنتجات</div>
@@ -155,10 +155,7 @@ document.addEventListener('click', (event) => {
 }
 
 .order-header {
-  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-  border-bottom: 2px solid #dee2e6;
   font-weight: 600;
-  color: #495057;
   font-size: 14px;
 }
 
@@ -175,7 +172,6 @@ document.addEventListener('click', (event) => {
 
 .order-id { 
   font-weight: bold; 
-  color: #0d6efd; 
 }
 
 .order-product-cost { 

@@ -3,7 +3,7 @@
     <!-- Table Container with Horizontal Scroll -->
     <div class="table-container">
       <!-- Table Header -->
-      <div class="table-header">
+      <div class="table-header bg-dark text-white">
         <div class="header-cell name-cell">الاسم</div>
         <div class="header-cell phone-cell">رقم الهاتف</div>
         <div class="header-cell email-cell">البريد الإلكتروني</div>
@@ -186,10 +186,7 @@ export default {
   grid-template-columns: 2fr 1fr 1.5fr 1fr 1fr 1fr;
   gap: 15px;
   padding: 20px;
-  background: #f8f9fa;
-  border-bottom: 2px solid #e0e0e0;
   font-weight: bold;
-  color: #333;
   position: sticky;
   top: 0;
   z-index: 10;

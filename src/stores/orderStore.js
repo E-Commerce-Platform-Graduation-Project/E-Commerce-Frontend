@@ -50,6 +50,7 @@ export const useOrderStore = defineStore('order', {
 
             this.orders = apiOrders.map(order => ({
                 id: order.id,
+                user_id: order.user_id, // Added user_id
                 customerName: order.user,
                 customerPhone: order.customer_phone,
                 orderDate: order.order_date,
@@ -87,6 +88,65 @@ export const useOrderStore = defineStore('order', {
         } finally {
             this.isLoading = false;
         }
+    },
+
+    /**
+     * Fetches a single order by its ID from the API.
+     * @param {number} orderId The ID of the order to fetch.
+     * @returns {object|null} The transformed order object or null if not found.
+     */
+    async fetchOrderById(orderId) {
+      this.error = null;
+      try {
+        const response = await api.get(`products/staff-orders/${orderId}/`);
+        const order = response.data;
+
+        // Transformation logic to ensure data consistency
+        const statusMap = {
+          'Pending': 'قيد الانتظار',
+          'Processing': 'قيد التجهيز',
+          'Shipped': 'في الطريق الى الزبون',
+          'Completed': 'مكتمل',
+          'Cancelled': 'ملغي',
+        };
+
+        const transformedOrder = {
+          id: order.id,
+          user_id: order.user_id,
+          customerName: order.user,
+          customerPhone: order.customer_phone,
+          orderDate: order.order_date,
+          status: statusMap[order.status] || order.status,
+          address: order.address,
+          paymentMethod: order.payment_method,
+          totalPrice: parseFloat(order.total_price),
+          shippingCost: parseFloat(order.shipping_cost),
+          totalAmount: parseFloat(order.grand_total),
+          items: order.items.map(item => {
+            const colorAttr = item.variant.attributes.find(attr => attr.name === 'اللون');
+            const sizeAttr = item.variant.attributes.find(attr => attr.name === 'المقاس');
+
+            return {
+              productId: item.product_id,
+              productName: item.product_name,
+              productMainImage: item.product_main_image,
+              variantId: item.variant.product_variant_id,
+              sku: item.variant.sku,
+              quantity: item.quantity,
+              price: parseFloat(item.price_per_unit),
+              colorHex: colorAttr ? colorAttr.value : '#FFFFFF',
+              size: sizeAttr ? sizeAttr.value : 'غير محدد',
+              images: item.images.map(img => img.image),
+            };
+          }),
+        };
+
+        return transformedOrder;
+      } catch (e) {
+        this.error = `فشل في جلب الطلب رقم #${orderId}.`;
+        console.error('Error fetching order by ID:', e);
+        return null;
+      }
     },
 
     async updateOrderStatus(orderId, newStatus) {

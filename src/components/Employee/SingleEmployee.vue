@@ -4,7 +4,7 @@
     <div class="employee-info">
       <!-- Avatar -->
       <div class="employee-avatar" >
-        <div class="avatar-circle" :class="employee.role.toLowerCase()">
+        <div class="avatar-circle bg-dark text-white" :class="employee.role.toLowerCase()">
           <i class="fas fa-user"></i>
         </div>
         <div class="status-indicator" :class="{ 'active': employee.is_active }"></div>
@@ -91,7 +91,6 @@ export default {
       const roleMap = {
         'ADMIN': 'مدير',
         'EMPLOYEE': 'موظف',
-        'MANAGER': 'مدير فرع'
       }
       return roleMap[role] || 'غير محدد'
     }
@@ -174,9 +173,6 @@ export default {
   background: #2883a7;
 }
 
-.avatar-circle.manager {
-  background: #ff9800;
-}
 
 .status-indicator {
   position: absolute;
