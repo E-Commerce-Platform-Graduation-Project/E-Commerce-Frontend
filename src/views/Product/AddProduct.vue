@@ -223,7 +223,7 @@
         <div class="form-actions">
           <button type="button" @click="handleCancel" class="btn btn-secondary"
             :disabled="productStore.isLoading">إلغاء</button>
-          <button type="submit" class="btn btn-primary" :disabled="productStore.isLoading">
+          <button type="submit" class="btn btn-dark" :disabled="productStore.isLoading">
             <span v-if="productStore.isLoading" class="loading-spinner"></span>
             {{ productStore.isLoading ? 'جاري الاضافة...' : 'اضافة المنتج' }}
           </button>
@@ -239,7 +239,7 @@
         </div>
         <h3>تم بنجاح!</h3>
         <p>تمت إضافة المنتج بنجاح!</p>
-        <button @click="closeSuccessModal" class="btn btn-primary">موافق</button>
+        <button @click="closeSuccessModal" class="btn btn-dark">موافق</button>
       </div>
     </div>
     
@@ -264,6 +264,7 @@ import { useCategoryStore } from '@/stores/categoryStore';
 import { useProductStore, compressImage } from '@/stores/productStore'; // Import compressImage
 import { usePropStore } from '@/stores/propStore';
 import { storeToRefs } from 'pinia';
+import heic2any from 'heic2any';
 
 const router = useRouter();
 const categoryStore = useCategoryStore();
@@ -288,6 +289,7 @@ const propertiesLoading = ref(false);
 const showSuccessModal = ref(false);
 const showErrorModal = ref(false);
 const modalErrorMessage = ref('');
+
 
 const mainCategories = computed(() => categoryStore.getMainCategories);
 const subCategories = computed(() => selectedMainCategory.value ? categoryStore.getSubcategoriesByParent(selectedMainCategory.value) : []);
@@ -342,40 +344,83 @@ onBeforeUnmount(() => {
 });
 
 // REVISED: Logic to show progress bar correctly
-const handleMainImageUpload = (event) => { // No longer async
+const handleMainImageUpload = async (event) => {
   const file = event.target.files[0];
-  if (file) {
-    if (productData.mainImage && productData.mainImage.url) {
-      URL.revokeObjectURL(productData.mainImage.url);
-    }
-    
-    // 1. Create reactive object and set state immediately
-    const imageObject = reactive({
-      file: file,
-      url: URL.createObjectURL(file),
-      compressing: true,
-      progress: 0,
-    });
-    productData.mainImage = imageObject;
 
-    if (errors.mainImage) delete errors.mainImage;
-
-    const onProgress = (p) => {
-      imageObject.progress = p;
-    };
-
-    // 2. Start compression in background
-    compressImage(file, onProgress)
-      .then(compressedFile => {
-        imageObject.file = compressedFile;
-      })
-      .catch(error => {
-        console.error("Compression failed for main image:", error);
-      })
-      .finally(() => {
-        imageObject.compressing = false;
-      });
+  // If a file was previously selected, release its memory
+  if (productData.mainImage && productData.mainImage.url) {
+    URL.revokeObjectURL(productData.mainImage.url);
   }
+
+  // If the user cancelled the file selection, clear the image and return
+  if (!file) {
+    productData.mainImage = null;
+    return;
+  }
+
+  // 1. ✅ Process the file (convert if HEIC, validate if not)
+  let processedFile = null;
+  const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic');
+
+  if (isHeic) {
+    try {
+      console.log(`Converting HEIC main image: ${file.name}`);
+      const convertedBlob = await heic2any({
+        blob: file,
+        toType: "image/jpeg",
+        quality: 0.8,
+      });
+      // Restore the filename
+      convertedBlob.name = file.name.replace(/\.[^/.]+$/, "") + ".jpeg";
+      processedFile = convertedBlob;
+    } catch (error) {
+      console.error("Main image HEIC conversion failed:", error);
+      processedFile = null; // Set to null on failure
+    }
+  } else if (file.type.startsWith('image/')) {
+    // It's a standard, valid image file
+    processedFile = file;
+  }
+  
+  // Always reset the file input to allow re-selecting the same file
+  event.target.value = null;
+
+  // 2. ✅ Check if processing was successful
+  // If processedFile is null, the file was invalid or conversion failed
+  if (!processedFile) {
+    errors.mainImage = 'الملف المحدد ليس صورة صالحة أو فشل تحويله.';
+    productData.mainImage = null; // Clear any existing image
+    return; // Stop the function
+  }
+
+  // 3. ✅ If validation passes, proceed with the processed file
+  // Clear any previous error
+  if (errors.mainImage) delete errors.mainImage;
+
+  // Create reactive object and set state immediately
+  const imageObject = reactive({
+    file: processedFile, // Use the processed (potentially converted) file
+    url: URL.createObjectURL(processedFile),
+    compressing: true,
+    progress: 0,
+  });
+  productData.mainImage = imageObject;
+
+  const onProgress = (p) => {
+    imageObject.progress = p;
+  };
+
+  // Start compression in the background
+  compressImage(processedFile, onProgress)
+    .then(compressedFile => {
+      imageObject.file = compressedFile;
+    })
+    .catch(error => {
+      console.error("Compression failed for main image:", error);
+    })
+    .finally(() => {
+      imageObject.compressing = false;
+    });
 };
 
 const removeMainImage = () => {
@@ -386,39 +431,86 @@ const removeMainImage = () => {
 };
 
 // REVISED: Logic to show progress bar correctly
-const handleImageUpload = (event, variationIndex) => { // No longer async
-  const files = Array.from(event.target.files);
+const handleImageUpload = async (event, variationIndex) => { 
+  const allFiles = Array.from(event.target.files);
   const variation = productData.colorVariations[variationIndex];
-  if (variation) {
-    files.forEach(file => {
-      // 1. Create reactive object and add to state
-      const imageObject = reactive({
-        file: file,
-        url: URL.createObjectURL(file),
-        compressing: true,
-        progress: 0,
-      });
-      variation.images.push(imageObject);
+  
+  if (!variation) return;
 
-      const onProgress = (p) => {
-        imageObject.progress = p;
-      };
-
-      // 2. Start compression in background
-      compressImage(file, onProgress)
-        .then(compressedFile => {
-          imageObject.file = compressedFile;
-        })
-        .catch(error => {
-          console.error("Compression failed for variant image:", error);
-        })
-        .finally(() => {
-          imageObject.compressing = false;
-        });
-    });
-    
-    if (errors[`color_${variationIndex}_images`]) delete errors[`color_${variationIndex}_images`];
+  // Clear any previous errors for this input
+  if (errors[`color_${variationIndex}_images`]) {
+    delete errors[`color_${variationIndex}_images`];
   }
+
+  // Use Promise.all to handle all file processing (including conversion)
+  const processedFiles = await Promise.all(allFiles.map(async (file) => {
+    // 3. Check if the file is HEIC/HEIF
+    const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic');
+    
+    if (isHeic) {
+      try {
+        console.log(`Converting HEIC file: ${file.name}`);
+        // Convert the file to JPEG. The result is a Blob.
+        const convertedBlob = await heic2any({
+          blob: file,
+          toType: "image/jpeg",
+          quality: 0.8, // You can adjust the quality
+        });
+        // The library doesn't keep the original filename, so we add it back.
+        convertedBlob.name = file.name.replace(/\.[^/.]+$/, "") + ".jpeg";
+        return convertedBlob;
+      } catch (error) {
+        console.error("HEIC conversion failed:", error);
+        // If conversion fails, return null to filter it out later
+        return null; 
+      }
+    }
+    
+    // If it's a regular image file, return it as is
+    if (file.type.startsWith('image/')) {
+      return file;
+    }
+
+    // If it's not a supported image type at all, return null
+    return null;
+  }));
+
+  // Filter out any files that failed conversion or were invalid
+  const validFiles = processedFiles.filter(file => file !== null);
+
+  // If some files were invalid (not images or failed conversion), show an error
+  if (validFiles.length !== allFiles.length) {
+    errors[`color_${variationIndex}_images`] = 'تم تجاهل بعض الملفات لأنها غير مدعومة أو فشل تحويلها.';
+  }
+  
+  // 4. Continue with your existing logic using the valid (and converted) files
+  validFiles.forEach(file => {
+    const imageObject = reactive({
+      file: file, // This is now either the original image or the converted JPEG
+      url: URL.createObjectURL(file),
+      compressing: true,
+      progress: 0,
+    });
+    variation.images.push(imageObject);
+
+    const onProgress = (p) => {
+      imageObject.progress = p;
+    };
+
+    compressImage(file, onProgress)
+      .then(compressedFile => {
+        imageObject.file = compressedFile;
+      })
+      .catch(error => {
+        console.error("Compression failed for variant image:", error);
+      })
+      .finally(() => {
+        imageObject.compressing = false;
+      });
+  });
+
+  // Reset the file input
+  event.target.value = null;
 };
 
 
@@ -536,7 +628,7 @@ const validateForm = () => {
   Object.keys(errors).forEach(key => delete errors[key]);
   let isValid = true;
   if (!productData.name.trim()) { errors.name = 'اسم المنتج مطلوب'; isValid = false; }
-  if (!productData.mainImage) { errors.mainImage = 'الصورة الرئيسية للمنتج مطلوبة'; isValid = false; }
+  if (!productData.mainImage) { if(!errors.mainImage) errors.mainImage ='الصورة الرئيسية للمنتج مطلوبة'; isValid = false; }
   if (!productData.categoryId) { errors.categoryId = 'يجب اختيار فئة للمنتج'; isValid = false; }
   
   if (productData.profitMargin === null || productData.profitMargin === undefined || productData.profitMargin === '') {
@@ -920,12 +1012,12 @@ const closeErrorModal = () => { showErrorModal.value = false; };
   opacity: 0.6;
   cursor: not-allowed;
 }
-.btn-primary {
-  background-color: #3b82f6;
+.btn-dark {
+  background-color: #363636;
   color: white;
 }
-.btn-primary:hover:not(:disabled) {
-  background-color: #2563eb;
+.btn-dark:hover:not(:disabled) {
+  background-color: #0f0f0f;
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
 }
@@ -1206,7 +1298,7 @@ const closeErrorModal = () => { showErrorModal.value = false; };
   margin-bottom: 16px;
 }
 .btn-add-color {
-  background-color: #3b82f6;
+  background-color: #0f0f0f;
   color: white;
   border: none;
   border-radius: 8px;

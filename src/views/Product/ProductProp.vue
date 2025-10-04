@@ -27,7 +27,7 @@
             >
             <span v-if="errors.newPropertyName" class="error-message">{{ errors.newPropertyName }}</span>
           </div>
-          <button type="submit" class="btn btn-primary">إضافة الخاصية</button>
+          <button type="submit" class="btn btn-dark">إضافة الخاصية</button>
         </form>
       </div>
 
@@ -441,7 +441,7 @@ const cancelValueEdit = () => {
 .props-container {
   direction: rtl;
   padding: 40px 20px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #cacacab5 100%);
 }
 .header {
   text-align: center;
@@ -568,8 +568,8 @@ const cancelValueEdit = () => {
   margin-bottom: 15px;
 }
 .value-item {
-  background-color: #eef2ff;
-  color: #4f46e5;
+  background-color: #e0e0e0a4;
+  color: #000000;
   padding: 5px 10px;
   border-radius: 15px;
   font-size: 14px;

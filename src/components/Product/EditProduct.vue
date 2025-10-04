@@ -822,6 +822,7 @@ import { useProductStore, compressImage } from "@/stores/productStore";
 import { useCategoryStore } from "@/stores/categoryStore";
 import { usePropStore } from "@/stores/propStore";
 import { storeToRefs } from "pinia";
+import heic2any from 'heic2any';
 import api from "@/api";
 
 const props = defineProps({ product: { type: Object, required: true } });
@@ -1070,14 +1071,39 @@ const handleMainImageUpload = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
 
+  // NEW: Process the file - convert HEIC or validate other image types
+  let processedFile = null;
+  const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic');
+
+  if (isHeic) {
+    try {
+      console.log(`Converting HEIC file: ${file.name}`);
+      const convertedBlob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 });
+      convertedBlob.name = file.name.replace(/\.[^/.]+$/, "") + ".jpeg";
+      processedFile = convertedBlob;
+    } catch (error) {
+      console.error("HEIC conversion failed:", error);
+      alert('Failed to convert HEIC image.'); // Optional: Inform user
+      event.target.value = ""; // Reset file input
+      return; // Stop execution
+    }
+  } else if (file.type.startsWith('image/')) {
+    processedFile = file; // It's a valid, standard image
+  } else {
+    errors.mainImage = 'الملف المحدد ليس صورة صالحة أو فشل تحويله.';
+    event.target.value = ""; // Reset file input
+    return; // Stop execution
+  }
+  // END NEW
+
   if (newMainImageURL.value) {
     URL.revokeObjectURL(newMainImageURL.value);
   }
 
-  // 1. Create the reactive object and add it to state immediately
+  // 1. Create the reactive object using the processed file
   const imageObject = reactive({
-    file: file,
-    url: URL.createObjectURL(file),
+    file: processedFile,
+    url: URL.createObjectURL(processedFile), // Use the processed file
     compressing: true,
     progress: 0,
   });
@@ -1085,23 +1111,21 @@ const handleMainImageUpload = async (event) => {
   newMainImageFile.value = imageObject;
   newMainImageURL.value = imageObject.url;
   
-  // Define the progress callback
   const onProgress = (p) => {
     imageObject.progress = p;
   };
 
-  // 2. Start compression and update the object in place
+  // 2. Start compression with the processed file
   try {
-    const compressedFile = await compressImage(file, onProgress);
-    imageObject.file = compressedFile; // Update the file property
+    const compressedFile = await compressImage(processedFile, onProgress);
+    imageObject.file = compressedFile;
   } catch (error) {
     console.error("Compression failed for main image:", error);
-    // Keep original file if compression fails
   } finally {
-    imageObject.compressing = false; // Hide progress bar
+    imageObject.compressing = false;
   }
   
-  event.target.value = ""; // Reset file input
+  event.target.value = "";
 };
 
 
@@ -1340,13 +1364,48 @@ const getNewImagesForVariant = (colorHex) => {
 };
 
 // REVISED: Logic to show progress bar correctly
-const addImagesToVariant = (event, variantIndex) => { // No longer async
+const addImagesToVariant = async (event, variantIndex) => {
   const files = Array.from(event.target.files);
   const variant = form.variants[variantIndex];
   if (!variant) return;
 
-  files.forEach(file => {
-    // 1. Create reactive object and add to state
+  // 1. THIS LINE IS UPDATED to match your template's error name
+  const errorKey = `color_${variantIndex}_images`;
+
+  // Clear any previous error with this name
+  delete errors[errorKey];
+
+  // Process all files concurrently (convert & validate)
+  const processedFiles = await Promise.all(files.map(async (file) => {
+    const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic');
+    
+    if (isHeic) {
+      try {
+        const convertedBlob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 });
+        convertedBlob.name = file.name.replace(/\.[^/.]+$/, "") + ".jpeg";
+        return convertedBlob;
+      } catch (error) {
+        console.error("HEIC conversion failed:", error);
+        return null;
+      }
+    }
+    
+    if (file.type.startsWith('image/')) {
+      return file;
+    }
+
+    return null;
+  }));
+
+  const validFiles = processedFiles.filter(file => file !== null);
+  
+  // 2. THIS LINE IS ALSO UPDATED to set the correct error
+  if (validFiles.length !== files.length) {
+    errors[errorKey] = 'تم تجاهل بعض الملفات لأنها ليست صورًا صالحة.';
+  }
+
+  // Process only the valid files
+  validFiles.forEach(file => {
     const imageObject = reactive({
       file: file,
       url: URL.createObjectURL(file),
@@ -1361,7 +1420,6 @@ const addImagesToVariant = (event, variantIndex) => { // No longer async
       imageObject.progress = p;
     };
     
-    // 2. Start compression in the background
     compressImage(file, onProgress)
       .then(compressedFile => {
         imageObject.file = compressedFile;
@@ -1408,7 +1466,7 @@ const validateForm = () => {
   if (form.profitMargin === null || form.profitMargin <= 0) errors.profitMargin = "هامش الربح يجب أن يكون رقماً أكبر من صفر";
   
   if (!form.mainImage && !newMainImageFile.value) {
-    errors.mainImage = "يجب ادراج صورة اساسية للمنتج";
+    if(!errors.mainImage) errors.mainImage = "يجب ادراج صورة اساسية للمنتج";
   }
   
   if (!form.variants || form.variants.length === 0) {

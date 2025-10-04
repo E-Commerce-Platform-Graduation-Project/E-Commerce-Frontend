@@ -387,7 +387,7 @@ export default {
 
 .form-input:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #000000;
 }
 
 .form-input.error {
@@ -419,7 +419,7 @@ export default {
 
 .form-textarea:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #000000;
 }
 
 .form-select {
@@ -433,7 +433,7 @@ export default {
 
 .form-select:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #000000;
 }
 
 .form-select.error {
@@ -486,9 +486,9 @@ export default {
 }
 
 .radio-option.selected .radio-card {
-  border-color: #3b82f6;
+  border-color: #000000;
   background: #f8fafc;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 4px 12px rgba(58, 58, 58, 0.15);
 }
 
 .radio-icon {

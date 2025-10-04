@@ -61,7 +61,7 @@
           <button type="button" @click="handleCancel" class="btn btn-cancel" :disabled="isSubmitting">
             إلغاء
           </button>
-          <button type="submit" class="btn btn-save" :disabled="isSubmitting">
+          <button type="submit" class="btn btn-dark" :disabled="isSubmitting">
             <i v-if="isSubmitting" class="fas fa-spinner fa-spin"></i>
             <i v-else class="fas fa-save"></i>
             {{ isSubmitting ? 'جاري الحفظ...' : 'حفظ' }}
@@ -304,7 +304,7 @@ export default {
 <style scoped>
 .add-employee-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #cacacab5 100%);
   padding: 20px;
   direction: rtl;
 }
@@ -355,7 +355,7 @@ export default {
 .form-input {
   width: 100%;
   padding: 15px 18px;
-  border: 2px solid #e0e6ed;
+  border: 2px solid #aaaaaa;
   border-radius: 12px;
   font-size: 16px;
   transition: all 0.3s ease;
@@ -370,7 +370,7 @@ export default {
 
 .form-input:focus {
   outline: none;
-  border-color: #3498db;
+  border-color: #333333;
   background: white;
   box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.1);
 }
@@ -421,18 +421,18 @@ export default {
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  background: #f8f9fa;
+  background: #ffffff;
 }
 
 .role-option:hover {
-  border-color: #3498db;
+  border-color: #6d6d6dc7;
   transform: translateY(-2px);
 }
 
 .role-option.selected {
-  border-color: #3498db;
-  background: #ebf3fd;
-  box-shadow: 0 8px 25px rgba(52, 152, 219, 0.15);
+  border-color: #000000;
+  background: #8a8a8a2c;
+  box-shadow: 0 8px 25px rgb(0, 0, 0), 0.15;
 }
 
 .role-icon {
@@ -446,8 +446,8 @@ export default {
   font-size: 20px;
 }
 
-.role-icon.employee { background: #2883a7; }
-.role-icon.admin { background: tomato; }
+.role-icon.employee { background: #000000; }
+.role-icon.admin { background: rgb(0, 0, 0); }
 .role-text {
   font-size: 16px;
   font-weight: 600;

@@ -145,7 +145,7 @@
             id="add-to-invoice-btn"
             @click="addVariantToInvoice"
             type="button"
-            class="btn btn-add"
+            class="btn btn-dark"
             :disabled="!selectedVariant"
           >
             <span class="btn-icon">+</span>
@@ -319,7 +319,7 @@
       </div>
 
       <div v-else class="empty-state">
-        <div class="empty-icon">📦</div>
+        <div class="empty-icon">🧾</div>
         <h4>الفاتورة فارغة</h4>
         <p>ابدأ بالبحث عن منتج واختيار متغير من القوائم أعلاه.</p>
       </div>
@@ -328,7 +328,7 @@
         <button
           @click="clearInvoice"
           type="button"
-          class="btn btn-secondary"
+          class="btn btn-danger"
           :disabled="invoiceItems.length === 0"
         >
           مسح الفاتورة
@@ -336,7 +336,7 @@
         <button
           @click="handleSubmit"
           type="button"
-          class="btn btn-primary"
+          class="btn btn-dark"
           :disabled="invoiceItems.length === 0 || productStore.isLoading"
         >
           <span v-if="productStore.isLoading" class="loading-spinner"></span>
@@ -1007,7 +1007,7 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
 .add-purchase-invoice-container {
   padding: 20px;
   direction: rtl;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #cacacab5 100%);
   min-height: 100vh;
 }
 
@@ -1257,14 +1257,14 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
 }
 
 .variant-card:hover {
-  border-color: #3b82f6;
+  border-color: #686868;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
 }
 
 .variant-card.selected {
-  border-color: #3b82f6;
+  border-color: #000000;
   background: #f0f9ff;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 4px 12px rgba(227, 236, 250, 0.15);
 }
 
 .variant-header {
@@ -1495,7 +1495,7 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   align-items: center;
   gap: 4px;
   background-color: #eef2ff;
-  color: #4338ca;
+  color: #000000;
   padding: 4px 8px;
   border-radius: 12px;
   font-size: 11px;
