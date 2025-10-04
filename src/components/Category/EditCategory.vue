@@ -16,7 +16,7 @@
             <!-- Category Name -->
             <div class="mb-3">
               <label for="categoryName" class="form-label fw-semibold">
-                <i class="fas fa-tag me-2 text-warning"></i>
+                <i class="fas fa-tag me-2 text-dark"></i>
                 اسم الفئة *
               </label>
               <input
@@ -37,7 +37,7 @@
             <!-- Category Description -->
             <div class="mb-3">
               <label for="categoryDescription" class="form-label fw-semibold">
-                <i class="fas fa-align-left me-2 text-warning"></i>
+                <i class="fas fa-align-left me-2 text-dark"></i>
                 وصف الفئة
               </label>
               <textarea
@@ -57,7 +57,7 @@
             <!-- Parent Category -->
             <div class="mb-3">
               <label for="parentCategory" class="form-label fw-semibold">
-                <span class="material-icons text-warning me-2">category</span>
+                <span class="material-icons text-dark me-2">category</span>
                 الفئة الرئيسية
               </label>
               
@@ -129,7 +129,7 @@
             <!-- Category Preview -->
             <div v-if="form.name" class="mb-3">
               <label class="form-label fw-semibold">
-                <i class="fas fa-eye me-2 text-warning"></i>
+                <i class="fas fa-eye me-2 text-dark"></i>
                 معاينة الفئة
               </label>
               <div class="category-preview p-3 border rounded bg-light">
@@ -395,9 +395,9 @@ export default {
 
     const getPreviewBadgeClass = () => {
       if (form.value.parentCategoryID) {
-        return 'bg-primary'
+        return 'bg-light text-dark'
       }
-      return 'bg-danger'
+      return 'bg-dark'
     }
 
     const getPreviewType = () => {

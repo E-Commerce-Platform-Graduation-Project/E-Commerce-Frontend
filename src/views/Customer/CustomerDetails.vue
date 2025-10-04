@@ -447,7 +447,7 @@ const getStatusBadgeClass = (status) => {
 
 const formatDate = (dateString) => {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString('ar-EG', options);
+    return new Date(dateString).toLocaleDateString('ar-LY', options);
 };
 
 const handleImageError = (event) => {

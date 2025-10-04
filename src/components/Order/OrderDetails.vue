@@ -235,7 +235,7 @@ const onImageError = (event) => {
 }
 
 .info-item i {
-  color: #0d6efd;
+  color: #0f0f0f;
   width: 16px;
   text-align: center;
 }
@@ -301,7 +301,7 @@ const onImageError = (event) => {
 .property-tag {
   background-color: #eef2ff;
   border: 1px solid #e0e7ff;
-  color: #4338ca;
+  color: #0f0f0f;
   padding: 4px 10px;
   border-radius: 16px;
   font-size: 0.8rem;
@@ -341,7 +341,7 @@ const onImageError = (event) => {
 .summary-item.total {
   font-weight: bold;
   font-size: 1.2rem;
-  color: #0d6efd;
+  color: #22c55e;
   margin-top: 0.5rem;
   border-top: 1px solid #dee2e6;
   padding-top: 1rem;

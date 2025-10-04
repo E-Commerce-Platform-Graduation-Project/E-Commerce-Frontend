@@ -517,7 +517,7 @@
                 <button
                   @click="addColorVariant"
                   type="button"
-                  class="add-color"
+                  class="add-color bg-dark"
                 >
                   <i class="fas fa-plus"></i> إضافة لون جديد
                 </button>
@@ -2601,7 +2601,6 @@ const handleSubmit = async () => {
 }
 
 .add-color {
-  background: linear-gradient(135deg, #84e297 0%, #0b6b28 100%);
   color: white;
   border: none;
   border-radius: 12px;
@@ -2615,7 +2614,7 @@ const handleSubmit = async () => {
 
 .add-color:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(11, 107, 40, 0.3);
+  box-shadow: 0 8px 25px rgb(0, 0, 0)
 }
 
 .add-color:active {

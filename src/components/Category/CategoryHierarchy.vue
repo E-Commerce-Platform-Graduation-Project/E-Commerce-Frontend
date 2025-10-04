@@ -17,7 +17,7 @@
             <div class="d-flex align-items-center">
               <!-- أيقونة الفئة -->
               <div class="category-icon me-3">
-                <span class="material-icons text-danger fs-3">category</span>
+                <span class="material-icons text-dark fs-3">category</span>
               </div>
               
               <!-- تفاصيل الفئة الرئيسية -->
@@ -218,7 +218,7 @@ export default {
 /* تصميم بطاقة الفئة الرئيسية */
 .main-category-card {
   background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
-  border-left: 4px solid #fd0d0d !important;
+  border-left: 4px solid #0f0f0f !important;
   transition: all 0.3s ease;
 }
 
@@ -235,14 +235,14 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(253, 13, 13, 0.1);
+  background: rgba(5, 5, 5, 0.1);
   border-radius: 50%;
 }
 
 /* تصميم بطاقة الفئة الفرعية */
 .subcategory-card {
   transition: all 0.3s ease;
-  border-color: #2883a7 !important;
+  border-color: #0f0f0f !important;
 }
 
 /* تأثير التحويم على بطاقة الفئة الفرعية */

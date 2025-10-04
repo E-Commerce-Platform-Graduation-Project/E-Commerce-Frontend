@@ -11,7 +11,7 @@
         <div v-else>
             <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
                 <div>
-                    <h1 class="h3 mb-1">تفاصيل فاتورة الشراء <span class="text-primary">#{{ invoice.id }}</span></h1>
+                    <h1 class="h3 mb-1">تفاصيل فاتورة الشراء <span class="text-dark">#{{ invoice.id }}</span></h1>
                     <p class="text-muted mb-0">
                         بتاريخ {{ formatDate(invoice.date) }} بواسطة <strong>{{ invoice.user }}</strong>
                     </p>
@@ -25,7 +25,7 @@
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
-                            <thead class="table-light">
+                            <thead class="table-dark">
                                 <tr>
                                     <th scope="col" style="width: 35%;">المنتج</th>
                                     <th scope="col" style="width: 25%;">رقم المتغير (SKU)</th>
@@ -43,7 +43,7 @@
                                             <img v-if="getItemImage(item)" 
                                                 :src="getItemImage(item)" 
                                                 :alt="item.productName"
-                                                class="product-img me-3"
+                                                class="product-img mx-3"
                                                 @error="handleImageError">
                                             <div v-else class="product-placeholder me-3">
                                                 <i class="fas fa-box"></i>
@@ -79,7 +79,7 @@
                             <tfoot>
                                 <tr class="table-light">
                                     <td colspan="5" class="text-start fw-bold h5">الإجمالي الكلي للفاتورة</td>
-                                    <td class="text-end fw-bold h5 text-primary">{{ formatCurrency(invoice.totalAmount) }}</td>
+                                    <td class="text-end fw-bold h5 text-success">{{ formatCurrency(invoice.totalAmount) }}</td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -220,7 +220,7 @@ const formatCurrency = (amount) => {
     align-items: center;
     gap: 4px;
     background-color: #eef2ff;
-    color: #4338ca;
+    color: #0f0f0f;
     padding: 4px 8px;
     border-radius: 12px;
     font-size: 12px;

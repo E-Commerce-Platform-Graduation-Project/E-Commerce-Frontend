@@ -3,7 +3,7 @@
     <div class="row justify-content-center">
       <div class="col-12 col-lg-8">
         <div class="card shadow-sm mb-4">
-          <div class="card-header bg-primary text-white">
+          <div class="card-header bg-dark text-white">
             <h4 class="mb-0">
               <i class="fas fa-user-cog me-2"></i>
               إعدادات الحساب
@@ -20,7 +20,7 @@
             <button
               v-if="phoneChangeStep === 0"
               type="button"
-              class="btn btn-outline-primary"
+              class="btn btn-outline-dark"
               @click="toggleEditMode"
             >
               <i :class="isEditMode ? 'fas fa-times' : 'fas fa-edit'"></i>
@@ -79,7 +79,7 @@
             <button
               v-if="phoneChangeStep === 0"
               type="button"
-              class="btn btn-outline-primary"
+              class="btn btn-outline-dark"
               @click="phoneChangeStep = 1"
             >
               <i class="fas fa-edit"></i>
@@ -117,7 +117,7 @@
               <div class="mt-4">
                 <button
                   type="submit"
-                  class="btn btn-primary"
+                  class="btn btn-dark"
                   :disabled="isLoading"
                 >
                   <i class="fas fa-paper-plane me-1"></i>
@@ -176,7 +176,7 @@
             </h5>
             <button
               type="button"
-              class="btn btn-outline-primary"
+              class="btn btn-outline-dark"
               @click="togglePermissionsEditMode"
             >
               <i :class="isPermissionsEditMode ? 'fas fa-times' : 'fas fa-edit'"></i>

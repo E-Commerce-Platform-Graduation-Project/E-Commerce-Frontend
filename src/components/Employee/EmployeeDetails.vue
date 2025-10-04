@@ -1,7 +1,7 @@
 <template>
   <div v-if="show" class="modal-overlay" @click="handleOverlayClick">
     <div class="modal-container" @click.stop>
-      <div class="modal-header">
+      <div class="modal-header bg-dark">
         <h2 class="modal-title">
           {{ isEditing ? 'تعديل بيانات الموظف' : 'تفاصيل الموظف' }}
         </h2>
@@ -13,7 +13,7 @@
       <div class="modal-body">
         <div class="employee-header">
           <div class="employee-avatar-large">
-            <div class="avatar-circle-large" :class="isEditing ? editForm.role : employee.role">
+            <div class="avatar-circle-large bg-dark" :class="isEditing ? editForm.role : employee.role">
               <i class="fas fa-user"></i>
             </div>
             <div class="status-badge" :class="{ 'active': isEditing ? editForm.is_active : employee.is_active }">
@@ -140,7 +140,7 @@
         <button 
           v-if="!isEditing" 
           @click="startEditing" 
-          class="btn btn-primary"
+          class="btn btn-warning"
         >
           <i class="fas fa-edit"></i>
           تعديل
@@ -155,17 +155,6 @@
             حفظ التغييرات
           </button>
         </template>
-        
-        <button 
-          v-if="!isEditing"
-          @click="handleToggleStatus" 
-          class="btn" 
-          :class="employee.is_active ? 'btn-danger' : 'btn-success'"
-          :disabled="isUpdating"
-        >
-          <i class="fas" :class="employee.is_active ? 'fa-user-slash' : 'fa-user-check'"></i>
-          {{ employee.is_active ? 'إلغاء التفعيل' : 'تفعيل' }}
-        </button>
       </div>
     </div>
   </div>
@@ -372,7 +361,6 @@ export default {
   align-items: center;
   padding: 25px 30px;
   border-bottom: 2px solid #f0f0f0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border-radius: 15px 15px 0 0;
 }
@@ -437,13 +425,6 @@ export default {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
-.avatar-circle-large.ADMIN {
-  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-}
-
-.avatar-circle-large.EMPLOYEE {
-  background: linear-gradient(135deg, #4834d4, #686de0);
-}
 
 .employee-basic-info {
   flex: 1;
@@ -631,11 +612,11 @@ export default {
 }
 
 .role-badge.ADMIN {
-  background: #ff6b6b;
+  background: tomato;
 }
 
 .role-badge.EMPLOYEE {
-  background: #4834d4;
+  background: #2883a7;
 }
 
 .loading-overlay {

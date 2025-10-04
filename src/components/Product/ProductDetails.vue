@@ -2,7 +2,7 @@
     <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content product-details-modal">
-                <div class="modal-header bg-success text-white">
+                <div class="modal-header bg-dark text-white">
                     <h4 class="modal-title mb-0">{{ product.name }}</h4>
                 </div>
 
@@ -29,7 +29,7 @@
                         </div>
                     </div>
 
-                    <h5 class="mb-3 text-success"><i class="fas fa-info-circle me-2"></i>تفاصيل المنتج</h5>
+                    <h5 class="mb-3 text-dark"><i class="fas fa-info-circle me-2"></i>تفاصيل المنتج</h5>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="fw-semibold text-muted">اسم المنتج</label>
@@ -47,7 +47,7 @@
                      <div class="row border-top pt-3">
                         <div class="col-sm-3 mb-3">
                             <label class="fw-semibold text-muted">أحدث سعر شراء</label>
-                            <p class="fs-5 fw-bold text-primary">
+                            <p class="fs-5 fw-bold text-success">
                                 {{ product.purchasePrice > 0 ? product.purchasePrice + ' دينار' : 'غير محدد' }}
                             </p>
                         </div>
@@ -59,13 +59,13 @@
                         </div>
                         <div class="col-sm-3 mb-3">
                             <label class="fw-semibold text-muted">هامش الربح</label>
-                            <p class="fs-5 fw-bold text-warning">
+                            <p class="fs-5 fw-bold text-success">
                                 {{ product.profitMargin ? product.profitMargin + '%' : 'غير محدد' }}
                             </p>
                         </div>
                         <div class="col-sm-3 mb-3">
                             <label class="fw-semibold text-muted">الربح المتوقع</label>
-                            <p class="fs-5 fw-bold text-info">
+                            <p class="fs-5 fw-bold text-success">
                                 {{ calculatedProfit > 0 ? calculatedProfit + ' دينار' : 'غير محدد' }}
                             </p>
                         </div>
@@ -87,8 +87,8 @@
 
                     <!-- Simplified Ratings Section -->
                     <div class="border-top pt-4 mt-2">
-                        <h5 class="mb-3 text-success">
-                            <i class="fas fa-star me-2"></i>تقييمات المنتج
+                        <h5 class="mb-3">
+                            <i class="fas fa-star me-2 text-warning"></i>تقييمات المنتج
                         </h5>
                         
                         <!-- Simple link to ratings page -->
@@ -267,7 +267,7 @@ const handleClose = () => {
 }
 
 .thumbnail-item.active {
-  border-color: #198754;
+  border-color: #070707e0;
   box-shadow: 0 0 8px rgba(25, 135, 84, 0.5);
   transform: scale(1.1);
 }
@@ -312,7 +312,5 @@ p {
     margin-right: 2px;
 }
 
-.text-primary { color: #0d6efd !important; }
-.text-warning { color: #ffc107 !important; }
-.text-info { color: #0dcaf0 !important; }
+
 </style>

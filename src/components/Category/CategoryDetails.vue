@@ -4,7 +4,7 @@
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <!-- رأس النافذة المنبثقة مع عنوان الفئة ونوعها -->
-        <div class="modal-header bg-gradient text-white" :class="getHeaderClass()">
+        <div class="modal-header bg-gradient" :class="getHeaderClass()">
           <div class="d-flex align-items-center">
             <div>
               <h4 class="modal-title mb-0">{{ category.name }}</h4>
@@ -27,21 +27,21 @@
                   
                   <!-- عرض اسم الفئة -->
                   <div class="mb-3">
-                    <label class="fw-semibold text-muted mb-1">اسم الفئة:</label>
+                    <label class="fw-semibold text-dark mb-1">اسم الفئة:</label>
                     <p class="mb-0 fs-5">{{ category.name }}</p>
                   </div>
 
                   <!-- عرض وصف الفئة مع التعامل مع الفئات التي بدون وصف -->
                   <div class="mb-3">
-                    <label class="fw-semibold text-muted mb-1">الوصف:</label>
-                    <p class="mb-0" :class="{ 'text-muted fst-italic': !category.description }">
+                    <label class="fw-semibold text-dark mb-1">الوصف:</label>
+                    <p class="mb-0" :class="{ 'text-dark fst-italic': !category.description }">
                       {{ category.description || 'لا يوجد وصف متاح' }}
                     </p>
                   </div>
 
                   <!-- عرض نوع الفئة (رئيسية أو فرعية) -->
                   <div class="mb-3">
-                    <label class="fw-semibold text-muted mb-1">النوع:</label>
+                    <label class="fw-semibold text-dark mb-1">النوع:</label>
                     <span class="badge fs-6 px-3 py-2" :class="getTypeBadgeClass()">
                       {{ getCategoryTypeText() }}
                     </span>
@@ -49,7 +49,7 @@
 
                   <!-- عرض الفئة الرئيسية إذا كانت هذه الفئة فرعية -->
                   <div v-if="parentCategory" class="mb-3">
-                    <label class="fw-semibold text-muted mb-1">الفئة الرئيسية:</label>
+                    <label class="fw-semibold text-dark mb-1">الفئة الرئيسية:</label>
                     <div class="d-flex align-items-center">
                       <span class="material-icons me-2" :class="getParentIconClass()">category</span>
                       <span class="fs-6">{{ parentCategory.name }}</span>
@@ -88,7 +88,7 @@
                           <i class="fas fa-folder-open me-3 mt-1" :class="getSubcategoryIconClass()"></i>
                           <div class="flex-grow-1">
                             <h6 class="card-title mb-1">{{ subcategory.name }}</h6>
-                            <p class="card-text text-muted small mb-2">
+                            <p class="card-text text-dark small mb-2">
                               {{ subcategory.description || 'لا يوجد وصف' }}
                             </p>
                           </div>
@@ -102,7 +102,7 @@
               <!-- رسالة تظهر عند عدم وجود فئات فرعية للفئة الرئيسية -->
               <div v-else-if="!category.parentCategoryID" class="text-center py-4">
                 <div class="empty-state">
-                  <i class="fas fa-folder-plus fa-3x text-muted mb-3"></i>
+                  <i class="fas fa-folder-plus fa-3x text-dark mb-3"></i>
                   <h5 class="text-muted">لا توجد فئات فرعية</h5>
                   <p class="text-muted">هذه الفئة لا تحتوي على فئات فرعية حالياً</p>
                 </div>
@@ -250,17 +250,17 @@ export default {
     
     // تحديد فئة لون العناوين بناءً على نوع الفئة
     const getTitleColorClass = () => {
-      return props.category.parentCategoryID ? 'text-custom-child' : 'text-danger'
+      return props.category.parentCategoryID ? 'text-custom-child' : 'text-dark'
     }
 
     // تحديد فئة لون أيقونة الفئة الفرعية
     const getSubcategoryIconClass = () => {
-      return props.category.parentCategoryID ? 'text-custom-child' : 'text-danger'
+      return props.category.parentCategoryID ? 'text-light' : 'text-dark'
     }
 
     // تحديد فئة لون أيقونة الفئة الرئيسية
     const getParentIconClass = () => {
-      return props.category.parentCategoryID ? 'text-custom-child' : 'text-danger'
+      return props.category.parentCategoryID ? 'text-light' : 'text-dark'
     }
 
     // الحصول على نص نوع الفئة
@@ -270,12 +270,12 @@ export default {
 
     // تحديد الفئة لمعرفة لون خلفية رأس النافذة
     const getHeaderClass = () => {
-      return props.category.parentCategoryID ? 'bg-custom-child' : 'bg-danger'
+      return props.category.parentCategoryID ? 'bg-light text-dark' : 'bg-dark text-white'
     }
 
     // تحديد الفئة لمعرفة لون الشارة 
     const getTypeBadgeClass = () => {
-      return props.category.parentCategoryID ? 'bg-custom-child' : 'bg-danger'
+      return props.category.parentCategoryID ? 'bg-light text-dark' : 'bg-dark text-white'
     }
 
     // تبديل عرض جميع الفئات الفرعية
@@ -378,7 +378,7 @@ export default {
 }
 
 .text-custom-child {
-  color: #2883a7 !important;
+  color: #0f0f0f !important;
 }
 
 /* إعدادات النافذة المنبثقة الرئيسية */

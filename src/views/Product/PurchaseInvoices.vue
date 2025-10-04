@@ -30,13 +30,13 @@
         </div>
 
         <div v-if="isLoading" class="text-center py-5">
-            <div class="spinner-border text-primary" role="status"></div>
+            <div class="spinner-border text-dark" role="status"></div>
             <p class="mt-2 text-muted">جاري تحميل الفواتير...</p>
         </div>
         <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
         <div v-else-if="filteredInvoices.length > 0" class="invoices-container">
-            <div class="invoice-header">
+            <div class="invoice-header bg-dark text-white">
                 <div class="header-item">رقم الفاتورة</div>
                 <div class="header-item">التاريخ</div>
                 <div class="header-item">بواسطة</div>
@@ -51,7 +51,7 @@
                 <div class="invoice-items-count">{{ invoice.items.length }} صنف</div>
                 <div class="invoice-total">{{ formatCurrency(invoice.totalAmount) }}</div>
                 <div class="invoice-actions">
-                    <router-link :to="`/purchase-invoices/${invoice.id}`" class="btn btn-outline-primary btn-sm">
+                    <router-link :to="`/purchase-invoices/${invoice.id}`" class="btn btn-outline-dark btn-sm">
                         عرض التفاصيل
                     </router-link>
                 </div>
@@ -246,10 +246,8 @@ const formatCurrency = (amount) => {
 }
 
 .invoice-header {
-    background-color: #f8f9fa;
     border-bottom: 1px solid #e9ecef;
     font-weight: 600;
-    color: #495057;
     font-size: 0.875rem;
 }
 
@@ -267,7 +265,7 @@ const formatCurrency = (amount) => {
 
 .invoice-id {
     font-weight: bold;
-    color: #0d6efd;
+    color: #0f0f0f;
 }
 
 .invoice-user {

@@ -315,7 +315,7 @@ export default {
 <style scoped>
 .add-category-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #cacacab5 100%);
   padding: 20px;
   direction: rtl;
   display: flex;
@@ -503,19 +503,21 @@ export default {
 }
 
 .main-icon {
-  background: #ef4444;
+  background: #0f0f0f;
 }
 
 .sub-icon {
-  background: #6366f1;
+  background: white;
+  color: #0f0f0f;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .radio-option.selected .main-icon {
-  background: #dc2626;
+  background: #0f0f0f;
 }
 
 .radio-option.selected .sub-icon {
-  background: #4f46e5;
+  background: white;
 }
 
 .radio-text {
@@ -582,12 +584,12 @@ export default {
 }
 
 .btn-primary {
-  background-color: #3b82f6;
+  background-color: #0f0f0ff5;
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #2563eb;
+  background-color: #0f0f0f;
 }
 
 .btn-secondary {

@@ -19,7 +19,7 @@
       <div class="actions-section">
         <button
           @click="showAddCityForm = !showAddCityForm"
-          class="btn btn-primary btn-add-city"
+          class="btn btn-dark btn-add-city"
         >
           <i class="fas fa-plus"></i>
           {{ showAddCityForm ? "إلغاء" : "إضافة مدينة جديدة" }}
@@ -90,7 +90,7 @@
               >
                 إلغاء
               </button>
-              <button type="submit" class="btn btn-primary" :disabled="loading">
+              <button type="submit" class="btn btn-dark" :disabled="loading">
                 <span v-if="loading" class="loading-spinner"></span>
                 {{ loading ? "جاري الحفظ..." : "إضافة" }}
               </button>
@@ -180,7 +180,7 @@
                 </div>
                 <button
                   @click="editCity(city)"
-                  class="btn btn-sm btn-outline"
+                  class="btn btn-sm btn-warning"
                   aria-label="تعديل"
                   :disabled="!city.is_active"
                 >
@@ -198,7 +198,7 @@
                   <h4>المناطق</h4>
                   <button
                     @click="toggleAddRegionForm(city)"
-                    class="btn btn-sm btn-secondary"
+                    class="btn btn-sm btn-dark"
                     :disabled="!city.is_active"
                   >
                     <i class="fas fa-plus"></i>
@@ -267,7 +267,7 @@
                       <div class="form-actions-inline">
                         <button
                           type="submit"
-                          class="btn btn-sm btn-primary"
+                          class="btn btn-sm btn-dark"
                           :disabled="loading"
                         >
                           <span v-if="loading" class="loading-spinner"></span>
@@ -385,7 +385,7 @@
                         </div>
                         <button
                           @click="editRegion(region)"
-                          class="btn btn-xs btn-outline"
+                          class="btn btn-xs btn-warning"
                           aria-label="تعديل"
                           :disabled="!region.is_active"
                         >
@@ -861,7 +861,7 @@ export default {
 .delivery-locations-container {
   direction: rtl;
   padding: 40px 20px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #cacacab5 100%);
   min-height: 100vh;
 }
 
@@ -944,7 +944,7 @@ export default {
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  border-left: 4px solid #007bff;
+  border-left: 4px solid #0f0f0f;
   margin-bottom: 30px;
   overflow: hidden;
   animation: slideInUp 0.6s ease-out;

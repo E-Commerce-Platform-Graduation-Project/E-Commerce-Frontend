@@ -107,7 +107,7 @@ export default {
         minute: '2-digit'
       }
 
-      return date.toLocaleDateString('ar-EG', options)
+      return date.toLocaleDateString('ar-LY', options)
     }
 
     return {

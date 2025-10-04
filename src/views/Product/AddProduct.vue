@@ -982,7 +982,7 @@ const closeErrorModal = () => { showErrorModal.value = false; };
 .add-product-container {
   direction: rtl;
   padding: 40px 20px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #cacacab5 100%);
   min-height: 100vh;
 }
 .header {

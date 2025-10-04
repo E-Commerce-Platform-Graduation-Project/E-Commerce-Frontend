@@ -1,6 +1,6 @@
 <template>
   <div class="products-container">
-    <div class="product-header">
+    <div class="product-header bg-dark text-white">
       <div class="header-item expand"></div>
       <div class="header-item name">المنتج</div>
       <div class="header-item id">رقم المعرف</div>
@@ -254,7 +254,6 @@ const onVariantImageError = (event) => {
 .product-header {
   padding-top: 20px;
   padding-bottom: 20px;
-  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
   border-bottom: 2px solid #dee2e6;
   font-weight: 600;
 }
@@ -262,7 +261,6 @@ const onVariantImageError = (event) => {
 .header-item {
   font-size: 14px;
   text-transform: uppercase;
-  color: #2c3e50;
   font-weight: 600;
 }
 

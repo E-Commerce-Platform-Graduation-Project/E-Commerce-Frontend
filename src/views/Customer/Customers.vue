@@ -334,7 +334,7 @@ const confirmToggleStatus = async () => {
 const formatDate = (dateString) => {
   if (!dateString) return 'لم يسجل الدخول بعد';
   const date = new Date(dateString);
-  return date.toLocaleDateString('ar-EG', {
+  return date.toLocaleDateString('ar-LY', {
     year: 'numeric', month: 'long', day: 'numeric'
   });
 };

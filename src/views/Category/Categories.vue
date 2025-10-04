@@ -43,40 +43,40 @@
     <!-- Statistics Cards -->
     <div class="row mb-4">
       <div class="col-md-4">
-        <div class="card bg-light">
+        <div class="card bg-white text-dark">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <h5 class="card-title mb-0">إجمالي الفئات</h5>
                 <h2 class="mb-0">{{ categoryStats.totalCategories }}</h2>
               </div>
-              <i class="fas fa-tags fa-2x opacity-75"></i>
+              <i class="fas fa-tags fa-2x"></i>
             </div>
           </div>
         </div>
       </div>
       <div class="col-md-4">
-        <div class="card bg-light">
+        <div class="card bg-white text-dark">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <h5 class="card-title mb-0">الفئات الرئيسية</h5>
                 <h2 class="mb-0">{{ categoryStats.mainCategories }}</h2>
               </div>
-              <i class="fas fa-folder fa-2x opacity-75"></i>
+              <i class="fas fa-folder fa-2x"></i>
             </div>
           </div>
         </div>
       </div>
       <div class="col-md-4">
-        <div class="card bg-light">
+        <div class="card bg-white text-dark">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-center">
               <div>
                 <h5 class="card-title mb-0">الفئات الفرعية</h5>
                 <h2 class="mb-0">{{ categoryStats.subcategories }}</h2>
               </div>
-              <i class="fas fa-folder-open fa-2x opacity-75"></i>
+              <i class="fas fa-folder-open fa-2x "></i>
             </div>
           </div>
         </div>
