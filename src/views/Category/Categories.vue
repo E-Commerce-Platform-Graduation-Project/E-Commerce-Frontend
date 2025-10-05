@@ -85,7 +85,7 @@
 
     <!-- Loading State -->
     <div v-if="isLoading" class="d-flex flex-column align-items-center justify-content-center py-5 text-muted">
-      <div class="spinner-border text-primary mb-3" role="status">
+      <div class="spinner-border text-dark mb-3" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
       <p class="mb-0">جاري تحميل الفئات...</p>
@@ -94,7 +94,7 @@
     <!-- Error State -->
     <div v-else-if="error" class="text-center py-5">
       <p class="text-danger fs-5 mb-3">{{ error }}</p>
-      <button @click="fetchCategories" class="btn btn-primary">إعادة المحاولة</button>
+      <button @click="fetchCategories" class="btn btn-dark">إعادة المحاولة</button>
     </div>
 
     <!-- Categories Display -->

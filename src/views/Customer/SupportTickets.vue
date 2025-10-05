@@ -34,7 +34,7 @@
     </div>
 
     <div v-if="isLoading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status"></div>
+      <div class="spinner-border text-dark" role="status"></div>
       <p class="mt-2 text-muted">جاري تحميل التذاكر...</p>
     </div>
     <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
@@ -89,14 +89,13 @@
     </div>
 
     <div v-if="!isLoading && !error && totalTickets > 0" class="pagination-container">
-      <div class="pagination-wrapper">
         <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="pagination-btn prev-btn">
           <i class="fas fa-chevron-right"></i>
           السابق
         </button>
-
+        
         <div class="page-numbers">
-          <button v-for="page in visiblePages" :key="page" @click="goToPage(page)"
+          <button v-for="(page, index) in visiblePages" :key="index" @click="goToPage(page)"
             :class="['page-number', { 'active': page === currentPage, 'disabled': typeof page !== 'number' }]"
             :disabled="typeof page !== 'number'">
             {{ page }}
@@ -108,14 +107,6 @@
           التالي
           <i class="fas fa-chevron-left"></i>
         </button>
-      </div>
-
-      <div class="page-size-selector">
-        <label for="pageSize">عدد التذاكر في الصفحة:</label>
-        <select id="pageSize" v-model="itemsPerPage" class="page-size-select" disabled>
-          <option value="10">10</option>
-        </select>
-      </div>
     </div>
 
     <div v-if="showConfirmModal" class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);">
@@ -151,7 +142,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" @click="cancelStatusUpdate">إلغاء</button>
-            <button type="button" class="btn btn-primary" @click="confirmStatusUpdate" :disabled="updating">
+            <button type="button" class="btn btn-dark" @click="confirmStatusUpdate" :disabled="updating">
               <span v-if="updating" class="loading-spinner"></span>
               {{ updating ? "جاري التحديث..." : "تأكيد التغيير" }}
             </button>
@@ -182,14 +173,12 @@
       </div>
     </div>
 
-    <!-- ADDED: Order Details Modal -->
     <OrderDetails 
       v-if="isOrderDetailsVisible && selectedOrder" 
       :order="selectedOrder" 
       @close="closeOrderDetailsModal" 
     />
 
-    <!-- ADDED: Loading Modal for Order Details -->
     <div v-if="isOrderLoading" class="modal fade show d-block" style="background-color: rgba(0,0,0,0.6); z-index: 1070;">
       <div class="modal-dialog modal-dialog-centered border-0">
         <div class="modal-content text-center p-4 border-0" style="background: transparent;">
@@ -259,26 +248,47 @@ const endIndex = computed(() => {
 });
 
 const visiblePages = computed(() => {
-  const pages = [];
-  const total = totalPages.value;
-  const current = currentPage.value;
+    const total = totalPages.value;
+    const current = currentPage.value;
+    const pageWindow = 5; // The number of pages to show in a sequence at the start/end
+    const pages = [];
 
-  if (total <= 1) return [];
-
-  if (total <= 7) {
-    for (let i = 1; i <= total; i++) pages.push(i);
-  } else {
-    pages.push(1);
-    if (current > 4) pages.push('...');
-    const start = Math.max(2, current - 2);
-    const end = Math.min(total - 1, current + 2);
-    for (let i = start; i <= end; i++) {
-      if (i > 1 && !pages.includes(i)) pages.push(i);
+    // If there are 7 or fewer pages in total, show all of them.
+    if (total <= 7) {
+        for (let i = 1; i <= total; i++) {
+            pages.push(i);
+        }
+        return pages;
     }
-    if (current < total - 3) pages.push('...');
-    if (!pages.includes(total)) pages.push(total);
-  }
-  return pages;
+
+    // Case 1: The current page is near the beginning.
+    if (current <= pageWindow - 2) {
+        for (let i = 1; i <= pageWindow; i++) {
+            pages.push(i);
+        }
+        pages.push('...');
+        pages.push(total);
+    }
+    // Case 2: The current page is near the end.
+    else if (current > total - (pageWindow - 2)) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = total - pageWindow + 1; i <= total; i++) {
+            pages.push(i);
+        }
+    }
+    // Case 3: The current page is in the middle.
+    else {
+        pages.push(1);
+        pages.push('...');
+        pages.push(current - 1);
+        pages.push(current);
+        pages.push(current + 1);
+        pages.push('...');
+        pages.push(total);
+    }
+    
+    return pages;
 });
 
 // Apply client-side filters to data
@@ -434,7 +444,7 @@ const openOrderDetails = async (orderId) => {
       selectedOrder.value = orderData;
       isOrderDetailsVisible.value = true;
     } else {
-      displayErrorModal(`لم يتم العثور على الطلب رقم #${orderId}`);
+      displayErrorModal(`#${orderId} لم يتم العثور على الطلب رقم`);
     }
   } catch (error) {
     console.error('Failed to fetch order details:', error);
@@ -557,7 +567,7 @@ const closeOrderDetailsModal = () => {
 
 .ticket-header {
   padding: 25px;
-  background: #494949;
+  background: var(--primary);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -586,6 +596,9 @@ const closeOrderDetailsModal = () => {
 .ticket-title-section {
   text-align: right;
   margin-bottom: 15px;
+  background: #3a3a3a;
+  padding: 10px;
+  border-radius: 12px;
 }
 
 .ticket-title {
@@ -602,9 +615,9 @@ const closeOrderDetailsModal = () => {
 
 .ticket-id {
   font-size: 15px;
-  color: #c0c0c0;
+  color: #e9e9e9;
   font-weight: 600;
-  background: #3a3a3a;
+  background: #1a1a1a;
   padding: 4px 12px;
   border-radius: 12px;
   display: inline-block;
@@ -683,7 +696,7 @@ const closeOrderDetailsModal = () => {
   padding: 25px 30px;
   direction: rtl;
   text-align: right;
-  background: #494949;
+  background: var(--primary);
   display: flex;
   flex-direction: column;
   grid-column: 2;
@@ -757,7 +770,7 @@ const closeOrderDetailsModal = () => {
   box-shadow: none;
 }
 
-/* Status Badges */
+/* Status Badges - Only for Modal */
 .status-badge {
   padding: 6px 14px;
   border-radius: 20px;
@@ -766,23 +779,27 @@ const closeOrderDetailsModal = () => {
   white-space: nowrap;
 }
 
-.status-open {
-  color: #f59e0b;
+.status-badge.status-open {
+  background-color: #f59e0b;
+  color: #fff;
 }
 
-.status-in-progress {
-  color: #06b6d4;
+.status-badge.status-in-progress {
+  background-color: #06b6d4;
+  color: #fff;
 }
 
-.status-closed {
-  color: #22c55e;
+.status-badge.status-closed {
+  background-color: #22c55e;
+  color: #fff;
 }
 
-.status-default {
-  color: #495057;
+.status-badge.status-default {
+  background-color: #495057;
+  color: #fff;
 }
 
-/* Pagination Controls */
+/* PAGINATION STYLES */
 .pagination-container {
   display: flex;
   justify-content: space-between;
@@ -792,12 +809,6 @@ const closeOrderDetailsModal = () => {
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-}
-
-.pagination-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .pagination-btn {
@@ -816,10 +827,10 @@ const closeOrderDetailsModal = () => {
 }
 
 .pagination-btn:hover:not(:disabled) {
-  border-color: #007bff;
-  color: #007bff;
+  border-color: #292929;
+  color: #0f0f0f;
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(29, 29, 29, 0.2);
 }
 
 .pagination-btn:disabled {
@@ -831,8 +842,9 @@ const closeOrderDetailsModal = () => {
 
 .page-numbers {
   display: flex;
+  flex-wrap: nowrap; 
   gap: 5px;
-  margin: 0 15px;
+  margin: 0 15px; 
 }
 
 .page-number {
@@ -852,45 +864,30 @@ const closeOrderDetailsModal = () => {
 }
 
 .page-number:hover:not(.disabled) {
-  border-color: #007bff;
-  color: #007bff;
+  border-color: #313131;
+  color: #0f0f0f;
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(131, 131, 131, 0.2);
 }
 
 .page-number.active {
-  border-color: #007bff;
-  background: #007bff;
+  border-color: #313131;
+  background: #0f0f0f;
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
 }
 
+.page-number.active:hover {
+  border-color: #b9b9b9;
+  color: rgb(189, 189, 189);
+  transform: translateY(-2px);
+}
+
 .page-number.disabled {
   cursor: default;
-}
-
-.page-size-selector {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  color: #495057;
-}
-
-.page-size-select {
-  padding: 8px 12px;
-  border: 2px solid #e9ecef;
-  border-radius: 6px;
-  background: white;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.page-size-select:focus {
-  outline: none;
-  border-color: #007bff;
+  background-color: #f8f9fa;
+  border-color: #e9ecef;
 }
 
 /* Modal Styling */

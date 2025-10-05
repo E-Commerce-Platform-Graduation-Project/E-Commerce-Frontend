@@ -1,7 +1,7 @@
 <template>
     <div class="container-fluid px-4 py-4">
         <div v-if="isLoading" class="text-center py-5">
-            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+            <div class="spinner-border text-dark" style="width: 3rem; height: 3rem;" role="status"></div>
             <p class="mt-3 text-muted">جاري تحميل بيانات العميل...</p>
         </div>
 
@@ -64,7 +64,7 @@
                                     </div>
 
                                     <div v-if="ordersLoading" class="orders-loading-overlay">
-                                        <div class="spinner-border text-primary" role="status"></div>
+                                        <div class="spinner-border text-dark" role="status"></div>
                                         <p class="mt-2 text-muted mb-0">جاري التحميل...</p>
                                     </div>
 
@@ -119,7 +119,7 @@
                              <div v-if="paginatedRatings.length > 0">
                                 <div class="ratings-container">
                                      <div v-if="ratingsLoading" class="ratings-loading-overlay">
-                                        <div class="spinner-border text-primary" role="status"></div>
+                                        <div class="spinner-border text-dark" role="status"></div>
                                         <p class="mt-2 text-muted mb-0">جاري التحميل...</p>
                                     </div>
                                     <div class="ratings-list" :class="{ 'loading-blur': ratingsLoading }">
@@ -581,7 +581,7 @@ const handleImageError = (event) => {
     justify-content: center;
     width: 32px;
     height: 32px;
-    border: 1px solid #dee2e6;
+    border: 1px solid #c7c7c7;
     border-radius: 6px;
     background: white;
     color: #495057;
@@ -590,8 +590,8 @@ const handleImageError = (event) => {
 }
 
 .pagination-btn:hover:not(:disabled) {
-    border-color: #007bff;
-    color: #007bff;
+    border-color: #0f0f0f;
+    color: #0f0f0f;
     background-color: #e7f1ff;
 }
 
@@ -622,15 +622,20 @@ const handleImageError = (event) => {
 }
 
 .page-number-small:hover:not(.disabled) {
-    border-color: #007bff;
-    color: #007bff;
-    background-color: #e7f1ff;
+    border-color: #0f0f0f;
+    color: #0f0f0f;
+    background-color: #dfdfdf;
 }
 
 .page-number-small.active {
-    border-color: #007bff;
-    background: #007bff;
+    border-color: #0f0f0f;
+    background: #0f0f0f;
     color: white;
+}
+.page-number-small.active:hover {
+    background: #3d3d3d;
+    color: white;
+
 }
 
 .page-number-small.disabled {

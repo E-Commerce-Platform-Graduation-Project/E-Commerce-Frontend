@@ -319,7 +319,7 @@
       </div>
 
       <div v-else class="empty-state">
-        <div class="empty-icon">🧾</div>
+        <span class="material-icons empty-icon">receipt_long</span>
         <h4>الفاتورة فارغة</h4>
         <p>ابدأ بالبحث عن منتج واختيار متغير من القوائم أعلاه.</p>
       </div>

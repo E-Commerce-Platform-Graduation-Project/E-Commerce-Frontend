@@ -172,7 +172,7 @@ const getContrastColor = (hexColor) => {
 
 const getVariantQuantityClass = (quantity) => {
   if (quantity <= 0) return 'quantity-out';
-  if (quantity <= 5) return 'quantity-low';
+  if (quantity <= 10) return 'quantity-low';
   return 'quantity-good';
 };
 

@@ -412,7 +412,7 @@ const cancelValueEdit = () => {
   border-right-color: transparent;
   border-radius: 50%;
   animation: spinner-border 0.75s linear infinite;
-  color: #3b82f6;
+  color: #000000;
   margin-bottom: 16px;
 }
 

@@ -6,6 +6,10 @@
           <img class="mb-4" width="72" alt="Logo" src="../assets/icons/e-commerce-logo3.png" />
           <h1 id="psi" class="h3 mb-3 fw-normal">تسجيل الدخول</h1>
 
+          <div v-if="sessionError" class="alert alert-warning mb-3" role="alert">
+            {{ sessionError }}
+          </div>
+
           <div v-if="authStore.getError" class="alert alert-danger mb-3" role="alert">
             {{ authStore.getError }}
           </div>
@@ -151,6 +155,7 @@ export default {
     const phoneError = ref('');
     const passwordError = ref('');
     const resetPhoneError = ref('');
+    const sessionError = ref('');
 
 
     // --- COMPUTED PROPERTIES ---
@@ -174,6 +179,7 @@ export default {
         phoneError.value = '';
         passwordError.value = '';
         resetPhoneError.value = '';
+        sessionError.value = '';
         authStore.clearError();
     };
 
@@ -229,6 +235,7 @@ export default {
     // --- Handlers ---
     const handleLogin = async () => {
       authStore.clearError();
+      sessionError.value = '';
       if (!validateLogin()) return;
       
       try {
@@ -308,6 +315,10 @@ export default {
         alert("تم إلغاء تفعيل حسابك من قبل الإدارة");
       } else if (message === "account_not_found") {
         alert("الحساب غير موجود");
+      } else if (message === "session_expired") {
+        sessionError.value = "انتهت صلاحية الجلسة";
+        // Clear the URL parameter
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
     });
     
@@ -332,6 +343,7 @@ export default {
       phoneError,
       passwordError,
       resetPhoneError,
+      sessionError,
       togglePassword,
       handleLogin,
       switchToResetMode,

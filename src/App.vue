@@ -1,12 +1,14 @@
 <template>
-  <!-- Show loading screen while auth is initializing or during minimum loading time -->
   <div v-if="showLoading" class="loading-overlay">
     <div class="spinner"></div>
     <p class="loading-text">يتم التحميل...</p>
   </div>
 
-  <!-- Only render the app after loading is complete -->
   <div v-else id="app" class="rtl-app">
+    <div v-if="showWelcomeMessage" class="success-notification">
+      {{ showWelcomeMessage }}
+    </div>
+
     <div v-if="!isLoginPage" class="dashboard-layout">
       <Sidebar />
       <main
@@ -26,7 +28,6 @@
 <script>
 import Sidebar from './components/Sidebar.vue'
 import { computed, ref, onMounted, watch } from 'vue'
-// --- 1. Import useRouter ---
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from './stores/authStore'
 
@@ -43,7 +44,6 @@ export default {
   },
   setup() {
     const route = useRoute()
-    // --- 2. Get the router instance ---
     const router = useRouter()
     const sidebarExpanded = ref(localStorage.getItem("is_expanded") === "true")
     const authStore = useAuthStore()
@@ -54,6 +54,8 @@ export default {
     
     let unsubscribeFromNotifications = null;
 
+    const showWelcomeMessage = ref(null);
+
     const isLoginPage = computed(() => {
       return route.path === '/login'
     })
@@ -62,6 +64,24 @@ export default {
       return !authStore.isInitialized || !appLoaded.value
     })
 
+    // --- SOLUTION ---
+    // Watcher 1: For the Welcome Message.
+    // This runs ONLY when the user state CHANGES (e.g., from null to a user object).
+    // It does NOT have { immediate: true }.
+    watch(() => authStore.user, (newUser, oldUser) => {
+      // This condition is now only true when transitioning from logged-out to logged-in
+      if (newUser && !oldUser) {
+        const userName = newUser.full_name || 'المستخدم';
+        showWelcomeMessage.value = `مرحباً بك يا ${userName}`;
+        setTimeout(() => {
+            showWelcomeMessage.value = null;
+        }, 3000);
+      }
+    });
+
+    // Watcher 2: For Push Notifications.
+    // This needs to run immediately on page load if the user is already logged in
+    // to set up the listener. It KEEPS { immediate: true }.
     watch(() => authStore.user, (newUser) => {
       if (newUser && !unsubscribeFromNotifications) {
         console.log("User logged in. Listening for UNREAD notifications...");
@@ -84,10 +104,9 @@ export default {
                 icon: "/favicon.ico"
               });
               
-              // --- 3. Add the onclick handler for the summary notification ---
               summaryNotification.onclick = () => {
-                window.focus(); // Focus the browser tab
-                router.push('/orders'); // Navigate to the orders page
+                window.focus(); 
+                router.push('/orders');
               };
             }
             isInitialLoad = false;
@@ -100,11 +119,10 @@ export default {
                   icon: "/favicon.ico"
                 });
 
-                // --- 4. Add the onclick handler for the individual notification ---
                 individualNotification.onclick = () => {
-                  window.focus(); // Focus the browser tab
+                  window.focus();
                   console.log("التوجبه للطلبات")
-                  router.push('/orders'); // Navigate to the orders page
+                  router.push('/orders');
                 };
               }
             });
@@ -164,7 +182,8 @@ export default {
       isLoginPage,
       sidebarExpanded,
       authStore,
-      showLoading
+      showLoading,
+      showWelcomeMessage
     }
   }
 }
@@ -312,4 +331,44 @@ select {
     margin-left: 0 !important;
   }
 }
+
+/* NEW: Success Notification Styles */
+.success-notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #28a745;
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 9999;
+  font-size: 1.1rem;
+  font-weight: 500;
+  animation: slideDown 0.3s ease-out, fadeOut 0.5s ease-in 2.5s forwards;
+  direction: rtl;
+  text-align: center;
+}
+
+@keyframes slideDown {
+  from {
+    top: -100px;
+    opacity: 0;
+  }
+  to {
+    top: 20px;
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 </style>

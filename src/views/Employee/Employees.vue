@@ -11,20 +11,19 @@
       </router-link>
     </div>
 
-    <div class="mb-4">
-      <div class="position-relative" style="max-width: 400px;">
+    <div class="search-filter-container mb-4">
+      <div class="search-container">
         <input
           type="text"
           v-model="searchQuery"
           placeholder="البحث بالاسم أو رقم الهاتف..."
-          class="form-control form-control-lg pe-5 search-input-custom"
+          class="form-control search-input"
           style="direction: rtl;"
         />
-        <i class="fas fa-search position-absolute text-muted search-icon-custom"></i>
+        <i class="fas fa-search search-icon"></i>
       </div>
     </div>
 
-    <!-- Pagination Info Display -->
     <div v-if="!isLoading && !error && totalEmployees > 0" class="row mb-3">
       <div class="col-12">
         <div class="pagination-info">
@@ -36,7 +35,7 @@
     </div>
 
     <div v-if="isLoading" class="d-flex flex-column align-items-center justify-content-center py-5 text-muted">
-      <div class="spinner-border text-primary mb-3" role="status">
+      <div class="spinner-border text-dark mb-3" role="status">
         <span class="visually-hidden">Loading...</span>
       </div>
       <p class="mb-0">جاري تحميل الموظفين...</p>
@@ -64,7 +63,6 @@
       </div>
 
       <div v-if="!isLoading && !error && totalEmployees > 0" class="pagination-container mt-4">
-        <div class="pagination-wrapper">
           <button 
             @click="goToPage(currentPage - 1)"
             :disabled="currentPage === 1"
@@ -76,8 +74,8 @@
           
           <div class="page-numbers">
             <button
-              v-for="page in visiblePages"
-              :key="page"
+              v-for="(page, index) in visiblePages"
+              :key="index"
               @click="goToPage(page)"
               :class="['page-number', { 'active': page === currentPage, 'disabled': typeof page !== 'number' }]"
               :disabled="typeof page !== 'number'"
@@ -94,19 +92,6 @@
             التالي
             <i class="fas fa-chevron-left"></i>
           </button>
-        </div>
-        
-        <div class="page-size-selector">
-          <label for="pageSize">عدد الموظفين في الصفحة:</label>
-          <select 
-            id="pageSize"
-            v-model="itemsPerPage" 
-            class="page-size-select"
-            disabled
-          >
-            <option value="10">10</option>
-          </select>
-        </div>
       </div>
     </div>
 
@@ -172,27 +157,48 @@ export default {
     })
     
     const visiblePages = computed(() => {
-      const pages = []
-      const total = totalPages.value
-      const current = currentPage.value
-      
-      if (total <= 1) return []
-      
-      if (total <= 7) {
-        for (let i = 1; i <= total; i++) pages.push(i)
-      } else {
-        pages.push(1)
-        if (current > 4) pages.push('...')
-        const start = Math.max(2, current - 2)
-        const end = Math.min(total - 1, current + 2)
-        for (let i = start; i <= end; i++) {
-          if (i > 1 && !pages.includes(i)) pages.push(i)
+        const total = totalPages.value;
+        const current = currentPage.value;
+        const pageWindow = 5; // The number of pages to show in a sequence at the start/end
+        const pages = [];
+
+        // If there are 7 or fewer pages in total, show all of them.
+        if (total <= 7) {
+            for (let i = 1; i <= total; i++) {
+                pages.push(i);
+            }
+            return pages;
         }
-        if (current < total - 3) pages.push('...')
-        if (!pages.includes(total)) pages.push(total)
-      }
-      return pages
-    })
+
+        // Case 1: The current page is near the beginning.
+        if (current <= pageWindow - 2) {
+            for (let i = 1; i <= pageWindow; i++) {
+                pages.push(i);
+            }
+            pages.push('...');
+            pages.push(total);
+        }
+        // Case 2: The current page is near the end.
+        else if (current > total - (pageWindow - 2)) {
+            pages.push(1);
+            pages.push('...');
+            for (let i = total - pageWindow + 1; i <= total; i++) {
+                pages.push(i);
+            }
+        }
+        // Case 3: The current page is in the middle.
+        else {
+            pages.push(1);
+            pages.push('...');
+            pages.push(current - 1);
+            pages.push(current);
+            pages.push(current + 1);
+            pages.push('...');
+            pages.push(total);
+        }
+        
+        return pages;
+    });
 
     // Methods
     const fetchEmployees = async () => {
@@ -318,21 +324,41 @@ export default {
   box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
-.search-input-custom {
-  border: 2px solid #e0e0e0 !important;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+/* Unified Search Styles */
+.search-filter-container {
+  display: flex;
+  gap: 20px;
+  align-items: center;
 }
-
-.search-input-custom:focus {
-  border-color: #0d6efd !important;
-  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.1) !important;
+.search-container {
+  position: relative;
+  flex: 1;
+  max-width: 400px;
 }
-
-.search-icon-custom {
-  right: 15px;
+.search-input {
+  padding: 18px 50px 18px 20px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 18px;
+  background-color: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  text-align: right;
+  direction: rtl;
+  width: 100%;
+}
+.search-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 4px 20px rgba(0, 123, 255, 0.2);
+}
+.search-icon {
+  position: absolute;
+  right: 20px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 16px;
+  color: #6c757d;
+  font-size: 18px;
 }
 
 .pagination-info {
@@ -349,6 +375,7 @@ export default {
   display: inline-block;
 }
 
+/* PAGINATION STYLES */
 .pagination-container {
   display: flex;
   justify-content: space-between;
@@ -357,12 +384,6 @@ export default {
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-}
-
-.pagination-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .pagination-btn {
@@ -381,10 +402,10 @@ export default {
 }
 
 .pagination-btn:hover:not(:disabled) {
-  border-color: #007bff;
-  color: #007bff;
+  border-color: #292929;
+  color: #0f0f0f;
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(29, 29, 29, 0.2);
 }
 
 .pagination-btn:disabled {
@@ -396,8 +417,9 @@ export default {
 
 .page-numbers {
   display: flex;
+  flex-wrap: nowrap; 
   gap: 5px;
-  margin: 0 15px;
+  margin: 0 15px; 
 }
 
 .page-number {
@@ -417,21 +439,23 @@ export default {
 }
 
 .page-number:hover:not(.disabled) {
-  border-color: #007bff;
-  color: #007bff;
+  border-color: #313131;
+  color: #0f0f0f;
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(131, 131, 131, 0.2);
 }
 
 .page-number.active {
-  border-color: #007bff;
-  background: #007bff;
+  border-color: #313131;
+  background: #0f0f0f;
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
 }
 
 .page-number.active:hover {
+  border-color: #b9b9b9;
+  color: rgb(189, 189, 189);
   transform: translateY(-2px);
 }
 
@@ -439,30 +463,6 @@ export default {
   cursor: default;
   background-color: #f8f9fa;
   border-color: #e9ecef;
-}
-
-.page-size-selector {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  color: #495057;
-}
-
-.page-size-select {
-  padding: 8px 12px;
-  border: 2px solid #e9ecef;
-  border-radius: 6px;
-  background: white;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.page-size-select:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
 @media (max-width: 768px) {

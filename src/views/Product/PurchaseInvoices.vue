@@ -9,16 +9,17 @@
         </div>
 
         <div class="row mb-4 g-3">
-            <div class="col-lg-6">
-                <div class="search-container">
-                    <input v-model="searchQuery" type="text" placeholder="البحث برقم الفاتورة أو اسم مُصدرها..."
-                        class="form-control search-input" />
-                    <i class="fas fa-search search-icon"></i>
+            <div class="col-lg-12">
+                <div class="search-filter-container">
+                    <div class="search-container">
+                        <input v-model="searchQuery" type="text" placeholder="البحث برقم الفاتورة أو اسم مُصدرها..."
+                            class="form-control search-input" />
+                        <i class="fas fa-search search-icon"></i>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Pagination Info Display -->
         <div class="row mb-3">
             <div class="col-12">
                 <div class="pagination-info">
@@ -64,35 +65,25 @@
             <p>حاول تغيير كلمات البحث المستخدمة.</p>
         </div>
 
-        <!-- Pagination Controls -->
         <div v-if="!isLoading && !error && totalInvoices > 0" class="pagination-container">
-            <div class="pagination-wrapper">
-                <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="pagination-btn prev-btn">
-                    <i class="fas fa-chevron-right"></i>
-                    السابق
-                </button>
+            <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="pagination-btn prev-btn">
+                <i class="fas fa-chevron-right"></i>
+                السابق
+            </button>
 
-                <div class="page-numbers">
-                    <button v-for="page in visiblePages" :key="page" @click="goToPage(page)"
-                        :class="['page-number', { 'active': page === currentPage, 'disabled': typeof page !== 'number' }]"
-                        :disabled="typeof page !== 'number'">
-                        {{ page }}
-                    </button>
-                </div>
-
-                <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages"
-                    class="pagination-btn next-btn">
-                    التالي
-                    <i class="fas fa-chevron-left"></i>
+            <div class="page-numbers">
+                <button v-for="(page, index) in visiblePages" :key="index" @click="goToPage(page)"
+                    :class="['page-number', { 'active': page === currentPage, 'disabled': typeof page !== 'number' }]"
+                    :disabled="typeof page !== 'number'">
+                    {{ page }}
                 </button>
             </div>
 
-            <div class="page-size-selector">
-                <label for="pageSize">عدد الفواتير في الصفحة:</label>
-                <select id="pageSize" v-model="itemsPerPage" class="page-size-select" disabled>
-                    <option value="10">10</option>
-                </select>
-            </div>
+            <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages"
+                class="pagination-btn next-btn">
+                التالي
+                <i class="fas fa-chevron-left"></i>
+            </button>
         </div>
     </div>
 </template>
@@ -129,25 +120,46 @@ const endIndex = computed(() => {
 });
 
 const visiblePages = computed(() => {
-    const pages = [];
     const total = totalPages.value;
     const current = currentPage.value;
+    const pageWindow = 5; // The number of pages to show in a sequence at the start/end
+    const pages = [];
 
-    if (total <= 1) return [];
-
+    // If there are 7 or fewer pages in total, show all of them.
     if (total <= 7) {
-        for (let i = 1; i <= total; i++) pages.push(i);
-    } else {
-        pages.push(1);
-        if (current > 4) pages.push('...');
-        const start = Math.max(2, current - 2);
-        const end = Math.min(total - 1, current + 2);
-        for (let i = start; i <= end; i++) {
-            if (i > 1 && !pages.includes(i)) pages.push(i);
+        for (let i = 1; i <= total; i++) {
+            pages.push(i);
         }
-        if (current < total - 3) pages.push('...');
-        if (!pages.includes(total)) pages.push(total);
+        return pages;
     }
+
+    // Case 1: The current page is near the beginning.
+    if (current <= pageWindow - 2) {
+        for (let i = 1; i <= pageWindow; i++) {
+            pages.push(i);
+        }
+        pages.push('...');
+        pages.push(total);
+    }
+    // Case 2: The current page is near the end.
+    else if (current > total - (pageWindow - 2)) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = total - pageWindow + 1; i <= total; i++) {
+            pages.push(i);
+        }
+    }
+    // Case 3: The current page is in the middle.
+    else {
+        pages.push(1);
+        pages.push('...');
+        pages.push(current - 1);
+        pages.push(current);
+        pages.push(current + 1);
+        pages.push('...');
+        pages.push(total);
+    }
+
     return pages;
 });
 
@@ -183,35 +195,40 @@ const formatCurrency = (amount) => {
 </script>
 
 <style scoped>
+/* Unified Search Styles */
+.search-filter-container {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
 .search-container {
-    position: relative;
+  position: relative;
+  flex: 1;
 }
-
 .search-input {
-    padding: 10px 40px 10px 15px;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    font-size: 1rem;
-    background-color: white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    transition: all 0.2s ease-in-out;
-    text-align: right;
-    direction: rtl;
-    width: 100%;
+  padding: 18px 50px 18px 20px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 18px;
+  background-color: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  text-align: right;
+  direction: rtl;
+  width: 100%;
 }
-
 .search-input:focus {
-    outline: none;
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 4px 20px rgba(0, 123, 255, 0.2);
 }
-
 .search-icon {
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #6c757d;
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6c757d;
+  font-size: 18px;
 }
 
 .pagination-info {
@@ -286,113 +303,94 @@ const formatCurrency = (amount) => {
     text-align: left;
 }
 
+/* PAGINATION STYLES */
 .pagination-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 30px;
-    padding: 20px;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-}
-
-.pagination-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 30px;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .pagination-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    background: white;
-    color: #495057;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .pagination-btn:hover:not(:disabled) {
-    border-color: #007bff;
-    color: #007bff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+  border-color: #292929;
+  color: #0f0f0f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(29, 29, 29, 0.2);
 }
 
 .pagination-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .page-numbers {
-    display: flex;
-    gap: 5px;
-    margin: 0 15px;
+  display: flex;
+  flex-wrap: nowrap; 
+  gap: 5px;
+  margin: 0 15px; 
 }
 
 .page-number {
-    min-width: 40px;
-    height: 40px;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    background: white;
-    color: #495057;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .page-number:hover:not(.disabled) {
-    border-color: #007bff;
-    color: #007bff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+  border-color: #313131;
+  color: #0f0f0f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(131, 131, 131, 0.2);
 }
 
 .page-number.active {
-    border-color: #007bff;
-    background: #007bff;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+  border-color: #313131;
+  background: #0f0f0f;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+}
+
+.page-number.active:hover {
+  border-color: #b9b9b9;
+  color: rgb(189, 189, 189);
+  transform: translateY(-2px);
 }
 
 .page-number.disabled {
-    cursor: default;
-}
-
-.page-size-selector {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 14px;
-    color: #495057;
-}
-
-.page-size-select {
-    padding: 8px 12px;
-    border: 2px solid #e9ecef;
-    border-radius: 6px;
-    background: white;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.page-size-select:focus {
-    outline: none;
-    border-color: #007bff;
+  cursor: default;
+  background-color: #f8f9fa;
+  border-color: #e9ecef;
 }
 </style>

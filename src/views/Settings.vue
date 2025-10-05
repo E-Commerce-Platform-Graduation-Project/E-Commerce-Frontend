@@ -60,7 +60,7 @@
               </div>
 
               <div v-if="isEditMode" class="mt-4">
-                <button type="submit" class="btn btn-success" :disabled="isLoading">
+                <button type="submit" class="btn btn-dark" :disabled="isLoading">
                   <i class="fas fa-save me-1"></i>
                   <span v-if="isLoading">جاري الحفظ...</span>
                   <span v-else>حفظ التغييرات</span>
@@ -117,10 +117,10 @@
               <div class="mt-4">
                 <button
                   type="submit"
-                  class="btn btn-dark"
+                  class="btn btn-dark mx-2"
                   :disabled="isLoading"
                 >
-                  <i class="fas fa-paper-plane me-1"></i>
+                  <i class="fas fa-paper-plane"></i>
                   <span v-if="isLoading">جاري الطلب...</span>
                   <span v-else>طلب رمز التحقق</span>
                 </button>
@@ -208,7 +208,7 @@
               </div>
 
               <div v-if="isPermissionsEditMode" class="mt-4">
-                <button type="submit" class="btn btn-success" :disabled="isLoading">
+                <button type="submit" class="btn btn-dark" :disabled="isLoading">
                   <i class="fas fa-save me-1"></i>
                   <span v-if="isLoading">جاري الحفظ...</span>
                   <span v-else>حفظ التغييرات</span>

@@ -1,6 +1,5 @@
 <template>
   <div class="container-fluid px-4 py-4">
-    <!-- Header remains the same -->
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
       <h1 class="h2 fw-bold text-dark mb-0">المنتجات</h1>
       <router-link to="/add-product" class="btn btn-success d-flex align-items-center gap-2 px-3 py-2">
@@ -9,10 +8,8 @@
       </router-link>
     </div>
 
-    <!-- Search and Filter Section -->
     <div class="row mb-4 g-3">
         <div class="col-lg-12">
-            <!-- This container now uses the new styles -->
             <div class="search-filter-container">
                 <div class="search-container">
                     <input
@@ -47,7 +44,6 @@
         </div>
     </div>
     
-    <!-- NEW: Pagination Info Display -->
     <div class="row mb-3">
       <div class="col-12">
         <div class="pagination-info">
@@ -57,16 +53,13 @@
         </div>
       </div>
     </div>
-    <!-- END NEW -->
 
-    <!-- Loading and Error States -->
     <div v-if="isLoading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status"></div>
+      <div class="spinner-border text-dark" role="status"></div>
       <p class="mt-2 text-muted">جاري تحميل المنتجات...</p>
     </div>
     <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
-    <!-- Products List -->
     <ProductsList
         v-else-if="productsForDisplay.length > 0"
         :products="productsForDisplay"
@@ -74,24 +67,20 @@
         @edit-product="openEditModal"
     />
     
-    <!-- Empty State -->
     <div v-else class="text-center py-5">
         <i class="fas fa-box-open fa-4x text-muted mb-3"></i>
         <h4 class="text-muted">لا توجد منتجات تطابق البحث أو الفلاتر</h4>
         <p>حاول تغيير كلمات البحث أو الفلاتر المستخدمة.</p>
     </div>
 
-    <!-- NEW: Pagination Controls -->
-    <div v-if="!isLoading && !error && totalProducts > 0"
-      class="pagination-container">
-      <div class="pagination-wrapper">
+    <div v-if="!isLoading && !error && totalProducts > 0" class="pagination-container">
         <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="pagination-btn prev-btn">
           <i class="fas fa-chevron-right"></i>
           السابق
         </button>
-
+        
         <div class="page-numbers">
-          <button v-for="page in visiblePages" :key="page" @click="goToPage(page)"
+          <button v-for="(page, index) in visiblePages" :key="index" @click="goToPage(page)"
             :class="['page-number', { 'active': page === currentPage, 'disabled': typeof page !== 'number' }]"
             :disabled="typeof page !== 'number'">
             {{ page }}
@@ -103,19 +92,9 @@
           التالي
           <i class="fas fa-chevron-left"></i>
         </button>
-      </div>
-
-      <div class="page-size-selector">
-        <label for="pageSize">عدد المنتجات في الصفحة:</label>
-        <select id="pageSize" v-model="itemsPerPage" class="page-size-select" disabled>
-          <option value="10">10</option>
-        </select>
-      </div>
     </div>
-    <!-- END NEW -->
 
 
-    <!-- Modals remain the same -->
     <ProductDetails
         v-if="isDetailsModalVisible"
         :product="selectedProduct"
@@ -154,10 +133,9 @@ const isEditModalVisible = ref(false);
 const isDetailsModalVisible = ref(false);
 const selectedProduct = ref(null);
 
-// --- NEW: State for pagination ---
+// --- State for pagination ---
 const currentPage = ref(1);
 const itemsPerPage = ref(10); // API default is 10
-// --- END NEW ---
 
 // Computed properties
 const isLoading = computed(() => productStore.isLoading || categoryStore.isLoading);
@@ -176,7 +154,7 @@ const categoryHierarchy = computed(() => {
     return hierarchy;
 });
 
-// --- NEW: Pagination computed properties (adapted from Customers.vue) ---
+// --- Pagination computed properties ---
 const totalProducts = computed(() => productStore.getProductsCount);
 
 const totalPages = computed(() => {
@@ -192,31 +170,51 @@ const endIndex = computed(() => {
 });
 
 const visiblePages = computed(() => {
-  const pages = [];
-  const total = totalPages.value;
-  const current = currentPage.value;
+    const total = totalPages.value;
+    const current = currentPage.value;
+    const pageWindow = 5; // The number of pages to show in a sequence at the start/end
+    const pages = [];
 
-  if (total <= 1) return [];
-
-  if (total <= 7) {
-    for (let i = 1; i <= total; i++) pages.push(i);
-  } else {
-    pages.push(1);
-    if (current > 4) pages.push('...');
-    const start = Math.max(2, current - 2);
-    const end = Math.min(total - 1, current + 2);
-    for (let i = start; i <= end; i++) {
-      if (i > 1 && !pages.includes(i)) pages.push(i);
+    // If there are 7 or fewer pages in total, show all of them.
+    if (total <= 7) {
+        for (let i = 1; i <= total; i++) {
+            pages.push(i);
+        }
+        return pages;
     }
-    if (current < total - 3) pages.push('...');
-    if (!pages.includes(total)) pages.push(total);
-  }
-  return pages;
+
+    // Case 1: The current page is near the beginning.
+    if (current <= pageWindow - 2) {
+        for (let i = 1; i <= pageWindow; i++) {
+            pages.push(i);
+        }
+        pages.push('...');
+        pages.push(total);
+    }
+    // Case 2: The current page is near the end.
+    else if (current > total - (pageWindow - 2)) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = total - pageWindow + 1; i <= total; i++) {
+            pages.push(i);
+        }
+    }
+    // Case 3: The current page is in the middle.
+    else {
+        pages.push(1);
+        pages.push('...');
+        pages.push(current - 1);
+        pages.push(current);
+        pages.push(current + 1);
+        pages.push('...');
+        pages.push(total);
+    }
+    
+    return pages;
 });
-// --- END NEW ---
 
 
-// --- MODIFIED: This computed now applies client-side filters to the paginated data from the store ---
+// This computed applies client-side filters to the paginated data from the store
 const productsForDisplay = computed(() => {
   // Start with the products for the current page from the store
   let products = productStore.getAllProducts;
@@ -258,10 +256,9 @@ const productsForDisplay = computed(() => {
       return { ...product, displayImage };
   });
 });
-// --- END MODIFICATION ---
 
 
-// --- NEW: Watcher for search query with debounce ---
+// Watcher for search query with debounce
 let debounceTimer = null;
 watch(searchQuery, (newQuery) => {
   clearTimeout(debounceTimer);
@@ -270,7 +267,6 @@ watch(searchQuery, (newQuery) => {
     productStore.fetchProducts({ page: 1, search: newQuery });
   }, 500); // 500ms delay
 });
-// --- END NEW ---
 
 
 // Methods
@@ -284,14 +280,13 @@ onMounted(() => {
   }
 });
 
-// --- NEW: Method to change pages ---
+// Method to change pages
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value && typeof page === 'number') {
     currentPage.value = page;
     productStore.fetchProducts({ page: page, search: searchQuery.value });
   }
 };
-// --- END NEW ---
 
 // Modal handling methods remain the same
 const openDetailsModal = async (product) => {
@@ -340,7 +335,7 @@ const handleProductUpdate = () => {
 </script>
 
 <style scoped>
-/* --- NEW: Styles copied from Customers.vue for consistency --- */
+/* --- Styles for search/filter and info --- */
 .search-filter-container {
   display: flex;
   gap: 20px;
@@ -411,6 +406,7 @@ const handleProductUpdate = () => {
   display: inline-block;
 }
 
+/* PAGINATION STYLES */
 .pagination-container {
   display: flex;
   justify-content: space-between;
@@ -420,12 +416,6 @@ const handleProductUpdate = () => {
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-}
-
-.pagination-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .pagination-btn {
@@ -444,10 +434,10 @@ const handleProductUpdate = () => {
 }
 
 .pagination-btn:hover:not(:disabled) {
-  border-color: #007bff;
-  color: #007bff;
+  border-color: #292929;
+  color: #0f0f0f;
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(29, 29, 29, 0.2);
 }
 
 .pagination-btn:disabled {
@@ -459,8 +449,9 @@ const handleProductUpdate = () => {
 
 .page-numbers {
   display: flex;
+  flex-wrap: nowrap; 
   gap: 5px;
-  margin: 0 15px;
+  margin: 0 15px; 
 }
 
 .page-number {
@@ -480,45 +471,29 @@ const handleProductUpdate = () => {
 }
 
 .page-number:hover:not(.disabled) {
-  border-color: #007bff;
-  color: #007bff;
+  border-color: #313131;
+  color: #0f0f0f;
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(131, 131, 131, 0.2);
 }
 
 .page-number.active {
-  border-color: #007bff;
-  background: #007bff;
+  border-color: #313131;
+  background: #0f0f0f;
   color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
 }
 
+.page-number.active:hover {
+  border-color: #b9b9b9;
+  color: rgb(189, 189, 189);
+  transform: translateY(-2px);
+}
+
 .page-number.disabled {
   cursor: default;
+  background-color: #f8f9fa;
+  border-color: #e9ecef;
 }
-
-.page-size-selector {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  color: #495057;
-}
-
-.page-size-select {
-  padding: 8px 12px;
-  border: 2px solid #e9ecef;
-  border-radius: 6px;
-  background: white;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.page-size-select:focus {
-  outline: none;
-  border-color: #007bff;
-}
-/* --- END NEW STYLES --- */
 </style>
