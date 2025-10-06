@@ -198,10 +198,16 @@ import { useOrderStore } from '@/stores/orderStore';
 import { useRouter } from 'vue-router';
 import OrderDetails from '@/components/Order/OrderDetails.vue';
 
+import { useSupportTicketNotificationStore } from '@/stores/supportTicketNotificationStore';
+import { db } from '@/firebase';
+import { collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
+// --------------------
+
 // Store and Router instances
 const ticketStore = useSupportTicketStore();
 const orderStore = useOrderStore();
 const router = useRouter();
+const ticketNotificationStore = useSupportTicketNotificationStore(); // <-- NEW: Instantiate store
 
 // State for filters and modals
 const searchQuery = ref('');
@@ -246,6 +252,29 @@ const endIndex = computed(() => {
   const end = startIndex.value + itemsPerPage.value;
   return Math.min(end, totalTickets.value);
 });
+
+const markAllTicketNotificationsAsRead = async () => {
+  console.log("Marking unread ticket notifications as read...");
+  
+  // Query the 'ticket_notifications' collection
+  const unreadQuery = query(collection(db, 'ticket_notifications'), where('is_read', '==', false));
+  const querySnapshot = await getDocs(unreadQuery);
+
+  if (querySnapshot.empty) {
+    console.log("No unread ticket notifications to mark.");
+    ticketNotificationStore.resetNewTicketCount();
+    return;
+  }
+
+  const batch = writeBatch(db);
+  querySnapshot.forEach(doc => {
+    batch.update(doc.ref, { is_read: true });
+  });
+
+  await batch.commit();
+  console.log(`Successfully marked ${querySnapshot.size} ticket notifications as read.`);
+  ticketNotificationStore.resetNewTicketCount(); // Reset the count in the store
+};
 
 const visiblePages = computed(() => {
     const total = totalPages.value;
@@ -365,6 +394,8 @@ const goToPage = (page) => {
 };
 
 onMounted(async () => {
+  markAllTicketNotificationsAsRead(); // <-- NEW: Call the function on mount
+
   try {
     await ticketStore.fetchTickets();
   } catch (error) {

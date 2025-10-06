@@ -33,9 +33,10 @@ import { useAuthStore } from './stores/authStore'
 
 import { db } from './firebase'
 import { collection, query, where, onSnapshot } from 'firebase/firestore'
-import { useNotificationStore } from './stores/notificationStore'
-import { useOrderStore } from './stores/orderStore'
 
+// Import ALL necessary stores
+import { useNotificationStore } from './stores/notificationStore'
+import { useSupportTicketNotificationStore } from './stores/supportTicketNotificationStore' // <-- IMPORT NEW STORE
 
 export default {
   name: 'App',
@@ -49,10 +50,12 @@ export default {
     const authStore = useAuthStore()
     const appLoaded = ref(false)
     
+    // Instantiate ALL stores
     const notificationStore = useNotificationStore();
-    const orderStore = useOrderStore();
+    const ticketNotificationStore = useSupportTicketNotificationStore(); // <-- INSTANTIATE NEW STORE
     
-    let unsubscribeFromNotifications = null;
+    let unsubscribeFromOrderNotifications = null;
+    let unsubscribeFromTicketNotifications = null; // <-- NEW: For tickets
 
     const showWelcomeMessage = ref(null);
 
@@ -64,12 +67,8 @@ export default {
       return !authStore.isInitialized || !appLoaded.value
     })
 
-    // --- SOLUTION ---
-    // Watcher 1: For the Welcome Message.
-    // This runs ONLY when the user state CHANGES (e.g., from null to a user object).
-    // It does NOT have { immediate: true }.
+    // Watcher for the Welcome Message
     watch(() => authStore.user, (newUser, oldUser) => {
-      // This condition is now only true when transitioning from logged-out to logged-in
       if (newUser && !oldUser) {
         const userName = newUser.full_name || 'المستخدم';
         showWelcomeMessage.value = `مرحباً بك يا ${userName}`;
@@ -79,60 +78,84 @@ export default {
       }
     });
 
-    // Watcher 2: For Push Notifications.
-    // This needs to run immediately on page load if the user is already logged in
-    // to set up the listener. It KEEPS { immediate: true }.
+    // Watcher for ALL Push Notifications
     watch(() => authStore.user, (newUser) => {
-      if (newUser && !unsubscribeFromNotifications) {
-        console.log("User logged in. Listening for UNREAD notifications...");
+      if (newUser) {
+        // --- Setup Order Notifications Listener ---
+        if (!unsubscribeFromOrderNotifications) {
+            console.log("User logged in. Listening for UNREAD order notifications...");
+            let isInitialLoad = true;
+            const notificationsQuery = query(collection(db, 'notifications'), where("is_read", "==", false));
 
-        let isInitialLoad = true;
+            unsubscribeFromOrderNotifications = onSnapshot(notificationsQuery, (snapshot) => {
+                notificationStore.newOrderCount = snapshot.size;
 
-        const notificationsQuery = query(
-          collection(db, 'notifications'),
-          where("is_read", "==", false)
-        );
-
-        unsubscribeFromNotifications = onSnapshot(notificationsQuery, (snapshot) => {
-          notificationStore.newOrderCount = snapshot.size;
-
-          if (isInitialLoad) {
-            const unreadCount = snapshot.docChanges().length;
-            if (unreadCount > 0) {
-              const summaryNotification = new Notification("تنبيهات جديدة", {
-                body: `لديك ${unreadCount} طلب جديد لم تقم بمشاهدته.`,
-                icon: "/favicon.ico"
-              });
-              
-              summaryNotification.onclick = () => {
-                window.focus(); 
-                router.push('/orders');
-              };
-            }
-            isInitialLoad = false;
-          } else {
-            snapshot.docChanges().forEach((change) => {
-              if (change.type === "added" && !change.doc.metadata.hasPendingWrites) {
-                const notificationData = change.doc.data();
-                const individualNotification = new Notification(notificationData.title, {
-                  body: notificationData.message,
-                  icon: "/favicon.ico"
-                });
-
-                individualNotification.onclick = () => {
-                  window.focus();
-                  console.log("التوجبه للطلبات")
-                  router.push('/orders');
-                };
-              }
+                if (isInitialLoad) {
+                    const unreadCount = snapshot.docChanges().length;
+                    if (unreadCount > 0) {
+                        const summaryNotification = new Notification("طلبات جديدة", {
+                            body: `لديك ${unreadCount} طلب جديد لم تقم بمشاهدته.`,
+                            icon: "/favicon.ico"
+                        });
+                        summaryNotification.onclick = () => { router.push('/orders'); };
+                    }
+                    isInitialLoad = false;
+                } else {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === "added" && !change.doc.metadata.hasPendingWrites) {
+                            const data = change.doc.data();
+                            const individualNotification = new Notification(data.title, { body: data.message, icon: "/favicon.ico" });
+                            individualNotification.onclick = () => { router.push('/orders'); };
+                        }
+                    });
+                }
             });
-          }
-        });
+        }
 
-      } else if (!newUser && unsubscribeFromNotifications) {
-        console.log("User logged out. Stopping Firestore listener.");
-        unsubscribeFromNotifications();
-        unsubscribeFromNotifications = null;
+        // --- NEW: Setup Ticket Notifications Listener ---
+        if (!unsubscribeFromTicketNotifications) {
+            console.log("User logged in. Listening for UNREAD ticket notifications...");
+            let isInitialLoad = true;
+            const ticketsQuery = query(collection(db, 'ticket_notifications'), where("is_read", "==", false)); // <-- Use 'ticket_notifications' collection
+
+            unsubscribeFromTicketNotifications = onSnapshot(ticketsQuery, (snapshot) => {
+                ticketNotificationStore.setNewTicketCount(snapshot.size); // <-- Update the new store
+
+                if (isInitialLoad) {
+                    const unreadCount = snapshot.docChanges().length;
+                    if (unreadCount > 0) {
+                        const summaryNotification = new Notification("تذاكر دعم جديدة", {
+                            body: `لديك ${unreadCount} تذكرة دعم جديدة لم تقم بمشاهدتها.`, // <-- Custom message
+                            icon: "/favicon.ico"
+                        });
+                        summaryNotification.onclick = () => { router.push('/support-tickets'); }; // <-- Navigate to tickets
+                    }
+                    isInitialLoad = false;
+                } else {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === "added" && !change.doc.metadata.hasPendingWrites) {
+                            const data = change.doc.data();
+                            const individualNotification = new Notification(data.title, { body: data.message, icon: "/favicon.ico" });
+                            individualNotification.onclick = () => { router.push('/support-tickets'); }; // <-- Navigate to tickets
+                        }
+                    });
+                }
+            });
+        }
+
+      } else {
+        // --- Teardown Order Listener on Logout ---
+        if (unsubscribeFromOrderNotifications) {
+          console.log("User logged out. Stopping order Firestore listener.");
+          unsubscribeFromOrderNotifications();
+          unsubscribeFromOrderNotifications = null;
+        }
+        // --- NEW: Teardown Ticket Listener on Logout ---
+        if (unsubscribeFromTicketNotifications) {
+          console.log("User logged out. Stopping ticket Firestore listener.");
+          unsubscribeFromTicketNotifications();
+          unsubscribeFromTicketNotifications = null;
+        }
       }
     }, { immediate: true }); 
 
@@ -172,8 +195,11 @@ export default {
       return () => {
         window.removeEventListener('storage', handleStorageChange)
         window.removeEventListener('sidebarToggle', handleSidebarToggle)
-        if (unsubscribeFromNotifications) {
-          unsubscribeFromNotifications();
+        if (unsubscribeFromOrderNotifications) {
+          unsubscribeFromOrderNotifications();
+        }
+        if (unsubscribeFromTicketNotifications) { // <-- NEW: Cleanup
+          unsubscribeFromTicketNotifications();
         }
       }
     })

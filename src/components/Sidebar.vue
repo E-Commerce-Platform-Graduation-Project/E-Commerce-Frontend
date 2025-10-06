@@ -40,8 +40,10 @@
             @click="resetOrderCount"
             >
             <span class="material-icons me-3">shopping_basket</span>
-            <span class="sidebar-text">الطلبات</span>
-            <span v-if="newOrderCount > 0" class="notification-badge ms-auto">
+            <span class="sidebar-text ms-2">الطلبات</span>
+            <span v-if="newOrderCount > 0" 
+                  class="notification-badge ms-auto" 
+                  :class="{ 'shake-animation': newOrderCount > 0 }">
               {{ newOrderCount }}
             </span>
           </router-link>
@@ -53,9 +55,15 @@
           </router-link>
 
           <router-link to="/support-tickets"
-            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded">
+            class="nav-link sidebar-link d-flex align-items-center text-decoration-none p-2 rounded"
+            @click="resetTicketCount">
             <span class="material-icons me-3">confirmation_number</span>
-            <span class="sidebar-text">إدارة تذاكر الدعم</span>
+            <span class="sidebar-text ms-2">إدارة تذاكر الدعم</span>
+            <span v-if="newTicketCount > 0" 
+                  class="notification-badge ms-auto" 
+                  :class="{ 'shake-animation': newTicketCount > 0 }">
+              {{ newTicketCount }}
+            </span>
           </router-link>
         </nav>
       </div>
@@ -157,6 +165,8 @@ import logoURL from "../assets/icons/e-commerce-logo3.png";
 import { useAuthStore } from "../stores/authStore";
 import UserProfile from "./UserProfile.vue";
 import { useNotificationStore } from "../stores/notificationStore";
+// NEW: Import the ticket notification store
+import { useSupportTicketNotificationStore } from "../stores/supportTicketNotificationStore";
 
 export default {
   components: {
@@ -166,12 +176,21 @@ export default {
     const is_expanded = ref(localStorage.getItem("is_expanded") === "true");
     const router = useRouter();
     const authStore = useAuthStore();
+
+    // --- Order Notification Logic ---
     const notificationStore = useNotificationStore();
     const newOrderCount = computed(() => notificationStore.getNewOrderCount);
-
     const resetOrderCount = () => {
       notificationStore.resetNewOrderCount();
     };
+
+    // --- NEW: Ticket Notification Logic ---
+    const ticketNotificationStore = useSupportTicketNotificationStore();
+    const newTicketCount = computed(() => ticketNotificationStore.getNewTicketCount);
+    const resetTicketCount = () => {
+      ticketNotificationStore.resetNewTicketCount();
+    };
+    // ------------------------------------
 
     const ToggleMenu = () => {
       is_expanded.value = !is_expanded.value;
@@ -190,12 +209,16 @@ export default {
       isAdmin,
       newOrderCount,
       resetOrderCount,
+      // --- NEW: Expose ticket logic to the template ---
+      newTicketCount,
+      resetTicketCount,
     };
   },
 };
 </script>
 
 <style lang="scss" scoped>
+/* Your existing styles from the provided file */
 .sidebar {
   width: var(--sidebar-collapsed);
   height: 100vh;
@@ -366,9 +389,6 @@ export default {
     }
   }
 
-  /* ---------------------------------------------- */
-  /* MODIFIED: Added styles for the collapsed state */
-  /* ---------------------------------------------- */
   &:not(.sidebar-expanded) {
     .sidebar-link {
       justify-content: center;
@@ -388,17 +408,42 @@ export default {
       background-color: var(--dark);
       color: var(--light);
       border-radius: 0.375rem;
-      pointer-events: none; /* Prevents tooltip from interfering with mouse */
+      pointer-events: none;
       transition-property: opacity, transform;
-      transition-delay: 0.1s; /* Show tooltip after a brief delay */
+      transition-delay: 0.1s;
     }
 
     .sidebar-link:hover .sidebar-text {
       opacity: 1;
-      transform: translateY(-50%) translateX(-8px); /* Add a nice slide-out effect */
+      transform: translateY(-50%) translateX(-8px);
     }
   }
 }
+
+/* --- NEW: Shake Animation --- */
+.shake-animation {
+  animation: shake 2.5s cubic-bezier(0.36, 0.07, 0.19, 0.67) both infinite;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+@keyframes shake {
+  10%, 90% {
+    transform: translate3d(-1px, 0, 0);
+  }
+  20%, 80% {
+    transform: translate3d(2px, 0, 0);
+  }
+  30%, 50%, 70% {
+    transform: translate3d(-3px, 0, 0);
+  }
+  40%, 60% {
+    transform: translate3d(3px, 0, 0);
+  }
+}
+/* --- END: Shake Animation --- */
+
 
 @media (max-width: 1024px) {
   .sidebar {
