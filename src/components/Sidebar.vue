@@ -4,14 +4,12 @@
     'd-flex',
     'flex-column',
     'bg-white',
-    'border-start',
-    'shadow',
     'overflow-hidden',
     { 'sidebar-expanded': is_expanded }
   ]">
     <div class="sidebar-header p-3 text-center">
-      <img :src="logoURL" alt="Vue" class="logo-img" />
-      <p class="fw-bold">Flaww Store</p>
+      <img :src="logoURL" alt="logo" class="logo-img" />
+      <p class="fw-bold h5 text-dark">Flaww Store</p>
     </div>
 
     <div class="sidebar-toggle d-flex justify-content-end px-3 mb-3">
@@ -146,7 +144,9 @@
       </div>
     </div>
 
-    <UserProfile :sidebar-expanded="is_expanded" />
+    <div class="user-profile-wrapper">
+      <UserProfile :sidebar-expanded="is_expanded" />
+    </div>
   </aside>
 </template>
 
@@ -156,7 +156,7 @@ import { useRouter } from "vue-router";
 import logoURL from "../assets/icons/e-commerce-logo3.png";
 import { useAuthStore } from "../stores/authStore";
 import UserProfile from "./UserProfile.vue";
-import { useNotificationStore } from "../stores/notificationStore"; // Import notification store
+import { useNotificationStore } from "../stores/notificationStore";
 
 export default {
   components: {
@@ -166,26 +166,21 @@ export default {
     const is_expanded = ref(localStorage.getItem("is_expanded") === "true");
     const router = useRouter();
     const authStore = useAuthStore();
-    
-    // --- Notification Logic ---
     const notificationStore = useNotificationStore();
     const newOrderCount = computed(() => notificationStore.getNewOrderCount);
+
     const resetOrderCount = () => {
       notificationStore.resetNewOrderCount();
     };
-    // -------------------------
 
     const ToggleMenu = () => {
       is_expanded.value = !is_expanded.value;
       localStorage.setItem("is_expanded", is_expanded.value);
-
-      // Emit custom event to update main content layout
       window.dispatchEvent(new CustomEvent('sidebarToggle', {
         detail: { expanded: is_expanded.value }
       }));
     };
 
-    // Get admin status from store
     const isAdmin = computed(() => authStore.isAdmin);
 
     return {
@@ -193,7 +188,6 @@ export default {
       is_expanded,
       logoURL,
       isAdmin,
-      // --- Expose to template ---
       newOrderCount,
       resetOrderCount,
     };
@@ -208,12 +202,12 @@ export default {
   position: fixed;
   top: 0;
   right: 0;
-  transition: width 0.3s ease-in-out;
+  transition: width 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
   background-color: var(--dark) !important;
   border-color: var(--border-color) !important;
   z-index: 1000;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.07);
 
-  // Fixed header section
   .sidebar-header {
     flex-shrink: 0;
     border-bottom: 1px solid var(--border-color);
@@ -224,7 +218,6 @@ export default {
     }
   }
 
-  // Fixed toggle section
   .sidebar-toggle {
     flex-shrink: 0;
 
@@ -234,62 +227,39 @@ export default {
       &:hover {
         .material-icons {
           color: var(--primary) !important;
-          transform: translateX(0.5rem);
         }
       }
     }
   }
 
-  // Scrollable content area
   .sidebar-content {
     overflow-y: auto;
     overflow-x: hidden;
     flex: 1;
-
-    // Force LTR direction to move scrollbar to right side
     direction: ltr;
 
-    // Custom scrollbar styling
-    &::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background-color: rgba(0, 0, 0, 0.2);
-      border-radius: 3px;
-
-      &:hover {
-        background-color: rgba(0, 0, 0, 0.3);
-      }
-    }
-
-    // Firefox scrollbar
+    &::-webkit-scrollbar { width: 6px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb { background-color: rgba(0, 0, 0, 0.2); border-radius: 3px; }
+    &::-webkit-scrollbar-thumb:hover { background-color: rgba(0, 0, 0, 0.3); }
     scrollbar-width: thin;
     scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
 
-    // Reset content back to RTL
     .menu-section {
       direction: rtl;
     }
   }
 
-  // Menu sections spacing
   .menu-section {
     margin-bottom: 1rem;
   }
 
-  // Sidebar headings
   .sidebar-heading {
     opacity: 0;
     transition: opacity 0.3s ease-in-out;
     font-size: 0.75rem;
   }
 
-  // Sidebar text
   .sidebar-text {
     opacity: 0;
     transition: opacity 0.3s ease-in-out;
@@ -298,33 +268,56 @@ export default {
     font-weight: 500;
   }
 
-  // Sidebar links
   .sidebar-link {
     color: var(--grey) !important;
     transition: all 0.2s ease-in-out;
     margin-bottom: 0.25rem;
-    position: relative; // Needed for badge positioning
+    position: relative; 
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      right: 0;
+      width: 4px;
+      height: 70%;
+      background-color: var(--primary);
+      border-radius: 4px 0 0 4px;
+      transform: translateY(-50%) scaleY(0);
+      transform-origin: center;
+      transition: transform 0.2s ease-in-out;
+    }
 
     .material-icons {
       font-size: 1.5rem;
       color: var(--grey);
-      transition: color 0.2s ease-in-out;
+      transition: color 0.2s ease-in-out, transform 0.2s ease-in-out;
       min-width: 1.5rem;
     }
-
+    
     &:hover {
       background-color: var(--hover-bg) !important;
-      transform: translateX(-2px);
 
-      .material-icons,
+      &::before {
+        transform: translateY(-50%) scaleY(1);
+      }
+
+      .material-icons {
+        color: var(--primary) !important;
+        transform: scale(1.1);
+      }
       .sidebar-text {
         color: var(--primary) !important;
       }
     }
-
+    
     &.router-link-active {
       background-color: var(--active-bg) !important;
-      border-right: 3px solid var(--primary);
+      border-right: none;
+
+      &::before {
+        transform: translateY(-50%) scaleY(1);
+      }
 
       .material-icons,
       .sidebar-text {
@@ -333,26 +326,31 @@ export default {
     }
   }
 
-  // --- ADDED: Styles for the notification badge ---
   .notification-badge {
     display: flex;
     align-items: center;
     justify-content: center;
     width: 24px;
     height: 24px;
-    background-color: #dc3545; // Bootstrap danger red
+    background-color: #dc3545;
     color: white;
     border-radius: 50%;
     font-size: 12px;
     font-weight: 600;
-    opacity: 0; // Hidden by default
+    opacity: 0; 
     transition: opacity 0.3s ease-in-out;
   }
-  // ------------------------------------------
+  
+  .user-profile-wrapper {
+    padding: 0.5rem;
+    display: flex;
+    justify-content: center;
+  }
 
-  // Expanded state
   &.sidebar-expanded {
     width: var(--sidebar-width);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border-left: 1px solid var(--border-color);
 
     .sidebar-toggle .menu-toggle-btn {
       transform: rotate(-180deg);
@@ -360,13 +358,48 @@ export default {
 
     .sidebar-heading,
     .sidebar-text,
-    .notification-badge { // Make badge visible when expanded
+    .notification-badge {
       opacity: 1;
+    }
+    .user-profile-wrapper {
+        justify-content: flex-start;
+    }
+  }
+
+  /* ---------------------------------------------- */
+  /* MODIFIED: Added styles for the collapsed state */
+  /* ---------------------------------------------- */
+  &:not(.sidebar-expanded) {
+    .sidebar-link {
+      justify-content: center;
+    }
+
+    .sidebar-link .material-icons {
+      margin-right: 0;
+    }
+
+    .sidebar-link .sidebar-text {
+      position: absolute;
+      right: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      margin-right: 1rem;
+      padding: 0.5rem 0.75rem;
+      background-color: var(--dark);
+      color: var(--light);
+      border-radius: 0.375rem;
+      pointer-events: none; /* Prevents tooltip from interfering with mouse */
+      transition-property: opacity, transform;
+      transition-delay: 0.1s; /* Show tooltip after a brief delay */
+    }
+
+    .sidebar-link:hover .sidebar-text {
+      opacity: 1;
+      transform: translateY(-50%) translateX(-8px); /* Add a nice slide-out effect */
     }
   }
 }
 
-// Mobile responsiveness
 @media (max-width: 1024px) {
   .sidebar {
     position: fixed;

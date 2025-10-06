@@ -2,15 +2,11 @@
   <div class="user-profile-section">
     <div class="user-info d-flex align-items-center p-3" @click="toggleDropdown">
       <div class="user-avatar me-3">
-        <img 
-          :src="userAvatar" 
-          :alt="currentUser?.full_name || 'مستخدم'" 
-          class="avatar-img rounded-circle"
-          @error="handleImageError"
-        />
+        <span class="material-icons avatar-icon" :style="avatarIconStyle">
+          supervised_user_circle
+        </span>
         <div class="status-indicator"></div>
       </div>
-      
       <div class="user-details flex-grow-1" v-if="sidebarExpanded">
         <h6 class="user-name mb-1">{{ fullName }}</h6>
         <small class="user-role text-muted">{{ userRoleText }}</small>
@@ -106,21 +102,29 @@ export default {
       }
     })
 
-    const userAvatar = computed(() => {
-      if (currentUser.value?.profile_image) {
-        return currentUser.value.profile_image
+    // START: ADDED computed style for the icon
+    const avatarIconStyle = computed(() => {
+      const style = {
+        fontSize: '44px', // Set icon size
+        lineHeight: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '40px',
+        height: '40px',
+        color: '#646464' // Default color
+      };
+
+      const role = currentUser.value?.role;
+      if (role === 'ADMIN') {
+        style.color = 'tomato';
+      } else if (role === 'EMPLOYEE') {
+        style.color = '#2883a7';
       }
-      return generateAvatarUrl(fullName.value)
-    })
-
-    const generateAvatarUrl = (name) => {
-      const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2)
-      return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=646464&color=ffffff&size=40&rounded=true&font-size=0.6`
-    }
-
-    const handleImageError = (event) => {
-      event.target.src = generateAvatarUrl(fullName.value)
-    }
+      
+      return style;
+    });
+    // END: ADDED computed style for the icon
 
     const toggleDropdown = () => {
       if (!props.sidebarExpanded) return
@@ -142,10 +146,8 @@ export default {
       isLogoutModalOpen.value = false
     }
 
-    // Handle logout confirmation
     const confirmLogout = async () => {
       try {
-        // --- FIX: Wait for the logout action to complete ---
         await authStore.logout()
         isLogoutModalOpen.value = false
         await router.push('/login')
@@ -162,19 +164,20 @@ export default {
       document.removeEventListener('click', closeDropdown)
     })
 
+    // START: MODIFIED return object
     return {
       currentUser,
       fullName,
       userRoleText,
-      userAvatar,
       isDropdownOpen,
       isLogoutModalOpen,
+      avatarIconStyle, // Added for icon styling
       toggleDropdown,
       showLogoutModal,
       hideLogoutModal,
       confirmLogout,
-      handleImageError
     }
+    // END: MODIFIED return object
   }
 }
 </script>
