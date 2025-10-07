@@ -237,11 +237,11 @@ const selectedComment = ref(null);
 
 // Pagination state for orders
 const currentOrderPage = ref(1);
-const ordersPerPage = 5; // Changed from 5 to 10
+const ordersPerPage = 5;
 
 // Pagination state for ratings
 const currentRatingPage = ref(1);
-const ratingsPerPage = 10; // Changed from 5 to 10
+const ratingsPerPage = 10;
 
 
 onMounted(async () => {
@@ -263,33 +263,40 @@ onMounted(async () => {
 });
 
 const fetchCustomerData = async (customerId, ordersPage = 1) => {
-    if (ordersPage > 1) {
-        ordersLoading.value = true;
-    } else {
-        // Show main loader only on initial full page load
+    // If customer data is null, it's the initial page load.
+    // Otherwise, it's a pagination request for orders.
+    if (!customer.value) {
         isLoading.value = true;
+    } else {
+        ordersLoading.value = true;
     }
+
     try {
         const response = await api.get(`/users/customers/${customerId}/?orders_page=${ordersPage}`);
 
-        // Store customer info
-        customer.value = {
-            id: response.data.id,
-            full_name: response.data.full_name,
-            phone_number: response.data.phone_number,
-            email: response.data.email,
-            is_active: response.data.is_active,
-            last_login: response.data.last_login
-        };
+        // Only set customer info if it hasn't been set before (on initial load)
+        if (!customer.value) {
+            customer.value = {
+                id: response.data.id,
+                full_name: response.data.full_name,
+                phone_number: response.data.phone_number,
+                email: response.data.email,
+                is_active: response.data.is_active,
+                last_login: response.data.last_login
+            };
+        }
 
-        // Store orders and pagination info
+        // Always update orders and pagination info
         allOrders.value = response.data.orders.results || [];
         totalOrdersCount.value = response.data.orders.count || 0;
 
     } catch (err) {
         console.error('Error fetching customer data:', err);
-        if (ordersPage === 1) error.value = 'Failed to load customer data.';
+        if (ordersPage === 1 && !customer.value) {
+             error.value = 'Failed to load customer data.';
+        }
     } finally {
+        // Always turn off both loaders
         ordersLoading.value = false;
         isLoading.value = false;
     }

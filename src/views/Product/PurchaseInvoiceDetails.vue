@@ -25,12 +25,12 @@
                         <ul class="dropdown-menu" aria-labelledby="exportDropdown">
                             <li>
                                 <a class="dropdown-item" href="#" @click.prevent="exportToPDF">
-                                    <i class="fas fa-file-pdf text-danger me-2"></i> PDF تصدير كـ
+                                    <i class="fas fa-file-pdf text-danger me-2"></i>تصدير كـ PDF 
                                 </a>
                             </li>
                             <li>
                                 <a class="dropdown-item" href="#" @click.prevent="exportToExcel">
-                                    <i class="fas fa-file-excel text-success me-2"></i> Excel تصدير كـ
+                                    <i class="fas fa-file-excel text-success me-2"></i>تصدير كـ Excel
                                 </a>
                             </li>
                         </ul>
@@ -145,17 +145,34 @@ const exportToPDF = async () => {
         return `${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} د.ل`;
     };
 
-    const fontResponse = await fetch('/NotoSansArabic-Regular.ttf');
-    const fontBlob = await fontResponse.blob();
-    const fontReader = new FileReader();
+    // Try to load custom font, fallback to Times if it fails
+    let fontLoaded = false;
+    try {
+        const fontResponse = await fetch('/NotoSansArabic-Regular.ttf');
+        if (fontResponse.ok) {
+            const fontBlob = await fontResponse.blob();
+            const fontBase64 = await new Promise((resolve, reject) => {
+                const fontReader = new FileReader();
+                fontReader.onload = (e) => resolve(e.target.result.split(',')[1]);
+                fontReader.onerror = reject;
+                fontReader.readAsDataURL(fontBlob);
+            });
+            
+            doc.addFileToVFS('NotoSansArabic-Regular.ttf', fontBase64);
+            doc.addFont('NotoSansArabic-Regular.ttf', 'NotoSansArabic', 'normal');
+            doc.setFont('NotoSansArabic');
+            fontLoaded = true;
+        }
+    } catch (error) {
+        console.warn('Failed to load custom font, using default:', error);
+    }
 
-    fontReader.onload = async function (event) {
-        const fontBase64 = event.target.result.split(',')[1];
-        
-        doc.addFileToVFS('NotoSansArabic-Regular.ttf', fontBase64);
-        doc.addFont('NotoSansArabic-Regular.ttf', 'NotoSansArabic', 'normal');
-        doc.setFont('NotoSansArabic');
+    // If custom font failed, use Times (has better Arabic support than Helvetica)
+    if (!fontLoaded) {
+        doc.setFont('times', 'normal');
+    }
 
+    const processContent = async () => {
         // Add logo
         try {
             const logoResponse = await fetch('/e-commerce-logo3.png');
@@ -181,44 +198,108 @@ const exportToPDF = async () => {
             'الإجمالي الفرعي',
             'سعر الوحدة',
             'الكمية',
+            'الخواص',
+            'SKU',
             'المنتج'
         ]];
         
-        const body = invoice.value.items.map(item => [
-            formatPDFCurrency(item.costPerUnit * item.quantity),
-            formatPDFCurrency(item.costPerUnit),
-            item.quantity,
-            item.productName,
-        ]);
+        const body = invoice.value.items.map(item => {
+            const color = extractColorFromSku(item.variantSku);
+            const size = extractSizeFromSku(item.variantSku);
+            let properties = [];
+            if (color) {
+                // Color with placeholder for circle after the hex code
+                properties.push(`اللون: ${color} ○`);
+            }
+            if (size) {
+                properties.push(`المقاس: ${size}`);
+            }
+            const propsText = properties.join('\n'); // Use newline instead of |
+            
+            return [
+                formatPDFCurrency(item.costPerUnit * item.quantity),
+                formatPDFCurrency(item.costPerUnit),
+                item.quantity,
+                propsText,
+                item.variantSku,
+                item.productName,
+            ];
+        });
 
+        const currentFont = fontLoaded ? 'NotoSansArabic' : 'times';
+        
         autoTable(doc, {
             head: head,
             body: body,
             startY: 45,
             theme: 'grid',
             styles: { 
-                font: 'NotoSansArabic',
+                font: currentFont,
                 fontStyle: 'normal',
-                fontSize: 10,
-                halign: 'right'
+                fontSize: 9,
+                halign: 'right',
+                cellPadding: 2
             },
             headStyles: { 
-                font: 'NotoSansArabic',
+                font: currentFont,
                 halign: 'right',
                 fillColor: [0, 0, 0],
                 textColor: [255, 255, 255]
             },
             bodyStyles: { 
-                font: 'NotoSansArabic',
-                halign: 'right'
+                font: currentFont,
+                halign: 'right',
+                valign: 'middle'
             },
             columnStyles: {
-                0: { halign: 'right' },
-                1: { halign: 'right' },
-                2: { halign: 'right' },
-                3: { halign: 'right' }
+                0: { halign: 'right', cellWidth: 25 },
+                1: { halign: 'right', cellWidth: 25 },
+                2: { halign: 'center', cellWidth: 15 },
+                3: { halign: 'right', cellWidth: 40 },
+                4: { halign: 'right', cellWidth: 30 },
+                5: { halign: 'right', cellWidth: 'auto' }
             },
-            margin: { left: 10, right: 10 }
+            margin: { left: 10, right: 10 },
+            didDrawCell: (data) => {
+                // Draw color circles in the properties column (column index 3)
+                if (data.section === 'body' && data.column.index === 3) {
+                    const item = invoice.value.items[data.row.index];
+                    const color = extractColorFromSku(item.variantSku);
+                    
+                    if (color) {
+                        // Convert hex color to RGB
+                        const hexToRgb = (hex) => {
+                            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                            return result ? {
+                                r: parseInt(result[1], 16),
+                                g: parseInt(result[2], 16),
+                                b: parseInt(result[3], 16)
+                            } : null;
+                        };
+                        
+                        const rgb = hexToRgb(color);
+                        if (rgb) {
+                            // Position circle after the color hex code
+                            const circleRadius = 2.5;
+                            const size = extractSizeFromSku(item.variantSku);
+                            
+                            // Calculate position: far left of cell (after hex code in RTL)
+                            let yOffset = 0;
+                            if (size) {
+                                yOffset = -3; // Move up to align with first line (اللون line)
+                            }
+                            
+                            const xPos = data.cell.x + 4; // Position at the start (after color code)
+                            const yPos = data.cell.y + (data.cell.height / 2) + yOffset;
+                            
+                            doc.setFillColor(rgb.r, rgb.g, rgb.b);
+                            doc.setDrawColor(180, 180, 180); // Gray border
+                            doc.setLineWidth(0.2);
+                            doc.circle(xPos, yPos, circleRadius, 'FD'); // 'FD' = Fill and Draw border
+                        }
+                    }
+                }
+            }
         });
 
         const finalY = doc.lastAutoTable.finalY;
@@ -229,21 +310,25 @@ const exportToPDF = async () => {
                 formatPDFCurrency(invoice.value.totalAmount),
                 '',
                 '',
+                '',
+                '',
                 'الإجمالي الكلي'
             ]],
             startY: finalY + 2,
             theme: 'plain',
             styles: { 
-                font: 'NotoSansArabic',
+                font: currentFont,
                 fontSize: 12,
                 fontStyle: 'bold',
                 fillColor: [240, 240, 240]
             },
             columnStyles: {
-                0: { halign: 'right' },
-                1: { halign: 'center' },
-                2: { halign: 'center' },
-                3: { halign: 'right' }
+                0: { halign: 'right', cellWidth: 25 },
+                1: { halign: 'center', cellWidth: 25 },
+                2: { halign: 'center', cellWidth: 15 },
+                3: { halign: 'center', cellWidth: 35 },
+                4: { halign: 'center', cellWidth: 30 },
+                5: { halign: 'right', cellWidth: 'auto' }
             },
             margin: { left: 10, right: 10 }
         });
@@ -251,30 +336,218 @@ const exportToPDF = async () => {
         doc.save(`invoice-${invoice.value.id}.pdf`);
     };
 
-    fontReader.readAsDataURL(fontBlob);
+    await processContent();
 };
 
-const exportToExcel = () => {
+const exportToExcel = async () => {
     if (!invoice.value) return;
 
-    const dataForSheet = invoice.value.items.map(item => ({
-        'المنتج': item.productName,
-        'رقم المتغير (SKU)': item.variantSku,
-        'الكمية': item.quantity,
-        'سعر الوحدة': item.costPerUnit,
-        'الإجمالي الفرعي': item.costPerUnit * item.quantity
-    }));
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    
+    // Create header rows with logo placeholder and info
+    const headerData = [
+        ['', '', '', '', '', 'فاتورة شراء رقم: #' + invoice.value.id],
+        ['', '', '', '', '', 'التاريخ: ' + formatDate(invoice.value.date)],
+        ['', '', '', '', '', 'بواسطة: ' + invoice.value.user],
+        [] // Empty row
+    ];
 
-    dataForSheet.push({});
-    dataForSheet.push({
-        'المنتج': 'الإجمالي الكلي للفاتورة',
-        'الإجمالي الفرعي': invoice.value.totalAmount
+    // Create table headers (RTL order - right to left)
+    const tableHeaders = [
+        'الإجمالي الفرعي',
+        'سعر الوحدة',
+        'الكمية',
+        'الخواص',
+        'SKU',
+        'المنتج'
+    ];
+
+    // Create data rows (RTL order - right to left)
+    const dataRows = invoice.value.items.map(item => {
+        const color = extractColorFromSku(item.variantSku);
+        const size = extractSizeFromSku(item.variantSku);
+        let properties = [];
+        if (color) properties.push(`اللون: ${color}`);
+        if (size) properties.push(`المقاس: ${size}`);
+        
+        return [
+            item.costPerUnit * item.quantity, // الإجمالي الفرعي
+            item.costPerUnit,                  // سعر الوحدة
+            item.quantity,                     // الكمية
+            properties.join(' | '),            // الخواص
+            item.variantSku,                   // SKU
+            item.productName                   // المنتج
+        ];
     });
 
-    const ws = XLSX.utils.json_to_sheet(dataForSheet);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `Invoice ${invoice.value.id}`);
-    XLSX.writeFile(wb, `invoice-${invoice.value.id}.xlsx`);
+    // Add empty row and total
+    const totalRow = [
+        invoice.value.totalAmount,
+        '',
+        '',
+        '',
+        '',
+        'الإجمالي الكلي للفاتورة'
+    ];
+
+    // Combine all data
+    const allData = [
+        ...headerData,
+        tableHeaders,
+        ...dataRows,
+        [], // Empty row before total
+        totalRow
+    ];
+
+    // Create worksheet
+    const ws = XLSX.utils.aoa_to_sheet(allData);
+
+    // Set column widths
+    ws['!cols'] = [
+        { wch: 18 }, // الإجمالي الفرعي
+        { wch: 15 }, // سعر الوحدة
+        { wch: 10 }, // الكمية
+        { wch: 35 }, // الخواص
+        { wch: 40 }, // SKU
+        { wch: 30 }  // المنتج
+    ];
+
+    // Set row heights (first 3 rows taller for logo area)
+    ws['!rows'] = [
+        { hpt: 30 }, // Row 0
+        { hpt: 25 }, // Row 1
+        { hpt: 25 }, // Row 2
+        { hpt: 20 }  // Row 3 (empty)
+    ];
+
+    // Apply RTL and styling
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+            if (!ws[cellAddress]) continue;
+            
+            // Initialize cell style
+            if (!ws[cellAddress].s) ws[cellAddress].s = {};
+            
+            // Apply RTL alignment
+            ws[cellAddress].s.alignment = { 
+                horizontal: 'right',
+                vertical: 'center',
+                readingOrder: 2 // RTL
+            };
+            
+            // Header rows styling (0-2)
+            if (R <= 2) {
+                ws[cellAddress].s.font = { bold: true, sz: 12 };
+                ws[cellAddress].s.alignment = { 
+                    horizontal: 'right',
+                    vertical: 'center',
+                    readingOrder: 2
+                };
+            }
+            
+            // Table header row styling (row 4, index 4)
+            if (R === 4) {
+                ws[cellAddress].s.fill = { fgColor: { rgb: "000000" } };
+                ws[cellAddress].s.font = { bold: true, color: { rgb: "FFFFFF" }, sz: 11 };
+                ws[cellAddress].s.alignment = { 
+                    horizontal: 'center',
+                    vertical: 'center',
+                    readingOrder: 2
+                };
+                ws[cellAddress].s.border = {
+                    top: { style: 'thin', color: { rgb: "FFFFFF" } },
+                    bottom: { style: 'thin', color: { rgb: "FFFFFF" } },
+                    left: { style: 'thin', color: { rgb: "FFFFFF" } },
+                    right: { style: 'thin', color: { rgb: "FFFFFF" } }
+                };
+            }
+            
+            // Data rows styling
+            if (R > 4 && R < range.e.r - 1) {
+                ws[cellAddress].s.border = {
+                    top: { style: 'thin', color: { rgb: "E0E0E0" } },
+                    bottom: { style: 'thin', color: { rgb: "E0E0E0" } },
+                    left: { style: 'thin', color: { rgb: "E0E0E0" } },
+                    right: { style: 'thin', color: { rgb: "E0E0E0" } }
+                };
+            }
+            
+            // Total row styling
+            if (R === range.e.r) {
+                ws[cellAddress].s.fill = { fgColor: { rgb: "F0F0F0" } };
+                ws[cellAddress].s.font = { bold: true, sz: 12 };
+                ws[cellAddress].s.border = {
+                    top: { style: 'medium', color: { rgb: "000000" } },
+                    bottom: { style: 'medium', color: { rgb: "000000" } },
+                    left: { style: 'thin', color: { rgb: "E0E0E0" } },
+                    right: { style: 'thin', color: { rgb: "E0E0E0" } }
+                };
+            }
+            
+            // Center align for quantity column (column index 2)
+            if (C === 2 && R > 4 && R < range.e.r) {
+                ws[cellAddress].s.alignment = { 
+                    horizontal: 'center',
+                    vertical: 'center',
+                    readingOrder: 2
+                };
+            }
+            
+            // Format currency cells (columns 0 and 1)
+            if ((C === 0 || C === 1) && R > 4) {
+                if (typeof ws[cellAddress].v === 'number') {
+                    ws[cellAddress].z = '#,##0.00 "د.ل"';
+                }
+            }
+        }
+    }
+
+    // Add logo image
+    try {
+        const logoResponse = await fetch('/e-commerce-logo3.png');
+        const logoBlob = await logoResponse.blob();
+        const logoBase64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result.split(',')[1]);
+            reader.readAsDataURL(logoBlob);
+        });
+
+        // Add image to workbook
+        if (!wb.Workbook) wb.Workbook = {};
+        if (!wb.Workbook.Sheets) wb.Workbook.Sheets = [];
+        
+        const wsIndex = 0;
+        if (!wb.Workbook.Sheets[wsIndex]) {
+            wb.Workbook.Sheets[wsIndex] = {};
+        }
+        
+        // Add image using xlsx image support
+        if (!ws['!images']) ws['!images'] = [];
+        ws['!images'].push({
+            name: 'logo.png',
+            data: logoBase64,
+            opts: {
+                base64: true
+            },
+            position: {
+                type: 'twoCellAnchor',
+                from: { col: 0, row: 0 },
+                to: { col: 1, row: 2 }
+            }
+        });
+    } catch (error) {
+        console.error('Error loading logo for Excel:', error);
+    }
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, `فاتورة ${invoice.value.id}`);
+    
+    // Write file with bookType xlsx to support images
+    XLSX.writeFile(wb, `invoice-${invoice.value.id}.xlsx`, { bookType: 'xlsx', type: 'binary' });
 };
 
 const getItemImage = (item) => {
