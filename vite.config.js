@@ -10,7 +10,7 @@ export default defineConfig({
     vue(),
     //vueDevTools(),
   ],
-  base: '/e-commerce-v2/',
+  base: process.env.NODE_ENV === 'production' ? '/E-Commerce-Frontend/' : '/',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
