@@ -8,22 +8,20 @@
 
                 <div class="modal-body p-4">
                     <!-- ... (image gallery and main product details are unchanged) ... -->
-                     <div class="image-gallery-container mb-4">
+                    <div class="image-gallery-container mb-4">
                         <div class="main-image-wrapper mb-3">
-                            <img v-if="activeImage" :src="activeImage" class="main-product-image" alt="Main product view">
-                            <div v-else class="text-center bg-light p-5 rounded d-flex align-items-center justify-content-center" style="height: 350px;">
+                            <img v-if="activeImage" :src="activeImage" class="main-product-image"
+                                alt="Main product view">
+                            <div v-else
+                                class="text-center bg-light p-5 rounded d-flex align-items-center justify-content-center"
+                                style="height: 350px;">
                                 <p class="text-muted mb-0">لا توجد صور لعرضها.</p>
                             </div>
                         </div>
 
                         <div v-if="allImages.length > 1" class="thumbnail-gallery">
-                            <div
-                                v-for="(image, index) in allImages"
-                                :key="index"
-                                class="thumbnail-item"
-                                :class="{ 'active': image === activeImage }"
-                                @click="setActiveImage(image)"
-                            >
+                            <div v-for="(image, index) in allImages" :key="index" class="thumbnail-item"
+                                :class="{ 'active': image === activeImage }" @click="setActiveImage(image)">
                                 <img :src="image" class="thumbnail-image" alt="Product thumbnail">
                             </div>
                         </div>
@@ -44,7 +42,7 @@
                         <label class="fw-semibold text-muted">الوصف</label>
                         <p>{{ product.description || 'لا يوجد وصف متاح.' }}</p>
                     </div>
-                     <div class="row border-top pt-3">
+                    <div class="row border-top pt-3">
                         <div class="col-sm-3 mb-3">
                             <label class="fw-semibold text-muted">أحدث سعر شراء</label>
                             <p class="fs-5 fw-bold text-success">
@@ -90,13 +88,13 @@
                         <h5 class="mb-3">
                             <i class="fas fa-star me-2 text-warning"></i>تقييمات المنتج
                         </h5>
-                        
+
                         <!-- Simple link to ratings page -->
-                        <router-link 
-                            :to="{ name: 'ProductRatings', params: { id: product.id } }" 
-                            class="rating-summary-card text-decoration-none"
-                            @click="handleClose"
-                        >
+                        <router-link :to="{
+                            name: 'ProductRatings',
+                            params: { id: product.id },
+                            query: { returnPage: $route.query.page }
+                        }" class="rating-summary-card text-decoration-none" @click="handleClose">
                             <div class="p-4 bg-light rounded border rating-hover-effect">
                                 <div class="row align-items-center">
                                     <div class="col-md-8">
@@ -164,8 +162,8 @@ const setActiveImage = (image) => {
 
 // Helper to check if a string is a hex color code.
 const isHexColor = (value) => {
-  if (typeof value !== 'string') return false;
-  return /^#[0-9A-F]{6}$/i.test(value);
+    if (typeof value !== 'string') return false;
+    return /^#[0-9A-F]{6}$/i.test(value);
 };
 
 const calculatedProfit = computed(() => {
@@ -199,14 +197,14 @@ const handleClose = () => {
         // Remove the query parameter from URL without reloading
         const newQuery = { ...route.query };
         delete newQuery.openProduct;
-        
+
         router.replace({
             name: route.name,
             params: route.params,
             query: newQuery
         });
     }
-    
+
     // Emit the close event
     emit('close');
 };
@@ -218,65 +216,72 @@ const handleClose = () => {
 }
 
 @keyframes slideUp {
-    from { transform: translateY(30px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 /* --- IMAGE GALLERY STYLES --- */
 .main-image-wrapper {
-  text-align: center;
-  background-color: #f8f9fa;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  border: 1px solid #dee2e6;
-  height: 350px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    text-align: center;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+    height: 350px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .main-product-image {
-  max-height: 100%;
-  max-width: 100%;
-  object-fit: contain;
-  border-radius: 0.25rem;
+    max-height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: 0.25rem;
 }
 
 .thumbnail-gallery {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  justify-content: center;
-  padding-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
+    padding-top: 0.5rem;
 }
 
 .thumbnail-item {
-  width: 80px;
-  height: 80px;
-  border: 2px solid transparent;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  overflow: hidden;
-  transition: all 0.2s ease;
-  padding: 2px;
+    width: 80px;
+    height: 80px;
+    border: 2px solid transparent;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    padding: 2px;
 }
 
 .thumbnail-item:hover {
-  border-color: #adb5bd;
-  transform: scale(1.05);
+    border-color: #adb5bd;
+    transform: scale(1.05);
 }
 
 .thumbnail-item.active {
-  border-color: #070707e0;
-  box-shadow: 0 0 8px rgba(25, 135, 84, 0.5);
-  transform: scale(1.1);
+    border-color: #070707e0;
+    box-shadow: 0 0 8px rgba(25, 135, 84, 0.5);
+    transform: scale(1.1);
 }
 
 .thumbnail-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 0.35rem;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 0.35rem;
 }
 
 label.fw-semibold {
@@ -311,6 +316,4 @@ p {
 .rating-stars i {
     margin-right: 2px;
 }
-
-
 </style>

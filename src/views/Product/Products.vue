@@ -1,5 +1,5 @@
 <template>
-  <div class="container-fluid px-4 py-4">
+  <div class="container-fluid mobile-products-container px-4 py-4">
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
       <h1 class="h2 fw-bold text-dark mb-0">المنتجات</h1>
       <router-link to="/add-product" class="btn btn-success d-flex align-items-center gap-2 px-3 py-2">
@@ -60,12 +60,15 @@
     </div>
     <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
-    <ProductsList
-        v-else-if="productsForDisplay.length > 0"
-        :products="productsForDisplay"
-        @view-details="openDetailsModal"
-        @edit-product="openEditModal"
-    />
+    <div v-else-if="productsForDisplay.length > 0" class="products-wrapper">
+      <div class="table-scroll-container">
+        <ProductsList
+            :products="productsForDisplay"
+            @view-details="openDetailsModal"
+            @edit-product="openEditModal"
+        />
+      </div>
+    </div>
     
     <div v-else class="text-center py-5">
         <i class="fas fa-box-open fa-4x text-muted mb-3"></i>
@@ -73,7 +76,8 @@
         <p>حاول تغيير كلمات البحث أو الفلاتر المستخدمة.</p>
     </div>
 
-    <div v-if="!isLoading && !error && totalProducts > 0" class="pagination-container">
+    <div v-if="!isLoading && !error && totalProducts > 0" class="pagination-wrapper">
+      <div class="pagination-container">
         <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="pagination-btn prev-btn">
           <i class="fas fa-chevron-right"></i>
           السابق
@@ -92,6 +96,25 @@
           التالي
           <i class="fas fa-chevron-left"></i>
         </button>
+      </div>
+      
+      <div class="page-jump-container">
+        <span class="page-jump-label">الانتقال إلى الصفحة:</span>
+        <input 
+          v-model.number="pageJumpInput" 
+          type="number" 
+          :min="1" 
+          :max="totalPages"
+          @keyup.enter="jumpToPage"
+          @input="handlePageInputChange"
+          class="page-jump-input"
+          placeholder="رقم"
+        />
+        <button @click="jumpToPage" class="page-jump-btn" :disabled="!pageJumpInput">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <span class="page-jump-info">من {{ totalPages }}</span>
+      </div>
     </div>
 
 
@@ -118,9 +141,10 @@ import { useCategoryStore } from '@/stores/categoryStore';
 import EditProduct from '@/components/Product/EditProduct.vue';
 import ProductDetails from '@/components/Product/ProductDetails.vue';
 import ProductsList from '@/components/Product/ProductsList.vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 const route = useRoute();
+const router = useRouter();
 
 const productStore = useProductStore();
 const categoryStore = useCategoryStore();
@@ -134,8 +158,9 @@ const isDetailsModalVisible = ref(false);
 const selectedProduct = ref(null);
 
 // --- State for pagination ---
-const currentPage = ref(1);
-const itemsPerPage = ref(10); // API default is 10
+const currentPage = ref(parseInt(route.query.page) || 1);
+const itemsPerPage = ref(10);
+const pageJumpInput = ref('');
 
 // Computed properties
 const isLoading = computed(() => productStore.isLoading || categoryStore.isLoading);
@@ -172,10 +197,9 @@ const endIndex = computed(() => {
 const visiblePages = computed(() => {
     const total = totalPages.value;
     const current = currentPage.value;
-    const pageWindow = 5; // The number of pages to show in a sequence at the start/end
+    const pageWindow = 5;
     const pages = [];
 
-    // If there are 7 or fewer pages in total, show all of them.
     if (total <= 7) {
         for (let i = 1; i <= total; i++) {
             pages.push(i);
@@ -183,7 +207,6 @@ const visiblePages = computed(() => {
         return pages;
     }
 
-    // Case 1: The current page is near the beginning.
     if (current <= pageWindow - 2) {
         for (let i = 1; i <= pageWindow; i++) {
             pages.push(i);
@@ -191,7 +214,6 @@ const visiblePages = computed(() => {
         pages.push('...');
         pages.push(total);
     }
-    // Case 2: The current page is near the end.
     else if (current > total - (pageWindow - 2)) {
         pages.push(1);
         pages.push('...');
@@ -199,7 +221,6 @@ const visiblePages = computed(() => {
             pages.push(i);
         }
     }
-    // Case 3: The current page is in the middle.
     else {
         pages.push(1);
         pages.push('...');
@@ -213,42 +234,10 @@ const visiblePages = computed(() => {
     return pages;
 });
 
-
-// This computed applies client-side filters to the paginated data from the store
+// All filters are now handled by API
 const productsForDisplay = computed(() => {
-  // Start with the products for the current page from the store
-  let products = productStore.getAllProducts;
+  const products = productStore.getAllProducts;
 
-  // Apply client-side category filter
-  if (categoryFilter.value !== 'all') {
-    products = products.filter(product => {
-        const selectedCatId = parseInt(categoryFilter.value);
-        const isParent = categoryStore.getMainCategories.some(cat => cat.id === selectedCatId);
-        if (isParent) {
-            const childIds = categoryStore.getSubcategoriesByParent(selectedCatId).map(sub => sub.id);
-            return childIds.includes(product.categoryId);
-        } else {
-            return product.categoryId === selectedCatId;
-        }
-    });
-  }
-
-  // Apply client-side status filter
-  if (statusFilter.value !== 'all') {
-    products = products.filter(product => {
-        const status = statusFilter.value;
-        if (status === 'active') return product.is_active;
-        if (status === 'inactive') return !product.is_active;
-        
-        const quantity = productStore.getProductTotalQuantity(product.id);
-        if (status === 'out_of_stock') return quantity <= 0;
-        if (status === 'low_stock') return quantity > 0 && quantity <= 15;
-        if (status === 'in_stock') return quantity > 15;
-        return true;
-    });
-  }
-
-  // Map to add displayImage property
   return products.map(product => {
       const displayImage = product.mainImage ||
                           product.variants?.[0]?.images?.[0] ||
@@ -257,38 +246,144 @@ const productsForDisplay = computed(() => {
   });
 });
 
+// Update URL query params without reloading
+const updateUrlParams = () => {
+  const query = { ...route.query };
+  
+  if (currentPage.value > 1) {
+    query.page = currentPage.value.toString();
+  } else {
+    delete query.page;
+  }
+  
+  router.replace({ query });
+};
+
+// Fetch products with all filters via API
+const fetchProductsWithFilters = () => {
+  const params = {
+    page: currentPage.value,
+    search: searchQuery.value
+  };
+  
+  // Add category filter if not 'all'
+  if (categoryFilter.value !== 'all') {
+    params.category = categoryFilter.value;
+  }
+  
+  // Add status/availability filters based on selected option
+  if (statusFilter.value !== 'all') {
+    switch (statusFilter.value) {
+      case 'active':
+        params.is_active = true;
+        break;
+      case 'inactive':
+        params.is_active = false;
+        break;
+      case 'in_stock':
+        params.availability = 'available';
+        break;
+      case 'out_of_stock':
+        params.availability = 'out_of_stock';
+        break;
+      case 'low_stock':
+        params.low_stock = true;
+        break;
+    }
+  }
+  
+  // Update URL with current page
+  updateUrlParams();
+  
+  productStore.fetchProducts(params);
+};
 
 // Watcher for search query with debounce
 let debounceTimer = null;
 watch(searchQuery, (newQuery) => {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
-    currentPage.value = 1; // Reset to first page on new search
-    productStore.fetchProducts({ page: 1, search: newQuery });
-  }, 500); // 500ms delay
+    currentPage.value = 1;
+    fetchProductsWithFilters();
+  }, 500);
 });
 
+// Watcher for category filter
+watch(categoryFilter, () => {
+  currentPage.value = 1;
+  fetchProductsWithFilters();
+});
+
+// Watcher for status filter
+watch(statusFilter, () => {
+  currentPage.value = 1;
+  fetchProductsWithFilters();
+});
+
+watch(totalPages, (newTotalPages) => {
+  if (currentPage.value > newTotalPages && newTotalPages > 0) {
+    currentPage.value = newTotalPages;
+  } else if (newTotalPages === 0) {
+    currentPage.value = 1;
+  }
+});
 
 // Methods
 onMounted(() => {
-  productStore.fetchProducts(); // Fetch initial data for page 1
+  // Initialize from URL query params
+  if (route.query.page) {
+    currentPage.value = parseInt(route.query.page) || 1;
+  }
+  
+  fetchProductsWithFilters();
   categoryStore.fetchCategories();
+  
   const openProductId = route.query.openProduct;
   if (openProductId) {
-    // Fetch the product details and open the modal
     openDetailsModal({ id: parseInt(openProductId) });
   }
 });
 
-// Method to change pages
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value && typeof page === 'number') {
     currentPage.value = page;
-    productStore.fetchProducts({ page: page, search: searchQuery.value });
+    fetchProductsWithFilters();
   }
 };
 
-// Modal handling methods remain the same
+const jumpToPage = () => {
+  const page = parseInt(pageJumpInput.value);
+  
+  if (!pageJumpInput.value || isNaN(page)) {
+    alert('الرجاء إدخال رقم صفحة صحيح');
+    return;
+  }
+  
+  if (page < 1) {
+    alert(`رقم الصفحة يجب أن يكون 1 أو أكثر`);
+    pageJumpInput.value = '';
+    return;
+  }
+  
+  if (page > totalPages.value) {
+    alert(`رقم الصفحة يجب أن يكون ${totalPages.value} أو أقل`);
+    pageJumpInput.value = '';
+    return;
+  }
+  
+  goToPage(page);
+  pageJumpInput.value = '';
+};
+
+const handlePageInputChange = () => {
+  if (pageJumpInput.value < 1) {
+    pageJumpInput.value = '';
+  }
+  if (pageJumpInput.value > totalPages.value) {
+    pageJumpInput.value = totalPages.value;
+  }
+};
+
 const openDetailsModal = async (product) => {
     const result = await productStore.fetchProductDetails(product.id);
     if (result.success) {
@@ -335,6 +430,34 @@ const handleProductUpdate = () => {
 </script>
 
 <style scoped>
+/* IMPORTANT: Allow horizontal scroll on mobile */
+:deep(.main-content) {
+  overflow-x: visible !important;
+}
+
+@media (max-width: 1170px) {
+  :deep(.main-content),
+  :deep(.p-3),
+  :deep(.p-md-4) {
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+  }
+}
+
+/* Container adjustments */
+.mobile-products-container {
+  overflow: visible;
+}
+
+@media (max-width: 1170px) {
+  .mobile-products-container {
+    overflow-x: hidden !important;
+    overflow-y: visible !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+}
+
 /* --- Styles for search/filter and info --- */
 .search-filter-container {
   display: flex;
@@ -374,6 +497,13 @@ const handleProductUpdate = () => {
   position: relative;
   min-width: 220px;
 }
+
+@media (max-width: 1170px) {
+  .filter-container {
+    min-width: 100%;
+  }
+}
+
 .status-filter {
   appearance: none;
   -webkit-appearance: none;
@@ -387,6 +517,13 @@ const handleProductUpdate = () => {
   color: #6c757d;
   pointer-events: none;
 }
+
+@media (max-width: 1170px) {
+  .filter-icon {
+    left: 15px;
+  }
+}
+
 .parent-category {
     font-weight: bold;
     color: #000;
@@ -406,16 +543,73 @@ const handleProductUpdate = () => {
   display: inline-block;
 }
 
+/* Products wrapper and scroll container */
+.products-wrapper {
+  position: relative;
+  width: 100%;
+  overflow: visible;
+  margin-left: -0.5rem;
+  margin-right: -0.5rem;
+}
+
+@media (max-width: 1170px) {
+  .products-wrapper {
+    overflow: visible !important;
+    max-width: 100vw;
+    width: calc(100% + 1rem);
+  }
+}
+
+.table-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+@media (max-width: 1170px) {
+  .table-scroll-container {
+    overflow-x: scroll !important;
+    overflow-y: visible !important;
+    border-radius: 0 0 12px 12px;
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+.table-scroll-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
 /* PAGINATION STYLES */
+.pagination-wrapper {
+  margin-top: 30px;
+}
+
 .pagination-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 30px;
   padding: 20px;
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 15px;
 }
 
 .pagination-btn {
@@ -495,5 +689,218 @@ const handleProductUpdate = () => {
   cursor: default;
   background-color: #f8f9fa;
   border-color: #e9ecef;
+}
+
+.page-jump-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 15px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.page-jump-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.page-jump-input {
+  width: 70px;
+  height: 40px;
+  padding: 8px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  transition: all 0.3s ease;
+  direction: ltr;
+}
+
+.page-jump-input:focus {
+  outline: none;
+  border-color: #313131;
+  box-shadow: 0 0 0 3px rgba(49, 49, 49, 0.1);
+}
+
+.page-jump-input::-webkit-inner-spin-button,
+.page-jump-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.page-jump-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.page-jump-input:invalid {
+  border-color: #dc3545;
+}
+
+.page-jump-btn {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-jump-btn:hover:not(:disabled) {
+  border-color: #313131;
+  color: #0f0f0f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(29, 29, 29, 0.2);
+}
+
+.page-jump-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-jump-info {
+  font-size: 14px;
+  font-weight: 500;
+  color: #6c757d;
+}
+
+/* Responsive design */
+@media (max-width: 1170px) {
+  .products-wrapper {
+    overflow: visible !important;
+    max-width: 100vw;
+    width: calc(100% + 1rem);
+  }
+  
+  .table-scroll-container {
+    overflow-x: scroll !important;
+    overflow-y: visible !important;
+  }
+  
+  .search-filter-container {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .search-container {
+    width: 100%;
+  }
+  
+  .filter-container {
+    width: 100%;
+    min-width: 100%;
+  }
+  
+  .search-input,
+  .status-filter {
+    width: 100%;
+  }
+  
+  .pagination-container {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .page-numbers {
+    order: -1;
+  }
+
+  .page-jump-container {
+    margin-top: 0;
+  }
+  
+  .row {
+    margin-left: 0;
+    margin-right: 0;
+    max-width: 95%;
+  }
+  
+  .col-lg-12 {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 500px) {
+  .search-input,
+  .status-filter {
+    padding: 14px 45px 14px 15px;
+    font-size: 16px;
+  }
+  
+  .search-icon {
+    right: 15px;
+    font-size: 16px;
+  }
+  
+  .filter-icon {
+    left: 15px;
+  }
+  
+  .pagination-container {
+    padding: 15px 10px;
+  }
+
+  .pagination-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    gap: 5px;
+    min-width: 80px;
+  }
+  
+  .page-numbers {
+    gap: 3px;
+    margin: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .page-number {
+    min-width: 32px;
+    height: 32px;
+    font-size: 12px;
+    padding: 0;
+  }
+
+  .page-jump-container {
+    padding: 12px 15px;
+  }
+
+  .page-jump-label {
+    font-size: 12px;
+  }
+
+  .page-jump-input {
+    width: 60px;
+    height: 32px;
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .page-jump-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .page-jump-info {
+    font-size: 12px;
+  }
+  
+  .search-filter-container {
+    gap: 12px;
+  }
 }
 </style>

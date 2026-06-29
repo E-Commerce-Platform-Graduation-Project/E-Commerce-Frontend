@@ -102,17 +102,16 @@ export default {
       }
     })
 
-    // START: ADDED computed style for the icon
     const avatarIconStyle = computed(() => {
       const style = {
-        fontSize: '44px', // Set icon size
+        fontSize: '44px',
         lineHeight: 1,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         width: '40px',
         height: '40px',
-        color: '#646464' // Default color
+        color: '#646464'
       };
 
       const role = currentUser.value?.role;
@@ -124,7 +123,6 @@ export default {
       
       return style;
     });
-    // END: ADDED computed style for the icon
 
     const toggleDropdown = () => {
       if (!props.sidebarExpanded) return
@@ -164,20 +162,18 @@ export default {
       document.removeEventListener('click', closeDropdown)
     })
 
-    // START: MODIFIED return object
     return {
       currentUser,
       fullName,
       userRoleText,
       isDropdownOpen,
       isLogoutModalOpen,
-      avatarIconStyle, // Added for icon styling
+      avatarIconStyle,
       toggleDropdown,
       showLogoutModal,
       hideLogoutModal,
       confirmLogout,
     }
-    // END: MODIFIED return object
   }
 }
 </script>
@@ -186,7 +182,8 @@ export default {
 /* Your existing styles are fine and do not need changes */
 .user-profile-section {
   border-top: 1px solid var(--border-color);
-  margin-top: auto;
+  /* The line below was removed as it conflicts with the parent flexbox layout */
+  /* margin-top: auto; */
   
   .user-info {
     cursor: pointer;

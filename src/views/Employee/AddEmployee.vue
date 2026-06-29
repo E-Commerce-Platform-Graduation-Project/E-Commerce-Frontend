@@ -151,10 +151,7 @@ export default {
       // Validate Email (required and must be valid)
       const email = form.email ? form.email.trim() : ''
       
-      if (!email || email.length === 0) {
-        errors.value.email = 'البريد الإلكتروني مطلوب'
-        isValid = false
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         errors.value.email = 'البريد الإلكتروني غير صحيح'
         isValid = false
       }

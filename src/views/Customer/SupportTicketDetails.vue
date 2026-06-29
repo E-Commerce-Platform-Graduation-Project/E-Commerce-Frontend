@@ -1,11 +1,7 @@
 <template>
   <div class="container-fluid px-4 py-4">
     <div v-if="isLoading" class="text-center py-5">
-      <div
-        class="spinner-border text-dark"
-        style="width: 3rem; height: 3rem"
-        role="status"
-      ></div>
+      <div class="spinner-border text-dark" style="width: 3rem; height: 3rem" role="status"></div>
       <p class="mt-3 text-muted">جاري تحميل تفاصيل التذكرة...</p>
     </div>
 
@@ -20,16 +16,14 @@
           </h2>
           <div class="ticket-meta">
             <span><i class="fas fa-user me-1"></i> {{ ticket.user }}</span>
-            <span
-              ><i class="fas fa-calendar-alt me-1"></i>
-              {{ formatDate(ticket.created_at) }}</span
-            >
+            <span><i class="fas fa-calendar-alt me-1"></i>
+              {{ formatDate(ticket.created_at) }}</span>
           </div>
         </div>
-        <router-link to="/support-tickets" class="btn btn-outline-secondary">
+        <button @click="goBack" class="btn btn-outline-secondary">
           <i class="fas fa-arrow-right me-2"></i>
           العودة إلى التذاكر
-        </router-link>
+        </button>
       </div>
 
       <div class="row g-4">
@@ -42,22 +36,13 @@
                     <span>{{ item.label }}</span>
                   </div>
 
-                  <div
-                    v-else-if="item.type === 'message'"
-                    class="message-group"
-                    :class="
-                      isCustomerMessage(item) ? 'right-side' : 'left-side'
-                    "
-                  >
+                  <div v-else-if="item.type === 'message'" class="message-group" :class="isCustomerMessage(item) ? 'right-side' : 'left-side'
+                    ">
                     <div class="sender-name">{{ item.user }}</div>
-                    <div
-                      class="bubble"
-                      :class="
-                        isCustomerMessage(item)
-                          ? 'customer-bubble'
-                          : 'admin-bubble'
-                      "
-                    >
+                    <div class="bubble" :class="isCustomerMessage(item)
+                        ? 'customer-bubble'
+                        : 'admin-bubble'
+                      ">
                       <p class="bubble-text">{{ item.message }}</p>
                       <div class="time-stamp">
                         {{ formatTime(item.created_at) }}
@@ -67,25 +52,11 @@
                 </template>
               </div>
               <form @submit.prevent="submitReply" class="reply-form mt-3">
-                <textarea
-                  v-model="newReply"
-                  class="form-control reply-input"
-                  placeholder="اكتب ردك هنا..."
-                  rows="1"
-                  :disabled="isSending"
-                  @keydown.enter.exact.prevent="submitReply"
-                ></textarea>
-                <button
-                  type="submit"
-                  class="btn reply-button"
-                  :disabled="isSending || !newReply.trim()"
-                >
-                  <span
-                    v-if="isSending"
-                    class="spinner-border spinner-border-sm"
-                    role="status"
-                    aria-hidden="true"
-                  ></span>
+                <textarea v-model="newReply" class="form-control reply-input" placeholder="اكتب ردك هنا..." rows="1"
+                  :disabled="isSending" @keydown.enter.exact.prevent="submitReply"></textarea>
+                <button type="submit" class="btn reply-button" :disabled="isSending || !newReply.trim()">
+                  <span v-if="isSending" class="spinner-border spinner-border-sm" role="status"
+                    aria-hidden="true"></span>
                   <span v-else class="material-icons">send</span>
                 </button>
               </form>
@@ -104,16 +75,11 @@
               <div class="info-item">
                 <label>حالة التذكرة</label>
                 <div class="status-button-group details-page-buttons">
-                  <button
-                    v-for="status in availableStatuses"
-                    :key="status.value"
-                    @click="handleStatusUpdate(ticket, status.value)"
-                    :class="[
+                  <button v-for="status in availableStatuses" :key="status.value"
+                    @click="handleStatusUpdate(ticket, status.value)" :class="[
                       'status-option',
                       getStatusButtonClass(status.value),
-                    ]"
-                    :disabled="ticket.status === status.value"
-                  >
+                    ]" :disabled="ticket.status === status.value">
                     {{ status.text }}
                   </button>
                 </div>
@@ -128,9 +94,7 @@
                 <p v-else class="text-muted">لا يوجد</p>
               </div>
               <div class="info-item">
-                <label
-                  ><i class="fas fa-calendar-plus"></i> تاريخ الإنشاء</label
-                >
+                <label><i class="fas fa-calendar-plus"></i> تاريخ الإنشاء</label>
                 <p>{{ formatDate(ticket.created_at) }}</p>
               </div>
             </div>
@@ -139,11 +103,7 @@
       </div>
     </div>
 
-    <div
-      v-if="showConfirmModal"
-      class="modal fade show d-block"
-      style="background-color: rgba(0, 0, 0, 0.5)"
-    >
+    <div v-if="showConfirmModal" class="modal fade show d-block" style="background-color: rgba(0, 0, 0, 0.5)">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
@@ -153,16 +113,12 @@
             <div class="status-change-info">
               <p class="mb-3">
                 هل أنت متأكد من تغيير حالة التذكرة رقم
-                <strong class="ticket-id-highlight">#{{ ticket.id }}</strong
-                >؟
+                <strong class="ticket-id-highlight">#{{ ticket.id }}</strong>؟
               </p>
               <div class="status-transition">
                 <div class="status-from">
                   <span class="status-label">من:</span>
-                  <span
-                    class="status-badge"
-                    :class="getStatusButtonClass(ticket.status)"
-                  >
+                  <span class="status-badge" :class="getStatusButtonClass(ticket.status)">
                     {{ ticket.status_display }}
                   </span>
                 </div>
@@ -171,10 +127,7 @@
                 </div>
                 <div class="status-to">
                   <span class="status-label">إلى:</span>
-                  <span
-                    class="status-badge"
-                    :class="getStatusButtonClass(newStatus)"
-                  >
+                  <span class="status-badge" :class="getStatusButtonClass(newStatus)">
                     {{
                       availableStatuses.find((s) => s.value === newStatus)?.text
                     }}
@@ -184,19 +137,10 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-secondary"
-              @click="cancelStatusUpdate"
-            >
+            <button type="button" class="btn btn-secondary" @click="cancelStatusUpdate">
               إلغاء
             </button>
-            <button
-              type="button"
-              class="btn btn-dark"
-              @click="confirmStatusUpdate"
-              :disabled="updating"
-            >
+            <button type="button" class="btn btn-dark" @click="confirmStatusUpdate" :disabled="updating">
               <span v-if="updating" class="loading-spinner"></span>
               {{ updating ? "جاري التحديث..." : "تأكيد التغيير" }}
             </button>
@@ -216,11 +160,7 @@
       </div>
     </div>
 
-    <div
-      v-if="showSuccessModal"
-      class="modal-overlay"
-      @click="closeSuccessModal"
-    >
+    <div v-if="showSuccessModal" class="modal-overlay" @click="closeSuccessModal">
       <div class="modal-dialog success-modal" @click.stop>
         <div class="modal-icon success-icon">
           <i class="fas fa-check-circle"></i>
@@ -236,11 +176,18 @@
 </template>
 
 <script setup>
+// SupportTicketDetails.vue - Complete <script setup> section
+
 import { ref, onMounted, nextTick, computed } from "vue";
 import { useRoute } from "vue-router";
 import api from "@/api";
+import { useSupportTicketStore } from '@/stores/supportTicketStore';
+import { db } from '@/firebase';
+import { collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { useRouter } from 'vue-router';
 
 const route = useRoute();
+const router = useRouter();
 const ticket = ref(null);
 const isLoading = ref(true);
 const error = ref(null);
@@ -249,7 +196,10 @@ const isSending = ref(false);
 const chatContainerRef = ref(null);
 const currentUserName = ref("موظف الدعم");
 
-// ADDED: Status and Modal logic
+// Add ticket store
+const ticketStore = useSupportTicketStore();
+
+// Status and Modal logic
 const availableStatuses = ref([
   { text: "مفتوحة", value: "Open" },
   { text: "قيد المعالجة", value: "In Progress" },
@@ -261,6 +211,39 @@ const updating = ref(false);
 const showErrorModal = ref(false);
 const modalErrorMessage = ref("");
 const showSuccessModal = ref(false);
+
+// Function to mark reply notifications as read
+const markReplyNotificationsAsRead = async (ticketId) => {
+  console.log(`Marking reply notifications as read for ticket ${ticketId}...`);
+
+  try {
+    const replyNotificationsQuery = query(
+      collection(db, 'reply_notifications'),
+      where('ticket_id', '==', ticketId),
+      where('is_read', '==', false)
+    );
+
+    const querySnapshot = await getDocs(replyNotificationsQuery);
+
+    if (querySnapshot.empty) {
+      console.log("No unread reply notifications to mark for this ticket.");
+      return;
+    }
+
+    const batch = writeBatch(db);
+    querySnapshot.forEach(doc => {
+      batch.update(doc.ref, { is_read: true });
+    });
+
+    await batch.commit();
+    console.log(`Successfully marked ${querySnapshot.size} reply notifications as read.`);
+
+    // Remove this ticket from the store's list of tickets with new replies
+    ticketStore.removeTicketWithNewReply(ticketId);
+  } catch (error) {
+    console.error('Error marking reply notifications as read:', error);
+  }
+};
 
 const isSameDay = (date1, date2) => {
   const d1 = new Date(date1);
@@ -330,6 +313,15 @@ const chatItems = computed(() => {
 
   return processedItems;
 });
+
+const goBack = () => {
+  const returnPage = route.query.returnPage;
+  if (returnPage) {
+    router.push({ path: '/support-tickets', query: { page: returnPage } });
+  } else {
+    router.push('/support-tickets');
+  }
+};
 
 const fetchTicketDetails = async () => {
   const ticketId = route.params.id;
@@ -406,8 +398,13 @@ const scrollToBottom = async () => {
 };
 
 onMounted(() => {
+  const ticketId = parseInt(route.params.id); // Define ticketId here
+
   fetchTicketDetails();
   fetchCurrentUser();
+
+  // Mark reply notifications as read when the page is opened
+  markReplyNotificationsAsRead(ticketId);
 });
 
 const formatDate = (dateString) => {
@@ -430,7 +427,7 @@ const formatTime = (dateString) => {
   return `${hours}:${minutes}`;
 };
 
-// ADDED: Status update logic
+// Status update logic
 const getStatusButtonClass = (status) => {
   const statusClasses = {
     Open: "status-open",
@@ -473,7 +470,7 @@ const confirmStatusUpdate = async () => {
   }
 };
 
-// ADDED: Modal helper functions
+// Modal helper functions
 const displayErrorModal = (errorMessage) => {
   modalErrorMessage.value =
     errorMessage || "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.";
@@ -501,8 +498,10 @@ const closeSuccessModal = () => {
   text-align: center;
   margin: 1rem 0;
 }
+
 .day-divider span {
-  background-color: #e9eaeb; /* A neutral background color */
+  background-color: #e9eaeb;
+  /* A neutral background color */
   color: #555;
   padding: 5px 12px;
   border-radius: 12px;
@@ -520,6 +519,7 @@ const closeSuccessModal = () => {
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
+
 .ticket-title {
   font-weight: bold;
   color: #2c3e50;
@@ -528,6 +528,7 @@ const closeSuccessModal = () => {
   word-break: break-word;
   hyphens: auto;
 }
+
 .ticket-id-badge {
   font-size: 0.8rem;
   font-weight: 600;
@@ -538,6 +539,7 @@ const closeSuccessModal = () => {
   vertical-align: middle;
   margin-right: 10px;
 }
+
 .ticket-meta {
   display: flex;
   gap: 1.5rem;
@@ -575,6 +577,7 @@ const closeSuccessModal = () => {
   align-self: flex-start;
   align-items: flex-start;
 }
+
 .right-side {
   align-self: flex-end;
   align-items: flex-end;
@@ -591,6 +594,7 @@ const closeSuccessModal = () => {
 .left-side .sender-name {
   align-self: flex-end;
 }
+
 .right-side .sender-name {
   align-self: flex-start;
 }
@@ -619,9 +623,11 @@ const closeSuccessModal = () => {
   margin-top: 4px;
   padding: 0 8px;
 }
+
 .left-side .time-stamp {
   align-self: flex-start;
 }
+
 .right-side .time-stamp {
   align-self: flex-end;
 }
@@ -632,6 +638,7 @@ const closeSuccessModal = () => {
   border-radius: 18px;
   border-bottom-left-radius: 4px;
 }
+
 .admin-bubble {
   background-color: rgb(0, 0, 0);
   color: white;
@@ -647,12 +654,14 @@ const closeSuccessModal = () => {
   padding-top: 1rem;
   border-top: 1px solid #dee2e6;
 }
+
 .reply-input {
   flex-grow: 1;
   resize: vertical;
   min-height: 50px;
   border-radius: 8px;
 }
+
 .reply-button {
   flex-shrink: 0;
   width: 50px;
@@ -667,10 +676,12 @@ const closeSuccessModal = () => {
   padding: 0;
   transition: background-color 0.3s ease, opacity 0.3s ease;
 }
+
 .reply-button:hover:not(:disabled) {
   background-color: #333;
   border-color: #333;
 }
+
 .reply-button:disabled {
   background-color: #6c757d;
   border-color: #6c757d;
@@ -684,6 +695,7 @@ const closeSuccessModal = () => {
   flex-direction: column;
   gap: 1.25rem;
 }
+
 .info-item label {
   display: flex;
   align-items: center;
@@ -693,6 +705,7 @@ const closeSuccessModal = () => {
   font-size: 0.9rem;
   margin-bottom: 5px;
 }
+
 .info-item p {
   font-size: 1.1rem;
   color: #212529;
@@ -708,10 +721,12 @@ const closeSuccessModal = () => {
   padding: 5px;
   border-radius: 12px;
 }
+
 .details-page-buttons {
   background-color: #f1f3f4;
   padding: 8px;
 }
+
 .status-option {
   padding: 8px 16px;
   border: 2px solid;
@@ -725,9 +740,11 @@ const closeSuccessModal = () => {
   position: relative;
   flex-grow: 1;
 }
+
 .status-option:hover:not(:disabled) {
   transform: translateY(-2px);
 }
+
 .status-option:disabled {
   opacity: 1;
   cursor: not-allowed;
@@ -738,6 +755,7 @@ const closeSuccessModal = () => {
   color: #f59e0b;
   border-color: rgba(245, 158, 11, 0.5);
 }
+
 .status-option.status-open:hover:not(:disabled),
 .status-option.status-open:disabled {
   background-color: #f59e0b;
@@ -749,6 +767,7 @@ const closeSuccessModal = () => {
   color: #06b6d4;
   border-color: rgba(6, 182, 212, 0.5);
 }
+
 .status-option.status-in-progress:hover:not(:disabled),
 .status-option.status-in-progress:disabled {
   background-color: #06b6d4;
@@ -760,6 +779,7 @@ const closeSuccessModal = () => {
   color: #22c55e;
   border-color: rgba(34, 197, 94, 0.5);
 }
+
 .status-option.status-closed:hover:not(:disabled),
 .status-option.status-closed:disabled {
   background-color: #22c55e;
@@ -775,18 +795,23 @@ const closeSuccessModal = () => {
   font-size: 13px;
   color: #fff;
 }
+
 .status-badge.status-open {
   background-color: #f59e0b;
 }
+
 .status-badge.status-in-progress {
   background-color: #06b6d4;
 }
+
 .status-badge.status-closed {
   background-color: #22c55e;
 }
+
 .status-badge.status-default {
   background-color: #6c757d;
 }
+
 .status-badge:not([class*="status-"]) {
   color: #495057;
 }
@@ -797,6 +822,7 @@ const closeSuccessModal = () => {
   border: none;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
+
 .modal-header {
   background: linear-gradient(135deg, #f8f9fa, #e9ecef);
   border-bottom: 2px solid #dee2e6;
@@ -804,17 +830,21 @@ const closeSuccessModal = () => {
   direction: rtl;
   text-align: right;
 }
+
 .modal-body {
   direction: rtl;
   text-align: right;
 }
+
 .status-change-info {
   padding: 20px 0;
 }
+
 .ticket-id-highlight {
   color: #0d6efd;
   font-size: 1.1em;
 }
+
 .status-transition {
   display: flex;
   flex-direction: column;
@@ -822,22 +852,27 @@ const closeSuccessModal = () => {
   gap: 15px;
   margin: 20px 0;
 }
+
 .status-from,
 .status-to {
   display: flex;
   align-items: center;
   gap: 12px;
 }
+
 .status-label {
   font-weight: 600;
   color: #6c757d;
 }
+
 .arrow-container {
   font-size: 1.2em;
   color: #6c757d;
   animation: bounce 1.5s infinite;
 }
+
 @keyframes bounce {
+
   0%,
   20%,
   50%,
@@ -845,17 +880,21 @@ const closeSuccessModal = () => {
   100% {
     transform: translateY(0);
   }
+
   40% {
     transform: translateY(-5px);
   }
+
   60% {
     transform: translateY(-3px);
   }
 }
+
 .modal-footer {
   border-top: 1px solid #f1f3f4;
   padding: 20px;
 }
+
 .btn-primary {
   background: linear-gradient(135deg, #007bff, #0056b3);
   border: none;
@@ -864,14 +903,17 @@ const closeSuccessModal = () => {
   font-weight: 600;
   transition: all 0.3s ease;
 }
+
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
 }
+
 .btn-primary:disabled {
   opacity: 0.7;
   cursor: not-allowed;
 }
+
 .btn-secondary {
   background: #6c757d;
   border: none;
@@ -880,10 +922,12 @@ const closeSuccessModal = () => {
   font-weight: 600;
   transition: all 0.3s ease;
 }
+
 .btn-secondary:hover {
   background: #5a6268;
   transform: translateY(-1px);
 }
+
 .loading-spinner {
   width: 16px;
   height: 16px;
@@ -894,11 +938,13 @@ const closeSuccessModal = () => {
   display: inline-block;
   margin-right: 8px;
 }
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -912,14 +958,17 @@ const closeSuccessModal = () => {
   z-index: 10000;
   animation: fadeIn 0.3s ease-out;
 }
+
 @keyframes fadeIn {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
 }
+
 .modal-dialog.error-modal,
 .modal-dialog.success-modal {
   background: white;
@@ -932,16 +981,19 @@ const closeSuccessModal = () => {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
   direction: rtl;
 }
+
 @keyframes modalSlideIn {
   from {
     opacity: 0;
     transform: translateY(-50px) scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
+
 .modal-icon {
   width: 80px;
   height: 80px;
@@ -954,35 +1006,43 @@ const closeSuccessModal = () => {
   font-size: 32px;
   animation: iconPulse 2s ease-in-out infinite;
 }
+
 @keyframes iconPulse {
+
   0%,
   100% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.05);
   }
 }
+
 .error-icon {
   background: linear-gradient(135deg, #e74c3c, #c0392b);
   box-shadow: 0 8px 25px rgba(231, 76, 60, 0.3);
 }
+
 .success-icon {
   background: linear-gradient(135deg, #27ae60, #219a52);
   box-shadow: 0 8px 25px rgba(39, 174, 96, 0.3);
 }
+
 .modal-dialog h3 {
   font-size: 24px;
   color: #2c3e50;
   margin: 0 0 15px 0;
   font-weight: 700;
 }
+
 .modal-dialog p {
   color: #7f8c8d;
   margin: 0 0 30px 0;
   font-size: 16px;
   line-height: 1.5;
 }
+
 .btn-danger {
   background: linear-gradient(135deg, #dc3545, #c82333);
   color: white;
@@ -995,11 +1055,13 @@ const closeSuccessModal = () => {
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
 }
+
 .btn-danger:hover {
   background: linear-gradient(135deg, #c82333, #a71e2a);
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
 }
+
 .btn-success {
   background: linear-gradient(135deg, #28a745, #1e7e34);
   color: white;
@@ -1012,6 +1074,7 @@ const closeSuccessModal = () => {
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
 }
+
 .btn-success:hover {
   background: linear-gradient(135deg, #1e7e34, #155724);
   transform: translateY(-2px);

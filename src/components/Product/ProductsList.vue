@@ -238,6 +238,14 @@ const onVariantImageError = (event) => {
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   overflow: hidden;
+  width: 100%;
+}
+
+@media (max-width: 1170px) {
+  .products-container {
+    min-width: 1100px;
+    width: 1100px;
+  }
 }
 
 /* Updated grid layout to include expand arrow column */

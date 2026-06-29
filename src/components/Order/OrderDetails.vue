@@ -193,9 +193,9 @@ const onImageError = (event) => {
 }
 
 .modal-header{
-
   border-color: #dee2e6;
 }
+
 .modal-footer {
   background-color: #f8f9fa;
   border-color: #dee2e6;
@@ -248,6 +248,13 @@ const onImageError = (event) => {
   margin: 1.5rem 0;
 }
 
+@media (max-width: 991px) {
+  .items-list {
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+}
+
 .item-header,
 .item-row {
   display: grid;
@@ -256,6 +263,13 @@ const onImageError = (event) => {
   padding: 0.75rem 1rem;
   align-items: center;
   text-align: right;
+}
+
+@media (max-width: 991px) {
+  .item-header,
+  .item-row {
+    min-width: 700px;
+  }
 }
 
 .item-header {
@@ -321,7 +335,7 @@ const onImageError = (event) => {
 }
 
 .prop-value {
-    font-weight: 600;
+  font-weight: 600;
 }
 
 /* Order Summary and Badge styles */

@@ -361,11 +361,20 @@ const sortBy = (option) => {
 };
 
 const goBackToProductDetails = () => {
+    const returnPage = route.query.returnPage;
+    
+    const query = { 
+        openProduct: productId.value 
+    };
+    
+    // Preserve the return page if it exists
+    if (returnPage) {
+        query.page = returnPage;
+    }
+    
     router.push({
         name: 'Products',
-        query: { 
-            openProduct: productId.value 
-        }
+        query: query
     });
 };
 

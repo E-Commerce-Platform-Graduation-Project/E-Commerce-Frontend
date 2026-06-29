@@ -40,24 +40,38 @@
     <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
     <div v-else-if="filteredTickets.length > 0" class="tickets-grid">
-      <div v-for="ticket in filteredTickets" :key="ticket.id" class="ticket-card">
+      <div 
+        v-for="ticket in filteredTickets" 
+        :key="ticket.id" 
+        class="ticket-card"
+        :class="{ 'has-new-reply': hasNewReply(ticket.id) }"
+      >
         <div class="ticket-header">
+          <!-- New Reply Badge -->
+          <div v-if="hasNewReply(ticket.id)" class="new-reply-badge">
+            <i class="fas fa-bell"></i>
+            <span>رد جديد</span>
+          </div>
+          
           <div class="ticket-title-section">
             <h5 class="ticket-title" :title="ticket.title">{{ ticket.title }}</h5>
             <span class="ticket-id">#{{ ticket.id }}</span>
           </div>
           <div class="status-button-group">
-            <button v-for="status in availableStatuses" :key="status"
+            <button 
+              v-for="status in availableStatuses" 
+              :key="status"
               @click="handleStatusUpdate(ticket, status)"
               :class="['status-option', getStatusBadgeClass(status), { 'active': ticket.status === status }]"
-              :disabled="ticket.status === status">
+              :disabled="ticket.status === status"
+            >
               {{ status }}
             </button>
           </div>
         </div>
         
         <div class="ticket-body">
-          <p class="ticket-description " :title="ticket.description">{{ ticket.description }}</p>
+          <p class="ticket-description" :title="ticket.description">{{ ticket.description }}</p>
           
           <div class="ticket-info">
             <div class="info-item clickable" @click="navigateToCustomer(ticket.userId)">
@@ -74,7 +88,7 @@
             </div>
             <div class="info-item">
               <button @click="navigateToDetails(ticket)" class="btn-details-inline">
-                <i class="fas fa-eye "></i>
+                <i class="fas fa-eye"></i>
                 عرض التفاصيل
               </button>
             </div>
@@ -88,7 +102,8 @@
       <h4 class="text-muted">لا توجد تذاكر تطابق الفلتر</h4>
     </div>
 
-    <div v-if="!isLoading && !error && totalTickets > 0" class="pagination-container">
+    <div v-if="!isLoading && !error && totalTickets > 0" class="pagination-wrapper">
+      <div class="pagination-container">
         <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="pagination-btn prev-btn">
           <i class="fas fa-chevron-right"></i>
           السابق
@@ -107,6 +122,25 @@
           التالي
           <i class="fas fa-chevron-left"></i>
         </button>
+      </div>
+      
+      <div class="page-jump-container">
+        <span class="page-jump-label">الانتقال إلى الصفحة:</span>
+        <input 
+          v-model.number="pageJumpInput" 
+          type="number" 
+          :min="1" 
+          :max="totalPages"
+          @keyup.enter="jumpToPage"
+          @input="handlePageInputChange"
+          class="page-jump-input"
+          placeholder="رقم"
+        />
+        <button @click="jumpToPage" class="page-jump-btn" :disabled="!pageJumpInput">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <span class="page-jump-info">من {{ totalPages }}</span>
+      </div>
     </div>
 
     <div v-if="showConfirmModal" class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);">
@@ -192,22 +226,24 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import { useSupportTicketStore } from '@/stores/supportTicketStore';
 import { useOrderStore } from '@/stores/orderStore';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import OrderDetails from '@/components/Order/OrderDetails.vue';
 
 import { useSupportTicketNotificationStore } from '@/stores/supportTicketNotificationStore';
 import { db } from '@/firebase';
-import { collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
-// --------------------
+import { collection, query, where, getDocs, writeBatch, onSnapshot } from 'firebase/firestore';
 
-// Store and Router instances
+// Router and route
+const router = useRouter();
+const route = useRoute();
+
+// Store instances
 const ticketStore = useSupportTicketStore();
 const orderStore = useOrderStore();
-const router = useRouter();
-const ticketNotificationStore = useSupportTicketNotificationStore(); // <-- NEW: Instantiate store
+const ticketNotificationStore = useSupportTicketNotificationStore();
 
 // State for filters and modals
 const searchQuery = ref('');
@@ -228,13 +264,52 @@ const modalErrorMessage = ref('');
 const showSuccessModal = ref(false);
 
 // Pagination state
-const currentPage = ref(1);
+const currentPage = ref(parseInt(route.query.page) || 1);
 const itemsPerPage = ref(10);
+const pageJumpInput = ref('');
 
 // Order Details Modal State
 const isOrderDetailsVisible = ref(false);
 const selectedOrder = ref(null);
 const isOrderLoading = ref(false);
+
+// Firestore listener
+let unsubscribeReplyNotifications = null;
+
+// Function to mark all ticket notifications as read
+const markTicketNotificationsAsRead = async () => {
+  try {
+    console.log("Marking all ticket notifications as read...");
+    
+    const ticketNotificationsQuery = query(
+      collection(db, 'ticket_notifications'),
+      where('is_read', '==', false)
+    );
+    
+    const snapshot = await getDocs(ticketNotificationsQuery);
+    
+    if (snapshot.empty) {
+      console.log("No unread ticket notifications found.");
+      return;
+    }
+    
+    const batch = writeBatch(db);
+    
+    snapshot.docs.forEach(doc => {
+      batch.update(doc.ref, { is_read: true });
+    });
+    
+    await batch.commit();
+    
+    console.log(`Marked ${snapshot.size} ticket notifications as read.`);
+    
+    // Update the store count to 0
+    ticketNotificationStore.setNewTicketCount(0);
+    
+  } catch (error) {
+    console.error("Error marking ticket notifications as read:", error);
+  }
+};
 
 // Computed properties
 const isLoading = computed(() => ticketStore.isLoading);
@@ -253,36 +328,12 @@ const endIndex = computed(() => {
   return Math.min(end, totalTickets.value);
 });
 
-const markAllTicketNotificationsAsRead = async () => {
-  console.log("Marking unread ticket notifications as read...");
-  
-  // Query the 'ticket_notifications' collection
-  const unreadQuery = query(collection(db, 'ticket_notifications'), where('is_read', '==', false));
-  const querySnapshot = await getDocs(unreadQuery);
-
-  if (querySnapshot.empty) {
-    console.log("No unread ticket notifications to mark.");
-    ticketNotificationStore.resetNewTicketCount();
-    return;
-  }
-
-  const batch = writeBatch(db);
-  querySnapshot.forEach(doc => {
-    batch.update(doc.ref, { is_read: true });
-  });
-
-  await batch.commit();
-  console.log(`Successfully marked ${querySnapshot.size} ticket notifications as read.`);
-  ticketNotificationStore.resetNewTicketCount(); // Reset the count in the store
-};
-
 const visiblePages = computed(() => {
     const total = totalPages.value;
     const current = currentPage.value;
-    const pageWindow = 5; // The number of pages to show in a sequence at the start/end
+    const pageWindow = 5;
     const pages = [];
 
-    // If there are 7 or fewer pages in total, show all of them.
     if (total <= 7) {
         for (let i = 1; i <= total; i++) {
             pages.push(i);
@@ -290,7 +341,6 @@ const visiblePages = computed(() => {
         return pages;
     }
 
-    // Case 1: The current page is near the beginning.
     if (current <= pageWindow - 2) {
         for (let i = 1; i <= pageWindow; i++) {
             pages.push(i);
@@ -298,7 +348,6 @@ const visiblePages = computed(() => {
         pages.push('...');
         pages.push(total);
     }
-    // Case 2: The current page is near the end.
     else if (current > total - (pageWindow - 2)) {
         pages.push(1);
         pages.push('...');
@@ -306,7 +355,6 @@ const visiblePages = computed(() => {
             pages.push(i);
         }
     }
-    // Case 3: The current page is in the middle.
     else {
         pages.push(1);
         pages.push('...');
@@ -330,14 +378,73 @@ const filteredTickets = computed(() => {
   return tickets;
 });
 
+// Check if ticket has new reply
+const hasNewReply = (ticketId) => {
+  return ticketStore.hasNewReply(ticketId);
+};
+
+// Update URL query params without reloading
+const updateUrlParams = () => {
+  const query = { ...route.query };
+  
+  if (currentPage.value > 1) {
+    query.page = currentPage.value.toString();
+  } else {
+    delete query.page;
+  }
+  
+  router.replace({ query });
+};
+
+// Fetch tickets with filters
+const fetchTicketsWithFilters = () => {
+  updateUrlParams();
+  ticketStore.fetchTickets({ page: currentPage.value, search: searchQuery.value });
+};
+
+// Listen to reply notifications from Firestore
+const listenToReplyNotifications = () => {
+  console.log("Listening for unread reply notifications...");
+  
+  const replyNotificationsQuery = query(
+    collection(db, 'reply_notifications'),
+    where('is_read', '==', false),
+    where('type', '==', 'new_reply')
+  );
+
+  unsubscribeReplyNotifications = onSnapshot(replyNotificationsQuery, (snapshot) => {
+    const ticketIdsWithReplies = new Set();
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.ticket_id) {
+        ticketIdsWithReplies.add(data.ticket_id);
+      }
+    });
+    
+    // Update the store with tickets that have new replies
+    ticketStore.setTicketsWithNewReplies(Array.from(ticketIdsWithReplies));
+    
+    console.log(`Found ${ticketIdsWithReplies.size} tickets with new replies`);
+  });
+};
+
 // Watcher for search query with debounce
 let debounceTimer = null;
 watch(searchQuery, (newQuery) => {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
     currentPage.value = 1;
-    ticketStore.fetchTickets({ page: 1, search: newQuery });
+    fetchTicketsWithFilters();
   }, 500);
+});
+
+watch(totalPages, (newTotalPages) => {
+  if (currentPage.value > newTotalPages && newTotalPages > 0) {
+    currentPage.value = newTotalPages;
+  } else if (newTotalPages === 0) {
+    currentPage.value = 1;
+  }
 });
 
 // Methods
@@ -389,23 +496,73 @@ const closeSuccessModal = () => {
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value && typeof page === 'number') {
     currentPage.value = page;
-    ticketStore.fetchTickets({ page: page, search: searchQuery.value });
+    fetchTicketsWithFilters();
+  }
+};
+
+const jumpToPage = () => {
+  const page = parseInt(pageJumpInput.value);
+  
+  if (!pageJumpInput.value || isNaN(page)) {
+    alert('الرجاء إدخال رقم صفحة صحيح');
+    return;
+  }
+  
+  if (page < 1) {
+    alert(`رقم الصفحة يجب أن يكون 1 أو أكثر`);
+    pageJumpInput.value = '';
+    return;
+  }
+  
+  if (page > totalPages.value) {
+    alert(`رقم الصفحة يجب أن يكون ${totalPages.value} أو أقل`);
+    pageJumpInput.value = '';
+    return;
+  }
+  
+  goToPage(page);
+  pageJumpInput.value = '';
+};
+
+const handlePageInputChange = () => {
+  if (pageJumpInput.value < 1) {
+    pageJumpInput.value = '';
+  }
+  if (pageJumpInput.value > totalPages.value) {
+    pageJumpInput.value = totalPages.value;
   }
 };
 
 onMounted(async () => {
-  markAllTicketNotificationsAsRead(); // <-- NEW: Call the function on mount
-
+  // Initialize from URL query params
+  if (route.query.page) {
+    currentPage.value = parseInt(route.query.page) || 1;
+  }
+  
   try {
-    await ticketStore.fetchTickets();
+    await fetchTicketsWithFilters();
+    listenToReplyNotifications();
+    
+    // Mark ticket notifications as read when page opens
+    await markTicketNotificationsAsRead();
   } catch (error) {
     console.error('Error loading data:', error);
     displayErrorModal('فشل في تحميل البيانات. يرجى إعادة تحميل الصفحة.');
   }
 });
 
+onUnmounted(() => {
+  // Clean up Firestore listener
+  if (unsubscribeReplyNotifications) {
+    unsubscribeReplyNotifications();
+  }
+});
+
 const navigateToDetails = (ticket) => {
-  router.push(`/support-tickets/${ticket.id}`);
+  router.push({
+    path: `/support-tickets/${ticket.id}`,
+    query: { returnPage: currentPage.value }
+  });
 };
 
 const handleStatusUpdate = (ticket, status) => {
@@ -449,7 +606,6 @@ const confirmStatusUpdate = async () => {
   }
 };
 
-// Method to navigate to customer details page
 const navigateToCustomer = (customerId) => {
   if (customerId) {
     router.push(`/customers/${customerId}`);
@@ -458,7 +614,6 @@ const navigateToCustomer = (customerId) => {
   }
 };
 
-// Method to open order details modal
 const openOrderDetails = async (orderId) => {
   if (!orderId) {
     displayErrorModal('رقم الطلب غير متوفر لهذه التذكرة.');
@@ -469,7 +624,6 @@ const openOrderDetails = async (orderId) => {
   selectedOrder.value = null;
 
   try {
-    // This assumes fetchOrderById exists in your orderStore
     const orderData = await orderStore.fetchOrderById(orderId);
     if (orderData) {
       selectedOrder.value = orderData;
@@ -485,7 +639,6 @@ const openOrderDetails = async (orderId) => {
   }
 };
 
-// Method to close order details modal
 const closeOrderDetailsModal = () => {
   isOrderDetailsVisible.value = false;
   selectedOrder.value = null;
@@ -831,15 +984,19 @@ const closeOrderDetailsModal = () => {
 }
 
 /* PAGINATION STYLES */
+.pagination-wrapper {
+  margin-top: 30px;
+}
+
 .pagination-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 30px;
   padding: 20px;
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 15px;
 }
 
 .pagination-btn {
@@ -919,6 +1076,91 @@ const closeOrderDetailsModal = () => {
   cursor: default;
   background-color: #f8f9fa;
   border-color: #e9ecef;
+}
+
+.page-jump-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 15px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.page-jump-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.page-jump-input {
+  width: 70px;
+  height: 40px;
+  padding: 8px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  transition: all 0.3s ease;
+  direction: ltr;
+}
+
+.page-jump-input:focus {
+  outline: none;
+  border-color: #313131;
+  box-shadow: 0 0 0 3px rgba(49, 49, 49, 0.1);
+}
+
+.page-jump-input::-webkit-inner-spin-button,
+.page-jump-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.page-jump-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.page-jump-input:invalid {
+  border-color: #dc3545;
+}
+
+.page-jump-btn {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-jump-btn:hover:not(:disabled) {
+  border-color: #313131;
+  color: #0f0f0f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(29, 29, 29, 0.2);
+}
+
+.page-jump-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-jump-info {
+  font-size: 14px;
+  font-weight: 500;
+  color: #6c757d;
 }
 
 /* Modal Styling */
@@ -1197,6 +1439,94 @@ const closeOrderDetailsModal = () => {
   text-underline-offset: 3px;
 }
 
+/* NEW REPLY NOTIFICATION STYLES */
+
+/* Ticket card with new reply highlight */
+.ticket-card.has-new-reply {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.ticket-card.has-new-reply .ticket-header {
+  border: 3px solid #fbbf24;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.4), 0px 4px 15px rgba(0, 0, 0, 0.4);
+  position: relative;
+  animation: borderBlink 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 15px rgba(251, 191, 36, 0.6));
+  }
+}
+
+@keyframes borderBlink {
+  0%, 100% {
+    border-color: #fbbf24;
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.6), 0px 4px 15px rgba(0, 0, 0, 0.4);
+  }
+  50% {
+    border-color: #f59e0b;
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.8), 0px 4px 15px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* New reply badge */
+.new-reply-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+  animation: badgeBounce 1s ease-in-out infinite;
+  z-index: 10;
+}
+
+.new-reply-badge i {
+  animation: bellRing 1s ease-in-out infinite;
+}
+
+@keyframes badgeBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes bellRing {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  10%, 30% {
+    transform: rotate(-10deg);
+  }
+  20%, 40% {
+    transform: rotate(10deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+}
+
+/* Enhance ticket card for better visibility of new reply */
+.ticket-card.has-new-reply .ticket-body {
+  border: 3px solid #fbbf24;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.4), 0px 4px 15px rgba(0, 0, 0, 0.4);
+  animation: borderBlink 1.5s ease-in-out infinite;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .ticket-card {
@@ -1243,6 +1573,77 @@ const closeOrderDetailsModal = () => {
   .pagination-container {
     flex-direction: column;
     gap: 20px;
+  }
+  
+  .page-numbers {
+    order: -1; 
+  }
+  
+  .page-jump-container {
+    margin-top: 0;
+  }
+
+  .new-reply-badge {
+    top: 5px;
+    left: 5px;
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 487px) {
+  .container-fluid {
+    padding: 15px;
+  }
+
+  .pagination-container {
+    padding: 15px 10px;
+  }
+
+  .pagination-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    gap: 5px;
+    min-width: 80px;
+  }
+
+  .page-numbers {
+    gap: 3px;
+    margin: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .page-number {
+    min-width: 32px;
+    height: 32px;
+    font-size: 12px;
+    padding: 0;
+  }
+
+  .page-jump-container {
+    padding: 12px 15px;
+  }
+
+  .page-jump-label {
+    font-size: 12px;
+  }
+
+  .page-jump-input {
+    width: 60px;
+    height: 32px;
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .page-jump-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .page-jump-info {
+    font-size: 12px;
   }
 }
 </style>

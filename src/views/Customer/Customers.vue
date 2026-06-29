@@ -144,7 +144,8 @@
     </div>
 
     <div v-if="!customerStore.getIsLoading && !customerStore.getError && totalCustomers > 0"
-      class="pagination-container">
+      class="pagination-wrapper">
+      <div class="pagination-container">
         <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="pagination-btn prev-btn">
           <i class="fas fa-chevron-right"></i>
           السابق
@@ -163,6 +164,25 @@
           التالي
           <i class="fas fa-chevron-left"></i>
         </button>
+      </div>
+      
+      <div class="page-jump-container">
+        <span class="page-jump-label">الانتقال إلى الصفحة:</span>
+        <input 
+          v-model.number="pageJumpInput" 
+          type="number" 
+          :min="1" 
+          :max="totalPages"
+          @keyup.enter="jumpToPage"
+          @input="handlePageInputChange"
+          class="page-jump-input"
+          placeholder="رقم"
+        />
+        <button @click="jumpToPage" class="page-jump-btn" :disabled="!pageJumpInput">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <span class="page-jump-info">من {{ totalPages }}</span>
+      </div>
     </div>
     <div v-if="showModal" class="modal-overlay" @click="closeModal">
       <div class="modal-container" @click.stop>
@@ -187,16 +207,19 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useCustomerStore } from '@/stores/customerStore';
 
 const router = useRouter();
+const route = useRoute();
 const customerStore = useCustomerStore();
+
 const searchQuery = ref('');
 const statusFilter = ref('all');
 const isTogglingStatus = ref(false);
-const currentPage = ref(1);
+const currentPage = ref(parseInt(route.query.page) || 1);
 const itemsPerPage = ref(10); 
+const pageJumpInput = ref('');
 
 // Modal state
 const showModal = ref(false);
@@ -231,14 +254,12 @@ const endIndex = computed(() => {
   return Math.min(end, totalCustomers.value);
 });
 
-// MODIFIED: Advanced logic for pagination display
 const visiblePages = computed(() => {
     const total = totalPages.value;
     const current = currentPage.value;
-    const pageWindow = 5; // The number of pages to show in a sequence at the start/end
+    const pageWindow = 5;
     const pages = [];
 
-    // If there are 7 or fewer pages in total, show all of them.
     if (total <= 7) {
         for (let i = 1; i <= total; i++) {
             pages.push(i);
@@ -246,9 +267,6 @@ const visiblePages = computed(() => {
         return pages;
     }
 
-    // Case 1: The current page is near the beginning.
-    // Shows the first few pages, then an ellipsis, then the last page.
-    // Example: 1, 2, 3, 4, 5, ..., 21
     if (current <= pageWindow - 2) {
         for (let i = 1; i <= pageWindow; i++) {
             pages.push(i);
@@ -256,9 +274,6 @@ const visiblePages = computed(() => {
         pages.push('...');
         pages.push(total);
     }
-    // Case 2: The current page is near the end.
-    // Shows the first page, an ellipsis, then the last few pages.
-    // Example: 1, ..., 17, 18, 19, 20, 21
     else if (current > total - (pageWindow - 2)) {
         pages.push(1);
         pages.push('...');
@@ -266,9 +281,6 @@ const visiblePages = computed(() => {
             pages.push(i);
         }
     }
-    // Case 3: The current page is in the middle.
-    // Shows the first page, ellipsis, a window of pages around the current one, another ellipsis, and the last page.
-    // Example: 1, ..., 10, 11, 12, ..., 21
     else {
         pages.push(1);
         pages.push('...');
@@ -282,6 +294,24 @@ const visiblePages = computed(() => {
     return pages;
 });
 
+// Update URL query params without reloading
+const updateUrlParams = () => {
+  const query = { ...route.query };
+  
+  if (currentPage.value > 1) {
+    query.page = currentPage.value.toString();
+  } else {
+    delete query.page;
+  }
+  
+  router.replace({ query });
+};
+
+// Fetch customers with filters
+const fetchCustomersWithFilters = () => {
+  updateUrlParams();
+  customerStore.fetchCustomers({ page: currentPage.value, search: searchQuery.value });
+};
 
 // --- METHODS & WATCHERS ---
 
@@ -291,7 +321,7 @@ watch(searchQuery, (newQuery) => {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
     currentPage.value = 1;
-    customerStore.fetchCustomers({ page: 1, search: newQuery });
+    fetchCustomersWithFilters();
   }, 500);
 });
 
@@ -304,20 +334,60 @@ watch(totalPages, (newTotalPages) => {
 });
 
 onMounted(() => {
-  customerStore.fetchCustomers({ page: 1 });
+  // Initialize from URL query params
+  if (route.query.page) {
+    currentPage.value = parseInt(route.query.page) || 1;
+  }
+  
+  fetchCustomersWithFilters();
 });
 
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value && typeof page === 'number') {
     currentPage.value = page;
-    customerStore.fetchCustomers({ page: page, search: searchQuery.value });
+    fetchCustomersWithFilters();
+  }
+};
+
+const jumpToPage = () => {
+  const page = parseInt(pageJumpInput.value);
+  
+  if (!pageJumpInput.value || isNaN(page)) {
+    alert('الرجاء إدخال رقم صفحة صحيح');
+    return;
+  }
+  
+  if (page < 1) {
+    alert(`رقم الصفحة يجب أن يكون 1 أو أكثر`);
+    pageJumpInput.value = '';
+    return;
+  }
+  
+  if (page > totalPages.value) {
+    alert(`رقم الصفحة يجب أن يكون ${totalPages.value} أو أقل`);
+    pageJumpInput.value = '';
+    return;
+  }
+  
+  goToPage(page);
+  pageJumpInput.value = '';
+};
+
+const handlePageInputChange = () => {
+  if (pageJumpInput.value < 1) {
+    pageJumpInput.value = '';
+  }
+  if (pageJumpInput.value > totalPages.value) {
+    pageJumpInput.value = totalPages.value;
   }
 };
 
 const viewCustomerDetails = (customer) => {
-  router.push(`/customers/${customer.id}`);
+  router.push({
+    path: `/customers/${customer.id}`,
+    query: { returnPage: currentPage.value }
+  });
 };
-
 const showToggleModal = (customer) => {
   selectedCustomer.value = customer;
   const action = customer.is_active ? 'تعطيل' : 'تفعيل';
@@ -684,15 +754,19 @@ const getEmptyStateMessage = () => {
 }
 
 /* PAGINATION STYLES */
+.pagination-wrapper {
+  margin-top: 30px;
+}
+
 .pagination-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 30px;
   padding: 20px;
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 15px;
 }
 
 .pagination-btn {
@@ -772,6 +846,91 @@ const getEmptyStateMessage = () => {
   cursor: default;
   background-color: #f8f9fa;
   border-color: #e9ecef;
+}
+
+.page-jump-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 15px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.page-jump-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.page-jump-input {
+  width: 70px;
+  height: 40px;
+  padding: 8px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  transition: all 0.3s ease;
+  direction: ltr;
+}
+
+.page-jump-input:focus {
+  outline: none;
+  border-color: #313131;
+  box-shadow: 0 0 0 3px rgba(49, 49, 49, 0.1);
+}
+
+.page-jump-input::-webkit-inner-spin-button,
+.page-jump-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.page-jump-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.page-jump-input:invalid {
+  border-color: #dc3545;
+}
+
+.page-jump-btn {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-jump-btn:hover:not(:disabled) {
+  border-color: #313131;
+  color: #0f0f0f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(29, 29, 29, 0.2);
+}
+
+.page-jump-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-jump-info {
+  font-size: 14px;
+  font-weight: 500;
+  color: #6c757d;
 }
 
 .modal-overlay {
@@ -989,6 +1148,117 @@ const getEmptyStateMessage = () => {
   }
   .page-numbers {
     order: -1; 
+  }
+  .page-jump-container {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 487px) {
+  .container-fluid {
+    padding: 15px;
+  }
+
+  .pagination-container {
+    padding: 15px 10px;
+  }
+
+  .pagination-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    gap: 5px;
+    min-width: 80px;
+  }
+
+  .page-numbers {
+    gap: 3px;
+    margin: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .page-number {
+    min-width: 32px;
+    height: 32px;
+    font-size: 12px;
+    padding: 0;
+  }
+
+  .page-jump-container {
+    padding: 12px 15px;
+  }
+
+  .page-jump-label {
+    font-size: 12px;
+  }
+
+  .page-jump-input {
+    width: 60px;
+    height: 32px;
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .page-jump-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .page-jump-info {
+    font-size: 12px;
+  }
+
+  .stat-card {
+    padding: 20px 15px;
+    gap: 15px;
+  }
+
+  .stat-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
+  }
+
+  .stat-number {
+    font-size: 28px;
+  }
+
+  .stat-label {
+    font-size: 14px;
+  }
+
+  .search-input,
+  .status-filter {
+    padding: 14px 40px 14px 15px;
+    font-size: 16px;
+  }
+
+  .search-icon,
+  .filter-icon {
+    right: 15px;
+    font-size: 14px;
+  }
+
+  .customer-row {
+    padding: 15px;
+  }
+
+  .customer-avatar {
+    width: 45px;
+    height: 45px;
+    font-size: 18px;
+  }
+
+  .modal-container {
+    min-width: 95%;
+    margin: 10px;
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 15px 20px;
   }
 }
 

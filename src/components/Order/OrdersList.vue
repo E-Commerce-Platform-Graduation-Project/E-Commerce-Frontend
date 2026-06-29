@@ -1,5 +1,12 @@
 <template>
   <div class="orders-container">
+    <!-- Mobile Dropdown Backdrop -->
+    <div 
+      v-if="activeDropdown !== null" 
+      class="dropdown-backdrop"
+      @click="activeDropdown = null"
+    ></div>
+
     <!-- List Header -->
     <div class="order-header bg-dark text-white">
       <div class="header-item">معرف الطلب</div>
@@ -39,7 +46,7 @@
             class="btn dropdown-toggle status-btn" 
             :class="getStatusBadgeClass(order.status)" 
             type="button" 
-            :data-bs-toggle="`dropdown-${order.id}`"
+            :data-order-id="order.id"
             @click="toggleDropdown(order.id)"
           >
             {{ order.status }}
@@ -119,16 +126,14 @@ const toggleDropdown = (orderId) => {
 };
 
 const updateStatus = (order, status) => {
-    // Prevent updating to the same status
     if (status === order.status) {
         return;
     }
     
     emit('update-status', order, status);
-    activeDropdown.value = null; // Close dropdown after selection
+    activeDropdown.value = null;
 };
 
-// Close dropdown when clicking outside
 document.addEventListener('click', (event) => {
     if (!event.target.closest('.dropdown')) {
         activeDropdown.value = null;
@@ -141,8 +146,10 @@ document.addEventListener('click', (event) => {
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  overflow: visible;
+  overflow: hidden;
   position: relative;
+  width: 100%;
+  display: block;
 }
 
 .order-header, .order-row {
@@ -152,11 +159,13 @@ document.addEventListener('click', (event) => {
   padding: 15px 25px;
   align-items: center;
   text-align: right;
+  width: 100%;
 }
 
 .order-header {
   font-weight: 600;
   font-size: 14px;
+  border-radius: 12px 12px 0 0;
 }
 
 .order-row {
@@ -164,11 +173,17 @@ document.addEventListener('click', (event) => {
   transition: all 0.3s ease;
   cursor: pointer;
   position: relative;
+  width: 100%;
 }
+
 .order-row:hover {
   background-color: #f8f9fc;
 }
-.order-row:last-child { border-bottom: none; }
+
+.order-row:last-child { 
+  border-bottom: none;
+  border-radius: 0 0 12px 12px;
+}
 
 .order-id { 
   font-weight: bold; 
@@ -191,11 +206,12 @@ document.addEventListener('click', (event) => {
 }
 
 .order-status {
-  position: relative;
+    position: relative;
+    z-index: 100;
 }
 
 .dropdown {
-  position: relative;
+    position: relative;
 }
 
 /* Status Button Styling */
@@ -246,7 +262,7 @@ document.addEventListener('click', (event) => {
     position: absolute;
     top: 100%;
     right: 0;
-    z-index: 1000;
+    z-index: 2000;
     display: none;
     min-width: 150px;
     padding: 0.5rem 0;
@@ -260,10 +276,25 @@ document.addEventListener('click', (event) => {
     border: 1px solid rgba(0,0,0,.15);
     border-radius: 0.375rem;
     box-shadow: 0 0.5rem 1rem rgba(0,0,0,.175);
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .dropdown-menu.show {
     display: block;
+    z-index: 2000;
+}
+
+.order-row:has(.dropdown-menu.show) {
+  z-index: 200;
+}
+
+@media (max-width: 768px) {
+  .dropdown-menu {
+    position: absolute !important;
+    z-index: 9999;
+    min-width: 160px;
+  }
 }
 
 .dropdown-item {
@@ -382,26 +413,109 @@ document.addEventListener('click', (event) => {
 }
 
 @media (max-width: 768px) {
+  .orders-container {
+    overflow: visible;
+    border-radius: 0 0 12px 12px;
+    width: 100%;
+    display: block;
+  }
+  
   .order-header, .order-row {
-    grid-template-columns: 1fr;
+    min-width: 850px;
+    width: 850px;
+    grid-template-columns: 100px 180px 130px 130px 130px 180px;
     gap: 10px;
-    padding: 15px;
+    padding: 12px 15px;
+    font-size: 13px;
   }
   
-  .order-header .header-item,
-  .order-row > div {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid #f1f3f4;
+  .order-header {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background: #343a40 !important;
+    border-radius: 0;
   }
   
-  .order-header .header-item::before,
-  .order-row > div::before {
-    content: attr(data-label);
-    font-weight: 600;
-    color: #6c757d;
+  .order-row {
+    background: white;
+  }
+  
+  .order-row:last-child {
+    border-radius: 0;
+  }
+  
+  .status-btn {
+    min-width: 140px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  
+  .order-status {
+    position: relative;
+    z-index: 100;
+  }
+  
+  .dropdown {
+    position: relative;
+  }
+  
+  .dropdown-menu {
+    position: absolute;
+    z-index: 1000;
+    min-width: 160px;
+  }
+}
+
+@media (max-width: 500px) {
+  .order-header {
+    border-radius: 12px;
+  }
+  .order-header, .order-row {
+    min-width: 800px;
+    width: 800px;
+    grid-template-columns: 90px 160px 120px 120px 120px 170px;
+    gap: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+  
+  .order-id {
+    font-size: 12px;
+  }
+  
+  .order-customer,
+  .order-product-cost,
+  .order-shipping,
+  .order-total {
+    font-size: 12px;
+  }
+  
+  .status-btn {
+    min-width: 130px;
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+  
+  .order-status {
+    position: relative;
+    z-index: 100;
+  }
+  
+  .dropdown {
+    position: relative;
+  }
+  
+  .dropdown-menu {
+    min-width: 150px;
+    font-size: 11px;
+    position: absolute;
+    z-index: 1000;
+  }
+  
+  .dropdown-item {
+    padding: 0.3rem 0.8rem;
+    font-size: 11px;
   }
 }
 </style>

@@ -156,165 +156,169 @@
 
       <div v-if="invoiceItems.length > 0" class="invoice-table-container">
         <h3 class="section-title">الخطوة 3: مراجعة الفاتورة</h3>
-        <div class="table-wrapper">
-          <table class="invoice-table">
-            <thead>
-              <tr>
-                <th class="col-product">المنتج</th>
-                <th class="col-variant">المتغير</th>
-                <th class="col-attributes">الخواص</th>
-                <th class="col-price">سعر الشراء</th>
-                <th class="col-quantity">الكمية</th>
-                <th class="col-price">سعر البيع المقترح</th>
-                <th class="col-total">الإجمالي</th>
-                <th class="col-actions">الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="(item, index) in invoiceItems"
-                :key="item.uniqueId"
-                class="invoice-row"
-                :id="`invoice-row-${item.uniqueId}`"
-              >
-                <td class="col-product">
-                  <div class="product-info">
-                    <span class="product-name">{{ item.productName }}</span>
-                    <small class="product-margin"
-                      >هامش ربح: {{ item.profitMargin }}%</small
-                    >
-                  </div>
-                </td>
-                <td class="col-variant">
-                  <span class="variant-sku">{{ item.variantSku }}</span>
-                </td>
-                <td class="col-attributes">
-                  <div class="props-display">
-                    <span
-                      v-for="attr in item.attributes"
-                      :key="attr.attribute_name"
-                      class="prop-chip"
-                    >
-                      <span
-                        v-if="isColorAttribute(attr.value)"
-                        class="prop-color-dot"
-                        :style="{ backgroundColor: attr.value }"
-                      ></span>
-                      <strong class="prop-name"
-                        >{{ attr.attribute_name }}:</strong
-                      >
-                      {{ attr.value }}
-                    </span>
-                  </div>
-                </td>
-                <td class="col-price">
-                  <div class="input-wrapper">
-                    <input
-                      :value="item.purchasePrice || ''"
-                      type="text"
-                      class="table-input"
-                      placeholder="0.00"
-                      :class="{
-                        'input-error':
-                          errorItem === item.uniqueId && errorType === 'price',
-                        'input-warning':
-                          item.purchasePrice === 0 &&
-                          item.purchasePrice !== null,
-                      }"
-                      @keydown="onNumericInputKeyDown"
-                      @input="handlePurchasePriceInput(item, $event)"
-                      @blur="validateSingleItem(item, 'price')"
-                    />
-                    <small
-                      v-if="
-                        item.purchasePrice === 0 && item.purchasePrice !== null
-                      "
-                      class="input-warning-message"
-                    >
-                      قيمة الشراء الحالية 0 دينار
-                    </small>
-                    <small
-                      v-if="
-                        errorItem === item.uniqueId && errorType === 'price'
-                      "
-                      class="input-error-message"
-                    >
-                      سعر شراء غير صالح
-                    </small>
-                  </div>
-                </td>
-
-                <td class="col-quantity">
-                  <div class="input-wrapper">
-                    <input
-                      :value="item.quantity || ''"
-                      type="text"
-                      class="table-input"
-                      placeholder="0"
-                      :class="{
-                        'input-error':
-                          errorItem === item.uniqueId &&
-                          errorType === 'quantity',
-                      }"
-                      @keydown="onIntegerInputKeyDown"
-                      @input="handleQuantityInput(item, $event)"
-                      @blur="validateSingleItem(item, 'quantity')"
-                    />
-                    <small
-                      v-if="
-                        errorItem === item.uniqueId &&
-                        errorType === 'quantity' &&
-                        item.quantity === 0
-                      "
-                      class="input-error-message"
-                    >
-                      لا يمكن ان تكون الكمية 0
-                    </small>
-                    <small
-                      v-if="
-                        errorItem === item.uniqueId &&
-                        errorType === 'quantity' &&
-                        (item.quantity === null || item.quantity < 0)
-                      "
-                      class="input-error-message"
-                    >
-                      كمية غير صالحة
-                    </small>
-                  </div>
-                </td>
-                <td class="col-price">
-                  <span class="calculated-price">{{
-                    formatCurrency(calculateSellingPrice(item), "")
-                  }}</span>
-                </td>
-                <td class="col-total">
-                  <span class="total-amount">{{
-                    formatCurrency(
-                      (item.purchasePrice || 0) * (item.quantity || 0)
-                    )
-                  }}</span>
-                </td>
-                <td class="col-actions">
-                  <button
-                    @click="removeItem(index)"
-                    type="button"
-                    class="btn-remove"
-                    title="حذف المنتج"
+        <div class="invoice-table-wrapper">
+          <div class="invoice-table-scroll-container">
+            <div class="table-wrapper">
+              <table class="invoice-table">
+                <thead>
+                  <tr>
+                    <th class="col-product">المنتج</th>
+                    <th class="col-variant">المتغير</th>
+                    <th class="col-attributes">الخواص</th>
+                    <th class="col-price">سعر الشراء</th>
+                    <th class="col-quantity">الكمية</th>
+                    <th class="col-price">سعر البيع المقترح</th>
+                    <th class="col-total">الإجمالي</th>
+                    <th class="col-actions">الإجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(item, index) in invoiceItems"
+                    :key="item.uniqueId"
+                    class="invoice-row"
+                    :id="`invoice-row-${item.uniqueId}`"
                   >
-                    <span>×</span>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr class="total-row">
-                <td colspan="7" class="total-label">إجمالي فاتورة الشراء:</td>
-                <td class="total-amount-cell">
-                  {{ formatCurrency(totalInvoiceAmount) }}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+                    <td class="col-product">
+                      <div class="product-info">
+                        <span class="product-name">{{ item.productName }}</span>
+                        <small class="product-margin"
+                          >هامش ربح: {{ item.profitMargin }}%</small
+                        >
+                      </div>
+                    </td>
+                    <td class="col-variant">
+                      <span class="variant-sku">{{ item.variantSku }}</span>
+                    </td>
+                    <td class="col-attributes">
+                      <div class="props-display">
+                        <span
+                          v-for="attr in item.attributes"
+                          :key="attr.attribute_name"
+                          class="prop-chip"
+                        >
+                          <span
+                            v-if="isColorAttribute(attr.value)"
+                            class="prop-color-dot"
+                            :style="{ backgroundColor: attr.value }"
+                          ></span>
+                          <strong class="prop-name"
+                            >{{ attr.attribute_name }}:</strong
+                          >
+                          {{ attr.value }}
+                        </span>
+                      </div>
+                    </td>
+                    <td class="col-price">
+                      <div class="input-wrapper">
+                        <input
+                          :value="item.purchasePrice || ''"
+                          type="text"
+                          class="table-input"
+                          placeholder="0.00"
+                          :class="{
+                            'input-error':
+                              errorItem === item.uniqueId && errorType === 'price',
+                            'input-warning':
+                              item.purchasePrice === 0 &&
+                              item.purchasePrice !== null,
+                          }"
+                          @keydown="onNumericInputKeyDown"
+                          @input="handlePurchasePriceInput(item, $event)"
+                          @blur="validateSingleItem(item, 'price')"
+                        />
+                        <small
+                          v-if="
+                            item.purchasePrice === 0 && item.purchasePrice !== null
+                          "
+                          class="input-warning-message"
+                        >
+                          قيمة الشراء الحالية 0 دينار
+                        </small>
+                        <small
+                          v-if="
+                            errorItem === item.uniqueId && errorType === 'price'
+                          "
+                          class="input-error-message"
+                        >
+                          سعر شراء غير صالح
+                        </small>
+                      </div>
+                    </td>
+
+                    <td class="col-quantity">
+                      <div class="input-wrapper">
+                        <input
+                          :value="item.quantity || ''"
+                          type="text"
+                          class="table-input"
+                          placeholder="0"
+                          :class="{
+                            'input-error':
+                              errorItem === item.uniqueId &&
+                              errorType === 'quantity',
+                          }"
+                          @keydown="onIntegerInputKeyDown"
+                          @input="handleQuantityInput(item, $event)"
+                          @blur="validateSingleItem(item, 'quantity')"
+                        />
+                        <small
+                          v-if="
+                            errorItem === item.uniqueId &&
+                            errorType === 'quantity' &&
+                            item.quantity === 0
+                          "
+                          class="input-error-message"
+                        >
+                          لا يمكن ان تكون الكمية 0
+                        </small>
+                        <small
+                          v-if="
+                            errorItem === item.uniqueId &&
+                            errorType === 'quantity' &&
+                            (item.quantity === null || item.quantity < 0)
+                          "
+                          class="input-error-message"
+                        >
+                          كمية غير صالحة
+                        </small>
+                      </div>
+                    </td>
+                    <td class="col-price">
+                      <span class="calculated-price">{{
+                        formatCurrency(calculateSellingPrice(item), "")
+                      }}</span>
+                    </td>
+                    <td class="col-total">
+                      <span class="total-amount">{{
+                        formatCurrency(
+                          (item.purchasePrice || 0) * (item.quantity || 0)
+                        )
+                      }}</span>
+                    </td>
+                    <td class="col-actions">
+                      <button
+                        @click="removeItem(index)"
+                        type="button"
+                        class="btn-remove"
+                        title="حذف المنتج"
+                      >
+                        <span>×</span>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr class="total-row">
+                    <td colspan="7" class="total-label">إجمالي فاتورة الشراء:</td>
+                    <td class="total-amount-cell">
+                      {{ formatCurrency(totalInvoiceAmount) }}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -421,20 +425,12 @@ const totalInvoiceAmount = computed(() => {
   }, 0);
 });
 
-// ✅ NEW: Function to check if an attribute value is a color (hex color starting with #)
 const isColorAttribute = (value) => {
   if (!value || typeof value !== 'string') return false;
-  
-  // Check if value starts with # and has valid hex color format
   const hexColorRegex = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
   return hexColorRegex.test(value);
 };
 
-// ✅ START: ADDED KEYDOWN HANDLERS TO PREVENT INVALID INPUT
-/**
- * Prevents non-numeric characters from being entered.
- * Allows numbers, one decimal point, one leading sign (+/-), and control keys.
- */
 const onNumericInputKeyDown = (event) => {
   const allowedKeys = [
     "Backspace",
@@ -448,36 +444,27 @@ const onNumericInputKeyDown = (event) => {
     "ArrowDown",
   ];
 
-  // Allow control keys and shortcuts (Ctrl+A, Ctrl+C, etc.)
   if (allowedKeys.includes(event.key) || event.ctrlKey || event.metaKey) {
     return;
   }
 
   const currentValue = event.target.value;
 
-  // Allow one decimal point
   if (event.key === "." && !currentValue.includes(".")) {
     return;
   }
 
-  // Allow one sign (+ or -) only at the beginning
   if ((event.key === "-" || event.key === "+") && currentValue.length === 0) {
     return;
   }
 
-  // Allow numbers
   if (/[0-9]/.test(event.key)) {
     return;
   }
 
-  // Prevent any other key
   event.preventDefault();
 };
 
-/**
- * Prevents non-integer characters from being entered.
- * Allows only whole numbers and control keys.
- */
 const onIntegerInputKeyDown = (event) => {
   const allowedKeys = [
     "Backspace",
@@ -491,49 +478,39 @@ const onIntegerInputKeyDown = (event) => {
     "ArrowDown",
   ];
 
-  // Allow control keys and shortcuts
   if (allowedKeys.includes(event.key) || event.ctrlKey || event.metaKey) {
     return;
   }
 
-  // Allow numbers only
   if (/[0-9]/.test(event.key)) {
     return;
   }
 
-  // Prevent any other key
   event.preventDefault();
 };
-// ✅ END: ADDED KEYDOWN HANDLERS
 
-// ✅ UPDATED: Helper function to get the first image for a variant based on its color attribute VALUE
 const getVariantImage = (variant) => {
   if (!selectedProductDetails.value?.images_by_attribute) return null;
 
-  // Find the color attribute for this variant by checking the VALUE (not the name)
   const colorAttr = variant.attribute_values?.find(attr => 
     isColorAttribute(attr.value)
   );
   
   if (!colorAttr) return null;
 
-  // Get images for this color using the color value as key
   const colorImages =
     selectedProductDetails.value.images_by_attribute[colorAttr.value];
   if (!colorImages || !Array.isArray(colorImages) || colorImages.length === 0)
     return null;
 
-  // Return the first image (they're already sorted by display_order)
   const firstImage = colorImages[0];
   const imageUrl = firstImage.image;
 
-  // Handle both full URLs and relative paths
   return imageUrl.startsWith("http")
     ? imageUrl
     : `http://13.48.136.207${imageUrl}`;
 };
 
-// Search functionality
 const handleSearchInput = () => {
   if (searchTimeout.value) {
     clearTimeout(searchTimeout.value);
@@ -541,7 +518,7 @@ const handleSearchInput = () => {
 
   searchTimeout.value = setTimeout(() => {
     performSearch();
-  }, 300); // Debounce search by 300ms
+  }, 300);
 };
 
 const performSearch = async () => {
@@ -554,7 +531,6 @@ const performSearch = async () => {
   isSearching.value = true;
 
   try {
-    // Use the existing fetchProducts method with search parameter
     const result = await productStore.fetchProducts({
       page: 1,
       search: searchQuery.value,
@@ -585,20 +561,17 @@ const selectProduct = async (product) => {
   await fetchProductDetails(product.id);
 };
 
-// Hide search results when clicking outside
 const hideSearchResults = () => {
   setTimeout(() => {
     showSearchResults.value = false;
   }, 200);
 };
 
-// Fetch product details from API
 const fetchProductDetails = async (productId) => {
   loadingProductDetails.value = true;
   error.value = "";
 
   try {
-    // Use the new method that returns raw API data with variants
     const result = await productStore.fetchProductDetailsWithVariants(
       productId
     );
@@ -652,7 +625,6 @@ onMounted(async () => {
   await productStore.fetchProducts();
 });
 
-// Core Logic Functions
 const addVariantToInvoice = () => {
   if (!selectedVariant.value || !selectedProductDetails.value) return;
 
@@ -718,9 +690,7 @@ const clearInvoice = () => {
   successMessage.value = "";
 };
 
-// Function to sync purchase prices across same product variants
 const syncPurchasePrice = (changedItem, newPrice) => {
-  // Only sync if the new price is a valid number
   if (newPrice !== null && newPrice !== undefined) {
     invoiceItems.forEach((item) => {
       if (
@@ -733,20 +703,16 @@ const syncPurchasePrice = (changedItem, newPrice) => {
   }
 };
 
-// Change Start: Updated validation to show a specific message for quantity 0
 const validateInvoice = () => {
   error.value = "";
   errorItem.value = null;
   errorType.value = null;
 
   for (const item of invoiceItems) {
-    // Sanitize and validate purchase price
     const sanitizedPrice = sanitizeNumericInput(item.purchasePrice);
 
-    // Update the item with sanitized value
     item.purchasePrice = sanitizedPrice;
 
-    // Check if purchase price is null, undefined, or negative. Allow 0.
     if (
       sanitizedPrice === null ||
       sanitizedPrice === undefined ||
@@ -758,13 +724,10 @@ const validateInvoice = () => {
       return { isValid: false, errorId: item.uniqueId };
     }
 
-    // Sanitize and validate quantity
     const sanitizedQuantity = sanitizeNumericInput(item.quantity);
 
-    // Update the item with sanitized value
     item.quantity = sanitizedQuantity;
 
-    // Check for quantity
     if (sanitizedQuantity === 0) {
       error.value = `لا يمكن ان تكون الكمية 0 للمتغير "${item.variantSku}".`;
       errorItem.value = item.uniqueId;
@@ -784,17 +747,14 @@ const validateInvoice = () => {
   }
   return { isValid: true, errorId: null };
 };
-// Change End
 
 const sanitizeNumericInput = (value) => {
   if (value === null || value === undefined || value === "") {
     return null;
   }
 
-  // Convert to string for processing
   let stringValue = String(value).trim();
 
-  // Handle edge cases that cause parsing issues
   if (
     stringValue === "+" ||
     stringValue === "-" ||
@@ -804,16 +764,13 @@ const sanitizeNumericInput = (value) => {
     return null;
   }
 
-  // Remove invalid characters but keep numbers, decimal point, and valid signs
   stringValue = stringValue.replace(/[^\d.-]/g, "");
 
-  // Handle multiple decimal points - keep only the first one
   const parts = stringValue.split(".");
   if (parts.length > 2) {
     stringValue = parts[0] + "." + parts.slice(1).join("");
   }
 
-  // Handle multiple signs - keep only the first one if it's at the beginning
   if (stringValue.match(/[-+]/g)?.length > 1) {
     const firstChar = stringValue.charAt(0);
     const restOfString = stringValue.slice(1).replace(/[-+]/g, "");
@@ -823,13 +780,10 @@ const sanitizeNumericInput = (value) => {
         : restOfString;
   }
 
-  // Remove signs that are not at the beginning
   stringValue = stringValue.replace(/(?!^)[-+]/g, "");
 
-  // Parse the cleaned value
   const parsed = parseFloat(stringValue);
 
-  // Return null for invalid numbers
   if (isNaN(parsed) || !isFinite(parsed)) {
     return null;
   }
@@ -841,13 +795,10 @@ const handlePurchasePriceInput = (item, event) => {
   const rawValue = event.target.value;
   const sanitizedValue = sanitizeNumericInput(rawValue);
 
-  // Update the item's purchase price
   item.purchasePrice = sanitizedValue;
 
-  // Sync with other items of the same product
   syncPurchasePrice(item, sanitizedValue);
 
-  // Clear any existing errors for this item if the value is now valid
   if (
     sanitizedValue !== null &&
     sanitizedValue >= 0 &&
@@ -860,15 +811,12 @@ const handlePurchasePriceInput = (item, event) => {
   }
 };
 
-// Enhanced input handler for quantity - add this method
 const handleQuantityInput = (item, event) => {
   const rawValue = event.target.value;
   const sanitizedValue = sanitizeNumericInput(rawValue);
 
-  // Update the item's quantity
   item.quantity = sanitizedValue;
 
-  // Clear any existing errors for this item if the value is now valid
   if (
     sanitizedValue !== null &&
     sanitizedValue > 0 &&
@@ -882,7 +830,6 @@ const handleQuantityInput = (item, event) => {
 };
 
 const validateSingleItem = (item, fieldType) => {
-  // Clear previous errors for this item and field type
   if (errorItem.value === item.uniqueId && errorType.value === fieldType) {
     error.value = "";
     errorItem.value = null;
@@ -902,7 +849,6 @@ const validateSingleItem = (item, fieldType) => {
       errorItem.value = item.uniqueId;
       errorType.value = "price";
     } else {
-      // Sync the valid price with other items of the same product
       syncPurchasePrice(item, sanitizedPrice);
     }
   } else if (fieldType === "quantity") {
@@ -1009,6 +955,9 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   direction: rtl;
   background: linear-gradient(135deg, #ffffff 0%, #cacacab5 100%);
   min-height: 100vh;
+  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .header {
@@ -1035,9 +984,13 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   border-radius: 16px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   padding: 30px;
-  overflow: visible; /* Keep as visible */
+  overflow: visible;
   position: relative;
-  z-index: 1; /* Low z-index to not interfere */
+  z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 .selection-section {
@@ -1047,15 +1000,15 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   margin-bottom: 30px;
   border: 1px solid #e2e8f0;
   position: relative;
-  z-index: 2; /* Lower than search components */
+  z-index: 2;
 }
 
 .selection-section.step-1 {
-  z-index: 10; /* Higher than other sections but lower than search dropdown */
+  z-index: 10;
 }
 
 .selection-section.step-2 {
-  z-index: 2; /* Lower z-index */
+  z-index: 2;
 }
 
 .section-title {
@@ -1075,7 +1028,7 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
 .search-group {
   flex: 1;
   position: relative;
-  z-index: 100; /* High enough to contain the dropdown but lower than dropdown itself */
+  z-index: 100;
 }
 
 .form-label {
@@ -1090,7 +1043,7 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   position: relative;
   display: flex;
   align-items: center;
-  z-index: 101; /* Higher than parent */
+  z-index: 101;
 }
 
 .search-input {
@@ -1128,8 +1081,8 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25); /* Enhanced shadow */
-  z-index: 99999; /* Very high z-index to ensure it's always on top */
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  z-index: 99999;
   max-height: 300px;
   overflow-y: auto;
   margin-top: 4px;
@@ -1141,7 +1094,7 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   border-bottom: 1px solid #f1f5f9;
   transition: background-color 0.2s ease;
   position: relative;
-  z-index: 100000; /* Even higher to ensure items are clickable */
+  z-index: 100000;
 }
 
 .search-result-item:hover,
@@ -1378,17 +1331,26 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   transform: none !important;
 }
 
-.btn-add {
-  background: linear-gradient(135deg, #10b981, #059669);
+.btn-dark {
+  background: #1f2937;
   color: white;
-  font-size: 16px;
-  padding: 14px 28px;
 }
 
-.btn-add:hover:not(:disabled) {
-  background: linear-gradient(135deg, #059669, #047857);
+.btn-dark:hover:not(:disabled) {
+  background: #111827;
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 8px 25px rgba(31, 41, 55, 0.3);
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(220, 38, 38, 0.3);
 }
 
 .btn-icon {
@@ -1396,17 +1358,76 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   font-weight: bold;
 }
 
-/* Invoice Table */
+/* Invoice Table Container */
 .invoice-table-container {
   margin-top: 30px;
   background: white;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.invoice-table-wrapper {
+  position: relative;
+  width: 100%;
+  overflow: visible;
+}
+
+@media (max-width: 1800px) {
+  .invoice-table-wrapper {
+    width: 100%;
+    overflow: visible;
+  }
+}
+
+.invoice-table-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+@media (max-width: 1800px) {
+  .invoice-table-scroll-container {
+    overflow-x: scroll !important;
+    overflow-y: visible !important;
+    width: 100%;
+  }
+}
+
+.invoice-table-scroll-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.invoice-table-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.invoice-table-scroll-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+.invoice-table-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }
 
 .table-wrapper {
-  overflow-x: auto;
+  overflow: visible;
+  width: 100%;
+  display: inline-block;
+  min-width: 100%;
+}
+
+@media (max-width: 1800px) {
+  .table-wrapper {
+    min-width: auto;
+    width: auto;
+  }
 }
 
 .invoice-table {
@@ -1514,7 +1535,6 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   color: #64748b;
 }
 
-/*// Change Start: Added styles for input error message */
 .input-wrapper {
   position: relative;
 }
@@ -1536,7 +1556,6 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   margin-top: 4px;
   text-align: center;
 }
-/*// Change End */
 
 .table-input {
   width: 100%;
@@ -1647,17 +1666,10 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   margin-top: 30px;
   padding-top: 20px;
   border-top: 1px solid #e2e8f0;
-}
-
-.btn-secondary {
-  background: #6b7280;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #4b5563;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .btn-primary {
@@ -1817,36 +1829,6 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   background-color: #fef2f2 !important;
 }
 
-/* Alert styles */
-.alert {
-  padding: 16px 20px;
-  border-radius: 8px;
-  margin: 16px 0;
-  font-size: 14px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.alert-success {
-  background: #dcfce7;
-  color: #166534;
-  border: 1px solid #bbf7d0;
-}
-
-.alert-error {
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
-}
-
-/* Currency formatting helper */
-.currency {
-  font-family: "Monaco", "Menlo", monospace;
-  font-weight: 600;
-}
-
 /* Responsive Design */
 @media (max-width: 1200px) {
   .variants-grid {
@@ -1876,10 +1858,6 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
   .variants-grid {
     grid-template-columns: 1fr;
     gap: 12px;
-  }
-
-  .table-wrapper {
-    border-radius: 8px;
   }
 
   .invoice-table {
@@ -1941,12 +1919,15 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
 .selection-section.step-1 {
   animation-delay: 0.1s;
 }
+
 .selection-section.step-2 {
   animation-delay: 0.2s;
 }
+
 .invoice-table-container {
   animation-delay: 0.3s;
 }
+
 .form-actions {
   animation-delay: 0.4s;
 }
@@ -1966,30 +1947,39 @@ const formatCurrency = (amount, currencySymbol = " د.ل") => {
 .text-center {
   text-align: center;
 }
+
 .text-right {
   text-align: right;
 }
+
 .text-left {
   text-align: left;
 }
+
 .font-bold {
   font-weight: bold;
 }
+
 .font-semibold {
   font-weight: 600;
 }
+
 .text-sm {
   font-size: 14px;
 }
+
 .text-xs {
   font-size: 12px;
 }
+
 .mt-2 {
   margin-top: 8px;
 }
+
 .mb-2 {
   margin-bottom: 8px;
 }
+
 .p-2 {
   padding: 8px;
 }

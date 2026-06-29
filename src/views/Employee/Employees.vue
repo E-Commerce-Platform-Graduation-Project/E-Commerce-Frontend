@@ -62,7 +62,8 @@
         </div>
       </div>
 
-      <div v-if="!isLoading && !error && totalEmployees > 0" class="pagination-container mt-4">
+      <div v-if="!isLoading && !error && totalEmployees > 0" class="pagination-wrapper">
+        <div class="pagination-container mt-4">
           <button 
             @click="goToPage(currentPage - 1)"
             :disabled="currentPage === 1"
@@ -92,6 +93,25 @@
             التالي
             <i class="fas fa-chevron-left"></i>
           </button>
+        </div>
+
+        <div class="page-jump-container">
+          <span class="page-jump-label">الانتقال إلى الصفحة:</span>
+          <input 
+            v-model.number="pageJumpInput" 
+            type="number" 
+            :min="1" 
+            :max="totalPages"
+            @keyup.enter="jumpToPage"
+            @input="handlePageInputChange"
+            class="page-jump-input"
+            placeholder="رقم"
+          />
+          <button @click="jumpToPage" class="page-jump-btn" :disabled="!pageJumpInput">
+            <i class="fas fa-arrow-left"></i>
+          </button>
+          <span class="page-jump-info">من {{ totalPages }}</span>
+        </div>
       </div>
     </div>
 
@@ -107,6 +127,7 @@
 
 <script>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import EmployeesList from '@/components/Employee/EmployeesList.vue'
 import EmployeeDetails from '@/components/Employee/EmployeeDetails.vue'
@@ -119,6 +140,8 @@ export default {
   },
   setup() {
     const authStore = useAuthStore()
+    const router = useRouter()
+    const route = useRoute()
     
     // State
     const employeesData = ref({ count: 0, results: [] })
@@ -129,8 +152,9 @@ export default {
     const showEmployeeDetails = ref(false)
 
     // Pagination State
-    const currentPage = ref(1)
+    const currentPage = ref(parseInt(route.query.page) || 1)
     const itemsPerPage = ref(10)
+    const pageJumpInput = ref('')
 
     // Computed: Get total count from API response
     const totalEmployees = computed(() => employeesData.value.count || 0)
@@ -200,12 +224,26 @@ export default {
         return pages;
     });
 
+    // Update URL query params without reloading
+    const updateUrlParams = () => {
+      const query = { ...route.query }
+      
+      if (currentPage.value > 1) {
+        query.page = currentPage.value.toString()
+      } else {
+        delete query.page
+      }
+      
+      router.replace({ query })
+    }
+
     // Methods
     const fetchEmployees = async () => {
       isLoading.value = true
       error.value = null
       
       try {
+        updateUrlParams()
         const response = await authStore.getAllUsers({
           page: currentPage.value,
           search: searchQuery.value
@@ -224,6 +262,45 @@ export default {
       if (page >= 1 && page <= totalPages.value && typeof page === 'number') {
         currentPage.value = page
         fetchEmployees()
+      }
+    }
+
+    const jumpToPage = () => {
+      const page = parseInt(pageJumpInput.value)
+      
+      // Check if input is empty or not a number
+      if (!pageJumpInput.value || isNaN(page)) {
+        alert('الرجاء إدخال رقم صفحة صحيح')
+        return
+      }
+      
+      // Check if page is less than 1
+      if (page < 1) {
+        alert(`رقم الصفحة يجب أن يكون 1 أو أكثر`)
+        pageJumpInput.value = ''
+        return
+      }
+      
+      // Check if page exceeds total pages
+      if (page > totalPages.value) {
+        alert(`رقم الصفحة يجب أن يكون ${totalPages.value} أو أقل`)
+        pageJumpInput.value = ''
+        return
+      }
+      
+      // If page is valid, navigate to it
+      goToPage(page)
+      pageJumpInput.value = ''
+    }
+
+    const handlePageInputChange = () => {
+      // Prevent negative numbers and zero
+      if (pageJumpInput.value < 1) {
+        pageJumpInput.value = ''
+      }
+      // Prevent exceeding total pages while typing
+      if (pageJumpInput.value > totalPages.value) {
+        pageJumpInput.value = totalPages.value
       }
     }
 
@@ -282,6 +359,11 @@ export default {
 
     // Lifecycle
     onMounted(() => {
+      // Initialize from URL query params
+      if (route.query.page) {
+        currentPage.value = parseInt(route.query.page) || 1
+      }
+      
       fetchEmployees()
     })
 
@@ -299,12 +381,15 @@ export default {
       visiblePages,
       startIndex,
       endIndex,
+      pageJumpInput,
       fetchEmployees,
       handleEmployeeUpdated,
       handleEmployeeDeleted,
       handleViewEmployee,
       closeEmployeeDetails,
-      goToPage
+      goToPage,
+      jumpToPage,
+      handlePageInputChange
     }
   }
 }
@@ -376,6 +461,10 @@ export default {
 }
 
 /* PAGINATION STYLES */
+.pagination-wrapper {
+  margin-top: 30px;
+}
+
 .pagination-container {
   display: flex;
   justify-content: space-between;
@@ -384,6 +473,7 @@ export default {
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  margin-bottom: 15px;
 }
 
 .pagination-btn {
@@ -465,6 +555,91 @@ export default {
   border-color: #e9ecef;
 }
 
+.page-jump-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 15px 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.page-jump-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.page-jump-input {
+  width: 70px;
+  height: 40px;
+  padding: 8px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  transition: all 0.3s ease;
+  direction: ltr;
+}
+
+.page-jump-input:focus {
+  outline: none;
+  border-color: #313131;
+  box-shadow: 0 0 0 3px rgba(49, 49, 49, 0.1);
+}
+
+.page-jump-input::-webkit-inner-spin-button,
+.page-jump-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.page-jump-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.page-jump-input:invalid {
+  border-color: #dc3545;
+}
+
+.page-jump-btn {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  background: white;
+  color: #495057;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-jump-btn:hover:not(:disabled) {
+  border-color: #313131;
+  color: #0f0f0f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(29, 29, 29, 0.2);
+}
+
+.page-jump-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-jump-info {
+  font-size: 14px;
+  font-weight: 500;
+  color: #6c757d;
+}
+
 @media (max-width: 768px) {
   .container-fluid {
     padding-left: 1rem !important;
@@ -485,6 +660,66 @@ export default {
   .pagination-container {
     flex-direction: column;
     gap: 20px;
+  }
+
+  .page-numbers {
+    order: -1;
+  }
+
+  .page-jump-container {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 487px) {
+  .pagination-container {
+    padding: 15px 10px;
+  }
+
+  .pagination-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    gap: 5px;
+    min-width: 80px;
+  }
+
+  .page-numbers {
+    gap: 3px;
+    margin: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .page-number {
+    min-width: 32px;
+    height: 32px;
+    font-size: 12px;
+    padding: 0;
+  }
+
+  .page-jump-container {
+    padding: 12px 15px;
+  }
+
+  .page-jump-label {
+    font-size: 12px;
+  }
+
+  .page-jump-input {
+    width: 60px;
+    height: 32px;
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .page-jump-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .page-jump-info {
+    font-size: 12px;
   }
 }
 </style>

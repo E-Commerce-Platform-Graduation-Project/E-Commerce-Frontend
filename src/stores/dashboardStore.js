@@ -22,14 +22,28 @@ export const useDashboardStore = defineStore('dashboard', {
   },
 
   actions: {
-    async fetchDashboardData() {
+    async fetchDashboardData(startDate = null, endDate = null) {
       this.loading = true;
       this.error = null;
       try {
-        const response = await api.get('/products/dashboard/statistics/');
+        // Build query parameters if dates are provided
+        let url = '/products/dashboard/statistics/';
+        const params = new URLSearchParams();
+        
+        if (startDate && endDate) {
+          params.append('start_date', startDate);
+          params.append('end_date', endDate);
+        }
+        
+        // Add params to URL if they exist
+        if (params.toString()) {
+          url += `?${params.toString()}`;
+        }
+        
+        const response = await api.get(url);
         this.dashboardData = response.data;
       } catch (error) {
-        this.error = error.message;
+        this.error = error.message || 'حدث خطأ أثناء تحميل البيانات';
         console.error('Error fetching dashboard data:', error);
       } finally {
         this.loading = false;

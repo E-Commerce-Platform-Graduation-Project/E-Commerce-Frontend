@@ -7,6 +7,7 @@ export const useSupportTicketStore = defineStore('supportTicket', {
     ticketsCount: 0,
     isLoading: false,
     error: null,
+    ticketsWithNewReplies: new Set(), // Track tickets with unread replies
   }),
 
   getters: {
@@ -27,6 +28,10 @@ export const useSupportTicketStore = defineStore('supportTicket', {
     getTicketsCount: (state) => state.ticketsCount,
     getIsLoading: (state) => state.isLoading,
     getError: (state) => state.error,
+    
+    hasNewReply: (state) => (ticketId) => {
+      return state.ticketsWithNewReplies.has(ticketId);
+    },
   },
 
   actions: {
@@ -130,6 +135,21 @@ export const useSupportTicketStore = defineStore('supportTicket', {
       } finally {
         this.isLoading = false;
       }
-    }
+    },
+
+    // Add ticket to the set of tickets with new replies
+    addTicketWithNewReply(ticketId) {
+      this.ticketsWithNewReplies.add(ticketId);
+    },
+
+    // Remove ticket from the set when user opens the details
+    removeTicketWithNewReply(ticketId) {
+      this.ticketsWithNewReplies.delete(ticketId);
+    },
+
+    // Set multiple tickets with new replies at once
+    setTicketsWithNewReplies(ticketIds) {
+      this.ticketsWithNewReplies = new Set(ticketIds);
+    },
   },
 });

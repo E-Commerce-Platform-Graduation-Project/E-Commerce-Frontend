@@ -1,6 +1,52 @@
 <template>
   <div class="dashboard-container">
-    <h2 class="dashboard-title">لوحة البيانات</h2>
+    <div class="dashboard-header">
+      <h2 class="dashboard-title">لوحة البيانات</h2>
+      
+      <!-- Date Range Picker -->
+      <div class="date-range-picker">
+        <div class="date-input-group">
+          <label for="start-date">من تاريخ:</label>
+          <input 
+            id="start-date"
+            type="date" 
+            v-model="startDate" 
+            :max="endDate || today"
+            class="date-input"
+          />
+        </div>
+        
+        <div class="date-input-group">
+          <label for="end-date">إلى تاريخ:</label>
+          <input 
+            id="end-date"
+            type="date" 
+            v-model="endDate" 
+            :min="startDate"
+            :max="today"
+            class="date-input"
+          />
+        </div>
+        
+        <button 
+          @click="applyDateFilter" 
+          class="apply-btn"
+          :disabled="!startDate || !endDate"
+        >
+          <span class="material-icons">search</span>
+          تطبيق
+        </button>
+        
+        <button 
+          @click="resetDateFilter" 
+          class="reset-btn"
+          v-if="startDate || endDate"
+        >
+          <span class="material-icons">refresh</span>
+          إعادة تعيين
+        </button>
+      </div>
+    </div>
 
     <div v-if="loading" class="loading-content">
       <div class="loading-spinner"></div>
@@ -182,14 +228,46 @@ export default {
     const loading = computed(() => dashboardStore.loading);
     const isGeocoding = ref(false);
     const shouldAnimate = ref(false);
+    
+    // Date range state
+    const startDate = ref('');
+    const endDate = ref('');
+    const today = new Date().toISOString().split('T')[0];
 
     onMounted(() => {
       dashboardStore.fetchDashboardData();
     });
 
+    const applyDateFilter = () => {
+      if (startDate.value && endDate.value) {
+        shouldAnimate.value = false;
+        dashboardStore.fetchDashboardData(startDate.value, endDate.value);
+      }
+    };
+
+    const resetDateFilter = () => {
+      startDate.value = '';
+      endDate.value = '';
+      shouldAnimate.value = false;
+      dashboardStore.fetchDashboardData();
+    };
+
     const geocodeAndAddPins = async (cityData) => {
-      if (!map.value) return;
+      if (!map.value) {
+        console.log('Map not initialized yet');
+        return;
+      }
+      
+      console.log('Starting geocoding for cities:', cityData);
       isGeocoding.value = true;
+
+      // Clear only markers, not the tile layer
+      map.value.eachLayer((layer) => {
+        if (layer instanceof L.Marker) {
+          map.value.removeLayer(layer);
+          console.log('Removed marker');
+        }
+      });
 
       try {
         const promises = cityData.map(async (city) => {
@@ -215,7 +293,7 @@ export default {
 
         locations.forEach(location => {
           if (location && location.coords) {
-            // Create custom red icon
+            console.log('Adding marker for:', location.name);
             const redIcon = L.icon({
               iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
               shadowUrl: iconShadow,
@@ -249,6 +327,8 @@ export default {
             });
           }
         });
+        
+        console.log('Finished adding all markers');
       } catch (error) {
         console.error("An error occurred during geocoding:", error);
       } finally {
@@ -257,22 +337,35 @@ export default {
     };
 
     watch(loading, (newLoading, oldLoading) => {
+      console.log('Loading changed:', { newLoading, oldLoading });
       if (newLoading === false && oldLoading === true) {
         nextTick(() => {
-          // Trigger bar animation after a short delay
           setTimeout(() => {
             shouldAnimate.value = true;
           }, 100);
 
+          // Initialize map if it doesn't exist
           if (mapContainer.value && !map.value) {
+            console.log('Creating new map');
             map.value = L.map(mapContainer.value).setView([27.5, 17.5], 5);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
               attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map.value);
           }
+          
+          // Always update pins when loading completes
           const cityData = dashboardStore.ordersPerCity;
-          if (cityData && cityData.length > 0) {
-            geocodeAndAddPins(cityData);
+          console.log('City data after loading:', cityData);
+          if (cityData && cityData.length > 0 && map.value) {
+            console.log('Calling geocodeAndAddPins with data:', cityData);
+            setTimeout(() => {
+              if (map.value) {
+                map.value.invalidateSize();
+                geocodeAndAddPins(cityData);
+              }
+            }, 200);
+          } else {
+            console.log('No city data or map not ready', { cityData, hasMap: !!map.value });
           }
         });
       }
@@ -280,15 +373,12 @@ export default {
 
     const formatCurrency = (value) => new Intl.NumberFormat('ar-LY', { style: 'currency', currency: 'LYD' }).format(value);
 
-    // --- NEW: Status Translations ---
     const statusTranslations = {
-      // Order Statuses
       'pending': 'قيد الانتظار',
       'processing': 'قيد التجهيز',
       'shipped': 'في الطريق الى الزبون',
       'completed': 'مكتمل',
       'cancelled': 'ملغي',
-      // Ticket Statuses
       'open': 'مفتوحة',
       'in progress': 'قيد المعالجة',
       'closed': 'مغلقة',
@@ -297,13 +387,10 @@ export default {
       const lowerCaseStatus = status.toLowerCase();
       return statusTranslations[lowerCaseStatus] || status;
     };
-    // ---------------------------------
 
-    // Sort orders status in the specified order
     const statusOrder = ['pending', 'processing', 'shipped', 'completed', 'cancelled'];
     const sortedOrdersStatusSummary = computed(() => {
       if (!dashboardStore.ordersStatusSummary) return [];
-
       return [...dashboardStore.ordersStatusSummary].sort((a, b) => {
         const indexA = statusOrder.indexOf(a.status.toLowerCase());
         const indexB = statusOrder.indexOf(b.status.toLowerCase());
@@ -311,18 +398,15 @@ export default {
       });
     });
 
-    // Calculate total orders count for percentage calculation
     const totalOrdersCount = computed(() => {
       if (!dashboardStore.ordersStatusSummary) return 1;
       return dashboardStore.ordersStatusSummary.reduce((sum, item) => sum + item.count, 0) || 1;
     });
 
-    // --- NEW: Calculate total tickets count ---
     const totalTicketsCount = computed(() => {
       if (!dashboardStore.ticketsStatusSummary) return 1;
       return dashboardStore.ticketsStatusSummary.reduce((sum, item) => sum + item.count, 0) || 1;
     });
-    // -----------------------------------------
 
     const getStatusWrapperClass = (status) => {
       const statusMap = {
@@ -346,7 +430,6 @@ export default {
       return statusMap[status.toLowerCase()] || '';
     };
 
-    // --- NEW: Ticket Status Color Mappings ---
     const getTicketStatusWrapperClass = (status) => {
       const statusMap = {
         'open': 'status-wrapper-open',
@@ -364,12 +447,16 @@ export default {
       };
       return statusMap[status.toLowerCase()] || '';
     };
-    // -----------------------------------------
 
     return {
       loading,
       isGeocoding,
       shouldAnimate,
+      startDate,
+      endDate,
+      today,
+      applyDateFilter,
+      resetDateFilter,
       error: computed(() => dashboardStore.error),
       totalRevenue: computed(() => dashboardStore.totalRevenue),
       totalOrders: computed(() => dashboardStore.totalOrders),
@@ -432,6 +519,100 @@ export default {
   }
 }
 
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.date-range-picker {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: white;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex-wrap: wrap;
+}
+
+.date-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.date-input-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.date-input {
+  padding: 0.6rem 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: 'Tajawal', sans-serif;
+  transition: all 0.3s;
+  min-width: 160px;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+.apply-btn,
+.reset-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: 'Tajawal', sans-serif;
+  margin-top: 1.5rem;
+}
+
+.apply-btn {
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+  color: white;
+}
+
+.apply-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
+}
+
+.apply-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.reset-btn {
+  background: linear-gradient(135deg, #718096 0%, #4a5568 100%);
+  color: white;
+}
+
+.reset-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(113, 128, 150, 0.4);
+}
+
+.apply-btn .material-icons,
+.reset-btn .material-icons {
+  font-size: 1.2rem;
+}
+
 .map-wrapper {
   position: relative;
   width: 100%;
@@ -483,7 +664,6 @@ export default {
   font-size: 2rem;
   font-weight: bold;
   color: #1a202c;
-  margin-bottom: 2rem;
 }
 
 .loading,
@@ -584,7 +764,6 @@ export default {
   height: 35px;
 }
 
-/* Status-specific wrapper backgrounds (soft colors) */
 .status-wrapper-pending {
   background-color: #fff8e1 !important;
 }
@@ -605,7 +784,6 @@ export default {
   background-color: #ffebee !important;
 }
 
-/* NEW: Ticket Status wrapper backgrounds */
 .status-wrapper-open {
   background-color: #f59f0b27 !important;
 }
@@ -634,7 +812,6 @@ export default {
   transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Status-specific bar colors (dark colors) */
 .status-bar-pending {
   background: #f59e0b !important;
 }
@@ -655,7 +832,6 @@ export default {
   background: #ef4444 !important;
 }
 
-/* NEW: Ticket Status bar colors */
 .status-bar-open {
   background: #f59e0b !important;
 }
@@ -857,6 +1033,26 @@ export default {
 }
 
 @media (max-width: 768px) {
+  .dashboard-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .date-range-picker {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .date-input {
+    width: 100%;
+  }
+
+  .apply-btn,
+  .reset-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
   .dashboard-grid {
     grid-template-columns: 1fr;
   }

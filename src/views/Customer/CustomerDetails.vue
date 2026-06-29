@@ -20,7 +20,7 @@
                         </span>
                     </div>
                 </div>
-                <div class="btn btn-outline-secondary" @click="router.back()">
+                <div class="btn btn-outline-secondary" @click="goBack()">
                     <i class="fas fa-arrow-right me-2"></i>
                     العودة
                 </div>
@@ -461,6 +461,15 @@ const handleImageError = (event) => {
     event.target.src = '/placeholder-product.png';
     event.target.onerror = null;
 };
+
+const goBack = () => {
+  const returnPage = route.query.returnPage;
+  if (returnPage) {
+    router.push({ path: '/customers', query: { page: returnPage } });
+  } else {
+    router.back();
+  }
+};
 </script>
 
 <style scoped>
@@ -804,6 +813,9 @@ const handleImageError = (event) => {
     }
     .product-info {
         width: 100%;
+    }
+    .orders-pagination{
+        margin-top: 30px;
     }
 }
 </style>
