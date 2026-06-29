@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script>
+      var l = window.location;
+      l.replace(
+        l.protocol + '//' + l.host + '/E-Commerce-Frontend/' +
+        '?p=' + encodeURIComponent(l.pathname + l.search) +
+        l.hash
+      );
+    </script>
+  </head>
+  <body></body>
+</html>
